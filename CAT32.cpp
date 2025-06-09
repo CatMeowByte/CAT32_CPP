@@ -7,13 +7,12 @@ int main() {
  if (!sdl_init()) {return 1;}
  init();
 
+ constexpr float update_interval = 1000.0f / TICK_UPDATE; // ~66.666 ms
+ constexpr float frame_interval = 1000.0f / TICK_DRAW; // ~8.333 ms
+
  u32 tick_prev = sdl_get_ticks();
  float update_time = 0.0f;
  float draw_time = 0.0f;
-
- // Calculate intervals inside main
- constexpr float update_interval = 1000.0f / TICK_UPDATE; // ~66.666 ms
- constexpr float frame_interval = 1000.0f / TICK_DRAW; // ~8.333 ms
 
  while (sdl_poll()) {
   u32 tick_now = sdl_get_ticks();
@@ -38,4 +37,21 @@ int main() {
 
  sdl_shutdown();
  return 0;
+}
+
+void fps() {
+ static float fps = 0;
+ static u32 lastFrame = 0;
+
+ u32 now = sdl_get_ticks();
+ u32 delta = now - lastFrame;
+ lastFrame = now;
+
+ if (delta > 0) {
+  fps = 1000.0f / delta;
+ }
+
+ char buf[5];
+ snprintf(buf, sizeof(buf), "%.1f", fps);
+ text((VIDEO_WIDTH - (4 * 4)) / 2, VIDEO_HEIGHT - 8, buf, 7, 0);
 }

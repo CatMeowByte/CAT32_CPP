@@ -1,19 +1,16 @@
 #include "CAT32.hpp"
 #include "lib/sdl.hpp"
 
-float fps = 0;
-u32 lastFrame = sdl_get_ticks();
-
 void init() {
  // user-defined setup logic
- std::ifstream file("/media/beta/share/cpp/CAT32/example/0.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/0.app");
  if (!file) {
-  std::cerr << "Failed to open file.\n";
+  cerr << "Failed to open file.\n";
  }
 
- std::string line;
- while (std::getline(file, line)) {
-  std::cout << line << "\n";
+ string line;
+ while (getline(file, line)) {
+  cout << line << "\n";
  }
 }
 
@@ -40,17 +37,7 @@ void draw() {
  text(0, 48, "`abcdefghijklmno", 7, 2);
  text(0, 56, "pqrstuvwxyz{|}~ ", 8, 1);
 
- u32 now = sdl_get_ticks();
- u32 delta = now - lastFrame;
- lastFrame = now;
-
- if (delta > 0) {
-  fps = 1000.0f / delta;
- }
-
- char buf[32];
- snprintf(buf, sizeof(buf), "FPS=%.1f", fps);
- text(0, 120, buf, 7, 0);
+ fps();
 
  flip();
 }

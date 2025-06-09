@@ -106,14 +106,14 @@ void rect(s16 x, s16 y, s16 width, s16 height, u8 color, bool fill) {
  }
 }
 
-void text(s16 x, s16 y, const char* str, u8 color, u8 background) {
+void text(s16 x, s16 y, const str text, u8 color, u8 background) {
  x -= cam_x;
  y -= cam_y;
 
  s16 current_x = x;
  s16 current_y = y;
 
- const char* s = str;
+ str s = text;
  while (*s) {
   u32 ordinal = utf8_ordinal(s);
 

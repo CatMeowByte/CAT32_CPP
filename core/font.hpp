@@ -124,7 +124,7 @@ constexpr u32 FONT_CHARACTER(u32 ordinal) {
  0b11111111110111111011100111111111; // " � "
 }
 
-constexpr u32 utf8_ordinal(const char*& s) {
+constexpr u32 utf8_ordinal(str& s) {
  u8 c = *s++;
  if (c < 0x80) {
   return c;
