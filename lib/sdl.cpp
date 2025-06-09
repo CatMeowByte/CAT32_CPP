@@ -13,7 +13,7 @@ static constexpr u32 PALETTE[16] = {
 
 static SDL_Window* window = nullptr;
 static SDL_Surface* surface_front = nullptr; // what shows on screen
-static SDL_Surface* surface_back = nullptr;   // your 4bpp framebuffer as SDL surface
+static SDL_Surface* surface_back = nullptr;   // 4bpp framebuffer as SDL surface
 static SDL_Palette* palette = nullptr;
 static bool running = true;
 

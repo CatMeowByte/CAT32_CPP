@@ -8,3 +8,4 @@ RECT -17 17 55 5 12 1
 RECT 17 45 3 3 4 0
 
 TEXT 0 48 "Hi, all!" 7 2
+TEXT 0 56 "Linebreak:\nQuote:\" Backslash:\\ Tab:\tEnd" 7 2
