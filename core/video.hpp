@@ -1,7 +1,6 @@
 #pragma once
 
 #include "spec/spec.hpp"
-#include <uchar.h>
 
 u8 pixel(s16 x, s16 y);
 void pixel(s16 x, s16 y, u8 color);
