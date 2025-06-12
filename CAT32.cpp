@@ -32,7 +32,7 @@ int main() {
    draw_time = 0.0f;
   }
 
-  sdl_delay(16); // 60 Hz
+  sdl_delay(1);
  }
 
  sdl_shutdown();
@@ -53,5 +53,5 @@ void fps() {
 
  char buf[5];
  snprintf(buf, sizeof(buf), "%.1f", fps);
- text((VIDEO_WIDTH - (4 * 4)) / 2, VIDEO_HEIGHT - 8, buf, 7, 0);
+ video::text((VIDEO_WIDTH - (4 * 4)) / 2, VIDEO_HEIGHT - 8, buf, 7, 0);
 }

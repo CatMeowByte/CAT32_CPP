@@ -6,7 +6,7 @@ enum TokenType {
  NIL,
  CMD,
  INT,
- STR
+ STR,
 };
 
 struct Token {
@@ -14,4 +14,8 @@ struct Token {
  string value;
 };
 
-vector<Token> tokenize(const string& line);
+using Line = vector<Token>;
+
+Line tokenize(const string& text);
+
+void execute(const Line& line);
