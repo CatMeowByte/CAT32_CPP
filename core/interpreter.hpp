@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spec/spec.hpp"
+#include "spec/spec.hpp" // IWYU pragma: keep
 
 namespace interpreter {
  enum TokenType {
@@ -11,7 +11,7 @@ namespace interpreter {
  };
 
  struct Token {
-  TokenType type;
+ TokenType type;
   string value;
  };
 

@@ -1,13 +1,13 @@
 #pragma once
 
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
+#include <cstdint> // IWYU pragma: export
+#include <cstdlib> // IWYU pragma: export
+#include <cstring> // IWYU pragma: export
+#include <fstream> // IWYU pragma: export
+#include <iostream> // IWYU pragma: export
+#include <sstream> // IWYU pragma: export
+#include <string> // IWYU pragma: export
+#include <vector> // IWYU pragma: export
 
 using namespace std;
 

@@ -1,7 +1,51 @@
-#include "CAT32.hpp"
-
+#include "core/interpreter.hpp"
+#include "core/video.hpp"
 #include "lib/sdl.hpp"
-#include "spec/spec.hpp"
+#include "spec/base.hpp"
+
+void fps();
+
+vector<interpreter::Line> code;
+
+void init() {
+ ifstream file("/media/storage/share/cpp/CAT32/example/0.app");
+ if (!file) {
+  cerr << "Failed to open file.\n";
+ }
+
+ string line;
+ // per line
+ while (getline(file, line)) {
+  code.push_back(interpreter::tokenize(line));
+ }
+
+ // print type with value
+ for (u16 i = 0; i < code.size(); i++) {
+  for (u16 j = 0; j < code[i].size(); j++) {
+   if (j > 0) {cout << ' ';}
+   cout << "[";
+   if (code[i][j].type == interpreter::CMD) {cout << "CMD";}
+   else if (code[i][j].type == interpreter::INT) {cout << "INT";}
+   else if (code[i][j].type == interpreter::STR) {cout << "STR";}
+   else {cout << "NIL";}
+   cout << ":\"" << code[i][j].value << "\"]";
+  }
+  cout << endl;
+ }
+}
+
+void update() {
+ // per-frame logic
+}
+
+void draw() {
+ for (const interpreter::Line& line : code) {
+  interpreter::execute(line);
+ }
+ fps();
+
+ video::flip();
+}
 
 int main() {
  if (!sdl::init()) {return 1;}
