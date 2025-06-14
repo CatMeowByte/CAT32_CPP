@@ -2,10 +2,12 @@
 
 #include "spec/spec.hpp"
 
-constexpr s8 FONT_WIDTH = 4;
-constexpr s8 FONT_HEIGHT = 8;
+namespace FONT {
+ constexpr s8 WIDTH = 4;
+ constexpr s8 HEIGHT = 8;
+}
 
-constexpr u32 FONT_CHARACTER(u32 ordinal) {
+constexpr u32 CHARACTER(u32 ordinal) {
  return
  (ordinal == 9617) ? 0b00000101000001010000010100000101 : // " ░ "
  (ordinal == 9618) ? 0b10100101101001011010010110100101 : // " ▒ "

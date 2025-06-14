@@ -4,18 +4,18 @@
 #include "spec/spec.hpp"
 
 int main() {
- if (!sdl_init()) {return 1;}
+ if (!sdl::init()) {return 1;}
  init();
 
- constexpr float update_interval = 1000.0f / TICK_UPDATE; // ~66.666 ms
- constexpr float frame_interval = 1000.0f / TICK_DRAW; // ~8.333 ms
+ constexpr float update_interval = 1000.0f / TICK::UPDATE; // ~66.666 ms
+ constexpr float frame_interval = 1000.0f / TICK::DRAW; // ~8.333 ms
 
- u32 tick_prev = sdl_get_ticks();
+ u32 tick_prev = sdl::get_ticks();
  float update_time = 0.0f;
  float draw_time = 0.0f;
 
- while (sdl_poll()) {
-  u32 tick_now = sdl_get_ticks();
+ while (sdl::poll()) {
+  u32 tick_now = sdl::get_ticks();
   float tick_delta = tick_now - tick_prev;
   tick_prev = tick_now;
 
@@ -32,10 +32,10 @@ int main() {
    draw_time = 0.0f;
   }
 
-  sdl_delay(1);
+  sdl::delay(1);
  }
 
- sdl_shutdown();
+ sdl::shutdown();
  return 0;
 }
 
@@ -43,7 +43,7 @@ void fps() {
  static float fps = 0;
  static u32 lastFrame = 0;
 
- u32 now = sdl_get_ticks();
+ u32 now = sdl::get_ticks();
  u32 delta = now - lastFrame;
  lastFrame = now;
 
@@ -53,5 +53,5 @@ void fps() {
 
  char buf[5];
  snprintf(buf, sizeof(buf), "%.1f", fps);
- video::text((VIDEO_WIDTH - (4 * 4)) / 2, VIDEO_HEIGHT - 8, buf, 7, 0);
+ video::text((VIDEO::WIDTH - (4 * 4)) / 2, VIDEO::HEIGHT - 8, buf, 7, 0);
 }

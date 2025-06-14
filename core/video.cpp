@@ -2,7 +2,7 @@
 #include "core/video.hpp"
 #include "lib/sdl.hpp"
 
-static u8 buffer[VIDEO_WIDTH * VIDEO_HEIGHT >> 1];
+static u8 buffer[VIDEO::WIDTH * VIDEO::HEIGHT >> 1];
 
 static s16 cam_x = 0;
 static s16 cam_y = 0;
@@ -10,16 +10,16 @@ static bool text_wrap = false;
 
 namespace video {
  u8 pixel(s16 x, s16 y) {
-  if (x < 0 || y < 0 || x >= VIDEO_WIDTH || y >= VIDEO_HEIGHT) {return 0;}
-  u16 index = y * VIDEO_WIDTH + x;
+  if (x < 0 || y < 0 || x >= VIDEO::WIDTH || y >= VIDEO::HEIGHT) {return 0;}
+  u16 index = y * VIDEO::WIDTH + x;
   u16 byte_pos = index / 2;
   u8 shift = (index % 2 == 0) ? 4 : 0;
   return (buffer[byte_pos] >> shift) & 0xF;
  }
 
  void pixel(s16 x, s16 y, u8 color) {
-  if (x < 0 || y < 0 || x >= VIDEO_WIDTH || y >= VIDEO_HEIGHT) {return;}
-  u16 index = y * VIDEO_WIDTH + x;
+  if (x < 0 || y < 0 || x >= VIDEO::WIDTH || y >= VIDEO::HEIGHT) {return;}
+  u16 index = y * VIDEO::WIDTH + x;
   u16 byte_pos = index / 2;
   u8 shift = (index % 2 == 0) ? 4 : 0;
   buffer[byte_pos] &= ~(0xF << shift);
@@ -27,12 +27,12 @@ namespace video {
  }
 
  void lineh(s16 x, s16 y, s16 length, u8 color) {
-  if (y < 0 || y >= VIDEO_HEIGHT || length <= 0) {return;}
+  if (y < 0 || y >= VIDEO::HEIGHT || length <= 0) {return;}
   if (x < 0) {length += x; x = 0;}
-  if (x + length > VIDEO_WIDTH) {length = VIDEO_WIDTH - x;}
+  if (x + length > VIDEO::WIDTH) {length = VIDEO::WIDTH - x;}
   if (length <= 0) {return;}
 
-  u16 start_index = y * VIDEO_WIDTH + x;
+  u16 start_index = y * VIDEO::WIDTH + x;
   u16 end_index = start_index + length;
 
   u8 cbyte = (color & 0xF) << 4 | (color & 0xF);
@@ -80,12 +80,12 @@ namespace video {
 
  void rect(s16 x, s16 y, s16 width, s16 height, u8 color, bool fill) {
   if (width <= 0 || height <= 0) {return;}
-  if (x + width <= 0 || y + height <= 0 || x >= VIDEO_WIDTH || y >= VIDEO_HEIGHT) {return;}
+  if (x + width <= 0 || y + height <= 0 || x >= VIDEO::WIDTH || y >= VIDEO::HEIGHT) {return;}
 
   if (x < 0) {width += x; x = 0;}
   if (y < 0) {height += y; y = 0;}
-  if (x + width > VIDEO_WIDTH) {width = VIDEO_WIDTH - x;}
-  if (y + height > VIDEO_HEIGHT) {height = VIDEO_HEIGHT - y;}
+  if (x + width > VIDEO::WIDTH) {width = VIDEO::WIDTH - x;}
+  if (y + height > VIDEO::HEIGHT) {height = VIDEO::HEIGHT - y;}
   if (width <= 0 || height <= 0) {return;}
 
   if (fill) {
@@ -119,34 +119,34 @@ namespace video {
 
    if (ordinal == '\n') {
     current_x = x;
-    current_y += FONT_HEIGHT;
+    current_y += FONT::HEIGHT;
     continue;
    }
 
-   if (text_wrap && current_x >= VIDEO_WIDTH) {
+   if (text_wrap && current_x >= VIDEO::WIDTH) {
     if (ordinal == ' ') {continue;}
     current_x = x;
-    current_y += FONT_HEIGHT;
+    current_y += FONT::HEIGHT;
    }
 
-   if (current_x < -FONT_WIDTH || current_x >= VIDEO_WIDTH || current_y < -FONT_HEIGHT || current_y >= VIDEO_HEIGHT) {
-    current_x += FONT_WIDTH;
+   if (current_x < -FONT::WIDTH || current_x >= VIDEO::WIDTH || current_y < -FONT::HEIGHT || current_y >= VIDEO::HEIGHT) {
+    current_x += FONT::WIDTH;
     continue;
    }
 
-   u32 bits = (ordinal == ' ') ? 0 : FONT_CHARACTER(ordinal);
+   u32 bits = (ordinal == ' ') ? 0 : CHARACTER(ordinal);
 
-   for (s16 py = 0; py < FONT_HEIGHT; py++) {
-    for (s16 px = 0; px < FONT_WIDTH; px++) {
-     bool on = (bits >> (py * FONT_WIDTH + px)) & 1;
+   for (s16 py = 0; py < FONT::HEIGHT; py++) {
+    for (s16 px = 0; px < FONT::WIDTH; px++) {
+     bool on = (bits >> (py * FONT::WIDTH + px)) & 1;
      s16 tx = current_x + px;
      s16 ty = current_y + py;
-     if (tx < 0 || tx >= VIDEO_WIDTH || ty < 0 || ty >= VIDEO_HEIGHT) {continue;}
+     if (tx < 0 || tx >= VIDEO::WIDTH || ty < 0 || ty >= VIDEO::HEIGHT) {continue;}
      pixel(tx, ty, on ? color : background);
     }
    }
 
-   current_x += FONT_WIDTH;
+   current_x += FONT::WIDTH;
   }
  }
 
@@ -155,6 +155,6 @@ namespace video {
  }
 
  void flip() {
-  sdl_flip(buffer);
+  sdl::flip(buffer);
  }
 }

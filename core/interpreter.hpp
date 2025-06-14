@@ -2,20 +2,22 @@
 
 #include "spec/spec.hpp"
 
-enum TokenType {
- NIL,
- CMD,
- INT,
- STR,
-};
+namespace interpreter {
+ enum TokenType {
+  NIL,
+  CMD,
+  INT,
+  STR,
+ };
 
-struct Token {
- TokenType type;
- string value;
-};
+ struct Token {
+  TokenType type;
+  string value;
+ };
 
-using Line = vector<Token>;
+ using Line = vector<Token>;
 
-Line tokenize(const string& text);
+ Line tokenize(const string& text);
 
-void execute(const Line& line);
+ void execute(const Line& line);
+}

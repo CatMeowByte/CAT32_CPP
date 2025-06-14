@@ -2,9 +2,18 @@
 
 #include "spec/base.hpp"
 
-constexpr u16 VIDEO_WIDTH = 120;
-constexpr u16 VIDEO_HEIGHT = 160;
-constexpr u8 VIDEO_SCALE = 3;
+namespace SYSTEM {
+ constexpr str NAME = "CAT-32";
+ constexpr str CODENAME = "CAT32";
+}
 
-constexpr u8 TICK_UPDATE = 15;
-constexpr u8 TICK_DRAW = 30;
+namespace VIDEO {
+ constexpr u16 WIDTH = 120;
+ constexpr u16 HEIGHT = 160;
+ constexpr u8 SCALE = 3;
+}
+
+namespace TICK {
+ constexpr u8 UPDATE = 15;
+ constexpr u8 DRAW = 30;
+}
