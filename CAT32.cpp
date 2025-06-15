@@ -1,54 +1,97 @@
-#include "core/interpreter.hpp"
+// #include "core/interpreter.hpp"
 #include "core/video.hpp"
 #include "lib/sdl.hpp"
 #include "spec/base.hpp"
 
 void fps();
 
-vector<interpreter::Line> code;
+const u8 STACK_SIZE = 32;
+
+u8 memory[1024 * 8]; // 8 KiB
+
+u8 stack[STACK_SIZE];
+u8 stacker = 0;
+
+enum Opcode : u8 {
+ NOP = 0x00,
+ PUSH = 0x11,
+ POP = 0x12,
+ CLEAR = 0xA0,
+ PIXEL = 0xA1,
+ FLIP = 0xAF,
+};
+
+vector<u8> bytecode = {
+ PUSH, 0,
+ CLEAR, NOP,
+ PUSH, 1,
+ PUSH, 4,
+ PUSH, 7,
+ PIXEL, NOP,
+ FLIP, NOP,
+};
+
+namespace op {
+ void push(u8 value) {
+  if (stacker >= STACK_SIZE) {return;}
+  stack[stacker++] = value;
+ }
+ u8 pop() {
+  if (stacker <= 0) {return 0;}
+  return stack[--stacker];
+ }
+
+ void clear() {
+  u8 color = pop();
+  video::clear(color);
+ }
+
+ void pixel() {
+  u8 color = pop();
+  u8 y = pop();
+  u8 x = pop();
+  video::pixel(x, y, color);
+ }
+
+ void flip() {
+  video::flip();
+ }
+}
 
 void init() {
- ifstream file("/media/storage/share/cpp/CAT32/example/0.app");
- if (!file) {
-  cerr << "Failed to open file.\n";
- }
+ for (u32 counter = 0; counter < bytecode.size(); counter += 2) {
+  u8 opcode = bytecode[counter];
+  u8 operand = bytecode[counter + 1];
 
- string line;
- // per line
- while (getline(file, line)) {
-  code.push_back(interpreter::tokenize(line));
- }
-
- // print type with value
- for (u16 i = 0; i < code.size(); i++) {
-  for (u16 j = 0; j < code[i].size(); j++) {
-   if (j > 0) {cout << ' ';}
-   cout << "[";
-   if (code[i][j].type == interpreter::CMD) {cout << "CMD";}
-   else if (code[i][j].type == interpreter::INT) {cout << "INT";}
-   else if (code[i][j].type == interpreter::STR) {cout << "STR";}
-   else {cout << "NIL";}
-   cout << ":\"" << code[i][j].value << "\"]";
+  switch (opcode) {
+   case PUSH:
+    op::push(operand);
+    break;
+   case CLEAR:
+    op::clear();
+    break;
+   case PIXEL:
+    op::pixel();
+    break;
+   case FLIP:
+    op::flip();
+    break;
+   case NOP:
+    break;
   }
-  cout << endl;
  }
 }
 
 void update() {
- // per-frame logic
 }
 
 void draw() {
- for (const interpreter::Line& line : code) {
-  interpreter::execute(line);
- }
- fps();
-
- video::flip();
 }
 
 int main() {
  if (!sdl::init()) {return 1;}
+ sdl::delay(1); // wait until ready
+
  init();
 
  constexpr float update_interval = 1000.0f / TICK::UPDATE; // ~66.666 ms
