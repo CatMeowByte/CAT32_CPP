@@ -7,7 +7,7 @@ namespace sdl {
  void shutdown();
  bool poll();
 
- void delay(int ms);
+ void delay(u32 ms);
  u32 get_ticks();
 
  void flip(const u8* data);

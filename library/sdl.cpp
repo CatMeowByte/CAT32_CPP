@@ -30,7 +30,7 @@ namespace sdl {
   if (!palette) {return false;}
 
   SDL_Color colors[16];
-  for (int i = 0; i < 16; i++) {
+  for (u8 i = 0; i < 16; i++) {
    u32 c = PALETTE[i];
    colors[i].r = (c >> 16) & 0xFF;
    colors[i].g = (c >> 8) & 0xFF;
@@ -61,7 +61,7 @@ namespace sdl {
   return running;
  }
 
- void delay(int ms) {
+ void delay(u32 ms) {
   SDL_Delay(ms);
  }
 

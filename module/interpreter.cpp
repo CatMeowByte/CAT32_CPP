@@ -8,75 +8,57 @@
 
 namespace interpreter {
  vector<string> tokenize(const string& text) {
-  vector<string> tokens;
-  // string token;
-  // int index = 0;
-  // bool in_quote = false;
+  vector<string> pack;
+  string token;
+  bool in_quote = false;
 
-  // for (u32 character = 0; character <= text.size(); character++) {
-  //  char c = (character < text.size() ? text[character] : ' ');
+  for (u32 character = 0; character <= text.size(); character++) {
+   char c = (character < text.size() ? text[character] : ' ');
 
-  //  // quote
-  //  // also check if no backslash behind it
-  //  if (c == '"') {
-  //   int bs = 0;
-  //   for (int pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
-  //   if (bs % 2 == 0) in_quote = !in_quote;
-  //   token += c;
-  //   continue;
-  //  }
+   // handle quote (with backslash escape)
+   if (c == '"') {
+    u32 bs = 0;
+    for (u32 pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
+    if (bs % 2 == 0) in_quote = !in_quote;
+    token += c;
+    continue;
+   }
 
-  //  // token inside quote
-  //  if (in_quote) {
-  //   token += c;
-  //   continue;
-  //  }
+   // inside quote
+   if (in_quote) {
+    token += c;
+    continue;
+   }
 
-  //  // token boundary (space)
-  //  if (c == ' ' || character == text.size()) {
-  //   if (!token.empty()) {
-  //    // categorize token
-  //    TokenType type = NIL;
+   // boundary on space or end string
+   if (c == ' ' || character == text.size()) {
+    if (!token.empty()) {
+     pack.push_back(token);
+     token.clear();
+    }
+    continue;
+   }
 
-  //    // CMD
-  //    if (index == 0) {type = CMD;}
+   // build token
+   token += c;
+  }
 
-  //    // INT
-  //    else if (token.find_first_not_of("0123456789-+") == string::npos) {type = INT;}
+  return pack;
+ }
 
-  //    // STR
-  //    else if (token.front() == '"' && token.back() == '"') {
-  //     type = STR;
-  //     token = token.substr(1, token.size() - 2); // remove quotes
-  //     string unescaped;
-  //     for (u32 i = 0; i < token.size(); i++) {
-  //      if (token[i] == '\\' && i + 1 < token.size()) {
-  //       i++;
-  //       if (token[i] == 'n') {unescaped += '\n';}
-  //       else if (token[i] == 't') {unescaped += '\t';}
-  //       else if (token[i] == '\\') {unescaped += '\\';}
-  //       else if (token[i] == '"') {unescaped += '"';}
-  //       else {unescaped += token[i];}
-  //      } else {
-  //       unescaped += token[i];
-  //      }
-  //     }
-  //     token = unescaped;
-  //    }
+ vector<u8> compile(const vector<string>& tokens) {
+  vector<u8> bytecode;
+  if (tokens.empty()) {return bytecode;}
 
-  //    tokens.push_back({type, token});
-  //    token.clear();
-  //    index++;
-  //   }
-  //   continue;
-  //  }
-  //  // default: add char to token
-  //  token += c;
-  // }
-  // // blank
-  // if (tokens.empty()) {tokens.push_back({NIL, ""});}
+  for (u32 i = 1; i < tokens.size(); i++) {
+   bytecode.push_back(PUSH);
+   bytecode.push_back(static_cast<u8>(stoi(tokens[i])));
+  }
 
-  return tokens;
+  bytecode.push_back(opcode_get(tokens[0].c_str()));
+  bytecode.push_back(NOP);
+
+  return bytecode;
  }
 
  void execute(const vector<u8>& bytecode) {

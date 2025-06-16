@@ -3,8 +3,8 @@
 #include "core/constant.hpp" // IWYU pragma: keep
 
 namespace FONT {
- constexpr s8 WIDTH = 4;
- constexpr s8 HEIGHT = 8;
+ constexpr u8 WIDTH = 4;
+ constexpr u8 HEIGHT = 8;
 }
 
 constexpr u32 CHARACTER(u32 ordinal) {

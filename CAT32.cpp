@@ -1,4 +1,3 @@
-// #include "module/interpreter.hpp"
 #include "module/interpreter.hpp"
 #include "module/opcode.hpp"
 #include "module/video.hpp"
@@ -18,6 +17,25 @@ vector<u8> bytecode = {
 };
 
 void init() {
+ bytecode.clear();
+
+ ifstream file("/media/storage/share/cpp/CAT32/example/1.app");
+ if (!file) {
+  cerr << "Failed to open file." << endl;
+ }
+
+ string line;
+ // per line
+ while (getline(file, line)) {
+  vector<string> tokenized = interpreter::tokenize(line);
+  vector<u8> compiled = interpreter::compile(tokenized);
+  bytecode.insert(bytecode.end(), compiled.begin(), compiled.end());
+ }
+
+ for (u32 i = 0; i < bytecode.size(); i += 2) {
+  cout << opcode_name(bytecode[i]) << "\t" << (u32)bytecode[i + 1] << endl;
+ }
+
  interpreter::execute(bytecode);
 }
 

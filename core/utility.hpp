@@ -1,0 +1,14 @@
+# pragma once
+
+#include "core/constant.hpp" // IWYU pragma: keep
+
+namespace utility {
+ constexpr u32 hash(str text) {
+  u32 hash = 5381;
+  while (*text) {
+   hash = ((hash << 5) + hash) + *text;
+   ++text;
+  }
+  return hash;
+ }
+}
