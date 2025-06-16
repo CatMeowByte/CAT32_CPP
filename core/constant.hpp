@@ -1,10 +1,11 @@
 #pragma once
 
-#include "spec/base.hpp"
+#include "core/define.hpp"
 
 namespace SYSTEM {
  constexpr str NAME = "CAT-32";
  constexpr str CODENAME = "CAT32";
+ constexpr u16 MEMORY = 1024 * 8; // 8 KiB
 }
 
 namespace VIDEO {

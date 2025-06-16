@@ -1,6 +1,6 @@
-#include "core/font.hpp"
-#include "core/video.hpp"
-#include "lib/sdl.hpp"
+#include "module/font.hpp"
+#include "module/video.hpp"
+#include "library/sdl.hpp"
 
 static u8 buffer[VIDEO::WIDTH * VIDEO::HEIGHT >> 1];
 

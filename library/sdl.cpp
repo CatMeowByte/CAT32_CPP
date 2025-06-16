@@ -2,7 +2,7 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_timer.h>
 
-#include "lib/sdl.hpp"
+#include "library/sdl.hpp"
 
 static constexpr u32 PALETTE[16] = {
  0xFF000000, 0xFF1D2B53, 0xFF7E2553, 0xFF008751,

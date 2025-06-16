@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spec/spec.hpp" // IWYU pragma: keep
+#include "core/constant.hpp" // IWYU pragma: keep
 
 namespace FONT {
  constexpr s8 WIDTH = 4;

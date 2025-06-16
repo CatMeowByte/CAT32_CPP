@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spec/spec.hpp" // IWYU pragma: keep
+#include "core/constant.hpp" // IWYU pragma: keep
 
 namespace video {
  u8 pixel(s16 x, s16 y);

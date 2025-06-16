@@ -1,25 +1,11 @@
-// #include "core/interpreter.hpp"
-#include "core/video.hpp"
-#include "lib/sdl.hpp"
-#include "spec/base.hpp"
+// #include "module/interpreter.hpp"
+#include "module/interpreter.hpp"
+#include "module/opcode.hpp"
+#include "module/video.hpp"
+#include "library/sdl.hpp"
+#include "core/constant.hpp"
 
 void fps();
-
-const u8 STACK_SIZE = 32;
-
-u8 memory[1024 * 8]; // 8 KiB
-
-u8 stack[STACK_SIZE];
-u8 stacker = 0;
-
-enum Opcode : u8 {
- NOP = 0x00,
- PUSH = 0x11,
- POP = 0x12,
- CLEAR = 0xA0,
- PIXEL = 0xA1,
- FLIP = 0xAF,
-};
 
 vector<u8> bytecode = {
  PUSH, 0,
@@ -31,55 +17,8 @@ vector<u8> bytecode = {
  FLIP, NOP,
 };
 
-namespace op {
- void push(u8 value) {
-  if (stacker >= STACK_SIZE) {return;}
-  stack[stacker++] = value;
- }
- u8 pop() {
-  if (stacker <= 0) {return 0;}
-  return stack[--stacker];
- }
-
- void clear() {
-  u8 color = pop();
-  video::clear(color);
- }
-
- void pixel() {
-  u8 color = pop();
-  u8 y = pop();
-  u8 x = pop();
-  video::pixel(x, y, color);
- }
-
- void flip() {
-  video::flip();
- }
-}
-
 void init() {
- for (u32 counter = 0; counter < bytecode.size(); counter += 2) {
-  u8 opcode = bytecode[counter];
-  u8 operand = bytecode[counter + 1];
-
-  switch (opcode) {
-   case PUSH:
-    op::push(operand);
-    break;
-   case CLEAR:
-    op::clear();
-    break;
-   case PIXEL:
-    op::pixel();
-    break;
-   case FLIP:
-    op::flip();
-    break;
-   case NOP:
-    break;
-  }
- }
+ interpreter::execute(bytecode);
 }
 
 void update() {
