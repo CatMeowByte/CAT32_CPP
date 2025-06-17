@@ -3,8 +3,10 @@
 
 // TODO:
 // handle warning of exception, overflow, etc
-// decide wether newline is tokenized
-// all inside /core should have namespace, as its a module for CAT32 kernel
+
+unordered_map<string, u8> symbols;
+
+u32 slotter = 0;
 
 namespace interpreter {
  vector<string> tokenize(const string& text) {
@@ -50,9 +52,28 @@ namespace interpreter {
   vector<u8> bytecode;
   if (tokens.empty()) {return bytecode;}
 
-  for (u32 i = 1; i < tokens.size(); i++) {
+  if (tokens[0] == "VAR") {
+   string name = tokens[1];
+   u32 value = stoi(tokens[3]);
+   u32 address = slotter++;
+   symbols[name] = address;
    bytecode.push_back(PUSH);
-   bytecode.push_back(static_cast<u8>(stoi(tokens[i])));
+   bytecode.push_back(static_cast<u8>(value));
+   bytecode.push_back(POPM);
+   bytecode.push_back(static_cast<u8>(address));
+   return bytecode;
+  }
+
+  for (u32 i = 1; i < tokens.size(); i++) {
+   if (tokens[i][0] == '$') {
+    string name = tokens[i].substr(1);
+    int address = symbols[name];
+    bytecode.push_back(PUSHM);
+    bytecode.push_back(static_cast<u8>(address));
+   } else {
+    bytecode.push_back(PUSH);
+    bytecode.push_back(static_cast<u8>(stoi(tokens[i])));
+   }
   }
 
   bytecode.push_back(opcode_get(tokens[0].c_str()));
@@ -67,20 +88,9 @@ namespace interpreter {
    u8 operand = bytecode[counter + 1];
 
    switch (opcode) {
-    case PUSH:
-     op::push(operand);
-     break;
-    case CLEAR:
-     op::clear();
-     break;
-    case PIXEL:
-     op::pixel();
-     break;
-    case FLIP:
-     op::flip();
-     break;
-    case NOP:
-     break;
+    #define OP(hex, name, func) case name: op::func(operand); break;
+    OPCODES
+    #undef OP
    }
   }
  }

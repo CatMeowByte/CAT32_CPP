@@ -1,3 +1,4 @@
+#include "core/memory.hpp"
 #include "module/interpreter.hpp"
 #include "module/opcode.hpp"
 #include "module/video.hpp"
@@ -18,6 +19,8 @@ vector<u8> bytecode = {
 
 void init() {
  bytecode.clear();
+
+ memory[22] = 14;
 
  ifstream file("/media/storage/share/cpp/CAT32/example/1.app");
  if (!file) {
