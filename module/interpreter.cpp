@@ -57,9 +57,9 @@ namespace interpreter {
    u32 value = stoi(tokens[3]);
    u32 address = slotter++;
    symbols[name] = address;
-   bytecode.push_back(PUSH);
+   bytecode.push_back(op::push);
    bytecode.push_back(static_cast<u32>(value));
-   bytecode.push_back(POPM);
+   bytecode.push_back(op::popm);
    bytecode.push_back(static_cast<u32>(address));
    return bytecode;
   }
@@ -68,16 +68,16 @@ namespace interpreter {
    if (symbols.count(tokens[i])) {
     string name = tokens[i];
     int address = symbols[name];
-    bytecode.push_back(PUSHM);
+    bytecode.push_back(op::pushm);
     bytecode.push_back(static_cast<u32>(address));
    } else {
-    bytecode.push_back(PUSH);
+    bytecode.push_back(op::push);
     bytecode.push_back(static_cast<u32>(stoi(tokens[i])));
    }
   }
 
   bytecode.push_back(opcode_get(tokens[0].c_str()));
-  bytecode.push_back(NOP);
+  bytecode.push_back(op::nop);
 
   return bytecode;
  }
@@ -88,7 +88,7 @@ namespace interpreter {
    u32 operand = bytecode[counter + 1];
 
    switch (opcode) {
-    #define OP(hex, name, func) case name: op::func(operand); break;
+    #define OP(hex, name) case op::name: opfunc::name(operand); break;
     OPCODES
     #undef OP
    }

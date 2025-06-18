@@ -2,7 +2,7 @@
 #include "module/opcode.hpp"
 #include "module/video.hpp"
 
-namespace op {
+namespace opfunc {
  u32 push(u32 value) {
   if (stacker > 0) {memory[--stacker] = value;}
   return 0;

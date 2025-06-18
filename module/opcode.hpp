@@ -3,40 +3,40 @@
 #include "core/utility.hpp" // IWYU pragma: keep
 
 #define OPCODES \
- OP(0x11, PUSH, push) \
- OP(0x12, POP, pop) \
- OP(0x21, PUSHM, pushm) \
- OP(0x22, POPM, popm) \
- OP(0xA0, CLEAR, clear) \
- OP(0xA1, PIXEL, pixel) \
- OP(0xAF, FLIP, flip) \
- OP(0x00, NOP, nop)
+ OP(0x11, push) \
+ OP(0x12, pop) \
+ OP(0x21, pushm) \
+ OP(0x22, popm) \
+ OP(0xA0, clear) \
+ OP(0xA1, pixel) \
+ OP(0xAF, flip) \
+ OP(0x00, nop)
 
-enum Opcode : u8 {
- #define OP(hex, name, func) name = hex,
+namespace op {
+ #define OP(hex, name) constexpr u8 name = hex;
  OPCODES
  #undef OP
 };
 
+namespace opfunc {
+ #define OP(hex, name) u32 name(u32 value);
+ OPCODES
+ #undef OP
+}
+
 constexpr u8 opcode_get(const char *cmd) {
  switch (utility::hash(cmd)) {
-  #define OP(hex, name, func) case utility::hash(#name): return name;
+  #define OP(hex, name) case utility::hash(#name): return op::name;
   OPCODES
   #undef OP
- default: return NOP;
+ default: return op::nop;
  }
 }
 
 constexpr str opcode_name(u8 value) {
  return
-  #define OP(hex, name, func) value == hex ? #name :
+  #define OP(hex, name) value == hex ? #name :
   OPCODES
   #undef OP
   "UNKNOWN";
-}
-
-namespace op {
- #define OP(hex, name, func) u32 func(u32 value);
- OPCODES
- #undef OP
 }
