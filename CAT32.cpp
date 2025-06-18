@@ -1,4 +1,3 @@
-#include "core/memory.hpp"
 #include "module/interpreter.hpp"
 #include "module/opcode.hpp"
 #include "module/video.hpp"
@@ -7,20 +6,10 @@
 
 void fps();
 
-vector<u8> bytecode = {
- PUSH, 0,
- CLEAR, NOP,
- PUSH, 1,
- PUSH, 4,
- PUSH, 7,
- PIXEL, NOP,
- FLIP, NOP,
-};
+vector<u8> bytecode;
 
 void init() {
  bytecode.clear();
-
- memory[22] = 14;
 
  ifstream file("/media/storage/share/cpp/CAT32/example/1.app");
  if (!file) {

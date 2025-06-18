@@ -65,8 +65,8 @@ namespace interpreter {
   }
 
   for (u32 i = 1; i < tokens.size(); i++) {
-   if (tokens[i][0] == '$') {
-    string name = tokens[i].substr(1);
+   if (symbols.count(tokens[i])) {
+    string name = tokens[i];
     int address = symbols[name];
     bytecode.push_back(PUSHM);
     bytecode.push_back(static_cast<u8>(address));
