@@ -6,7 +6,7 @@
 
 void fps();
 
-vector<u8> bytecode;
+vector<u32> bytecode;
 
 void init() {
  bytecode.clear();
@@ -20,7 +20,7 @@ void init() {
  // per line
  while (getline(file, line)) {
   vector<string> tokenized = interpreter::tokenize(line);
-  vector<u8> compiled = interpreter::compile(tokenized);
+  vector<u32> compiled = interpreter::compile(tokenized);
   bytecode.insert(bytecode.end(), compiled.begin(), compiled.end());
  }
 

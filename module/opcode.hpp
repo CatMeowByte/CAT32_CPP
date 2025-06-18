@@ -36,7 +36,7 @@ constexpr str opcode_name(u8 value) {
 }
 
 namespace op {
- #define OP(hex, name, func) u8 func(u8 value);
+ #define OP(hex, name, func) u32 func(u32 value);
  OPCODES
  #undef OP
 }

@@ -4,7 +4,7 @@
 // TODO:
 // handle warning of exception, overflow, etc
 
-unordered_map<string, u8> symbols;
+unordered_map<string, u32> symbols;
 
 u32 slotter = 0;
 
@@ -48,8 +48,8 @@ namespace interpreter {
   return pack;
  }
 
- vector<u8> compile(const vector<string>& tokens) {
-  vector<u8> bytecode;
+ vector<u32> compile(const vector<string>& tokens) {
+  vector<u32> bytecode;
   if (tokens.empty()) {return bytecode;}
 
   if (tokens[0] == "VAR") {
@@ -58,9 +58,9 @@ namespace interpreter {
    u32 address = slotter++;
    symbols[name] = address;
    bytecode.push_back(PUSH);
-   bytecode.push_back(static_cast<u8>(value));
+   bytecode.push_back(static_cast<u32>(value));
    bytecode.push_back(POPM);
-   bytecode.push_back(static_cast<u8>(address));
+   bytecode.push_back(static_cast<u32>(address));
    return bytecode;
   }
 
@@ -69,10 +69,10 @@ namespace interpreter {
     string name = tokens[i];
     int address = symbols[name];
     bytecode.push_back(PUSHM);
-    bytecode.push_back(static_cast<u8>(address));
+    bytecode.push_back(static_cast<u32>(address));
    } else {
     bytecode.push_back(PUSH);
-    bytecode.push_back(static_cast<u8>(stoi(tokens[i])));
+    bytecode.push_back(static_cast<u32>(stoi(tokens[i])));
    }
   }
 
@@ -82,10 +82,10 @@ namespace interpreter {
   return bytecode;
  }
 
- void execute(const vector<u8>& bytecode) {
+ void execute(const vector<u32>& bytecode) {
   for (u32 counter = 0; counter < bytecode.size(); counter += 2) {
-   u8 opcode = bytecode[counter];
-   u8 operand = bytecode[counter + 1];
+   u32 opcode = bytecode[counter];
+   u32 operand = bytecode[counter + 1];
 
    switch (opcode) {
     #define OP(hex, name, func) case name: op::func(operand); break;
