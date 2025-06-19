@@ -11,7 +11,7 @@ vector<u32> bytecode;
 void init() {
  bytecode.clear();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/1.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/2.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -24,8 +24,12 @@ void init() {
   bytecode.insert(bytecode.end(), compiled.begin(), compiled.end());
  }
 
+ // print readable bytecode
  for (u32 i = 0; i < bytecode.size(); i += 2) {
-  cout << opcode_name(bytecode[i]) << "\t" << (u32)bytecode[i + 1] << endl;
+  string name = opcode_name(bytecode[i]);
+  bool operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0);
+  string value = operand ? to_string(bytecode[i + 1]) : "";
+  cout << name << "\t" << value << endl;
  }
 
  interpreter::execute(bytecode);

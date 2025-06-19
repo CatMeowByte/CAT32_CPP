@@ -11,4 +11,6 @@ namespace utility {
   }
   return hash;
  }
+
+ bool is_number(str text);
 }

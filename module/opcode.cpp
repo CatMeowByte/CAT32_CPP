@@ -25,6 +25,45 @@ namespace opfunc {
   return 0;
  }
 
+ u32 add(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a + b);
+  }
+  return 0;
+ }
+
+ u32 sub(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a - b);
+  }
+  return 0;
+ }
+
+ u32 mul(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a * b);
+  }
+  return 0;
+ }
+
+ u32 div(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   if (b == 0) { // TODO: division zero
+    push(0);
+   }
+   push(a / b);
+  }
+  return 0;
+ }
+
  u32 clear(u32 value) {
   u32 color = pop(0);
   video::clear(color);

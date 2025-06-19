@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm> // IWYU pragma: export
 #include <cstdint> // IWYU pragma: export
 #include <cstdlib> // IWYU pragma: export
 #include <cstring> // IWYU pragma: export

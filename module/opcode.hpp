@@ -7,6 +7,12 @@
  OP(0x12, pop) \
  OP(0x21, pushm) \
  OP(0x22, popm) \
+ \
+ OP(0x31, add) \
+ OP(0x32, sub) \
+ OP(0x33, mul) \
+ OP(0x34, div) \
+ \
  OP(0xA0, clear) \
  OP(0xA1, pixel) \
  OP(0xAF, flip) \
