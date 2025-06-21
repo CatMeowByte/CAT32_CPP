@@ -9,6 +9,7 @@ unordered_map<string, u32> symbols;
 
 u32 slotter = 0;
 
+static void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand);
 static vector<string> breakdown(const string& expression);
 static vector<string> shunting_yard(const vector<string>& tokens);
 
@@ -56,6 +57,9 @@ namespace interpreter {
   vector<u32> bytecode;
   if (tokens.empty()) {return bytecode;}
 
+  for (const string& t : tokens) {cout << t << " ";}
+  cout << endl;
+
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
    // math
@@ -64,33 +68,29 @@ namespace interpreter {
 
     for (string t : postfix) {
      if (utility::is_number(t.c_str())) {
-      bytecode.push_back(op::push);
-      bytecode.push_back(stoi(t));
+      bytecode_append(bytecode, op::push, stoi(t));
      }
      else if (symbols.count(t)) {
-      bytecode.push_back(op::pushm);
-      bytecode.push_back(symbols[t]);
+      bytecode_append(bytecode, op::pushm, symbols[t]);
      }
-     else if (t == "+") {bytecode.push_back(op::add); bytecode.push_back(op::nop);}
-     else if (t == "-") {bytecode.push_back(op::sub); bytecode.push_back(op::nop);}
-     else if (t == "*") {bytecode.push_back(op::mul); bytecode.push_back(op::nop);}
-     else if (t == "/") {bytecode.push_back(op::div); bytecode.push_back(op::nop);}
-     // else if (t == "%") {bytecode.push_back(op::mod); bytecode.push_back(op::nop);}
+     else if (t == "+") {bytecode_append(bytecode, op::add, op::nop);}
+     else if (t == "-") {bytecode_append(bytecode, op::sub, op::nop);}
+     else if (t == "*") {bytecode_append(bytecode, op::mul, op::nop);}
+     else if (t == "/") {bytecode_append(bytecode, op::div, op::nop);}
+     // else if (t == "%") {bytecode_append(bytecode, op::mod, op::nop);}
     }
     continue;
    }
 
    // variable
    if (symbols.count(tokens[i])) {
-    bytecode.push_back(op::pushm);
-    bytecode.push_back(symbols[tokens[i]]);
+    bytecode_append(bytecode, op::pushm, symbols[tokens[i]]);
     continue;
    }
 
    // number
    if (utility::is_number(tokens[i].c_str())) {
-    bytecode.push_back(op::push);
-    bytecode.push_back(stoi(tokens[i]));
+    bytecode_append(bytecode, op::push, stoi(tokens[i]));
     continue;
    }
   }
@@ -100,20 +100,19 @@ namespace interpreter {
   bool is_assign = (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3);
 
   if (is_declare || is_assign) {
-    string name = is_declare ? tokens[1] : tokens[0];
-    u32 address;
+   string name = is_declare ? tokens[1] : tokens[0];
+   u32 address;
 
-    if (is_declare) {
-      address = slotter++;
-      symbols[name] = address;
-    } else {
-      address = symbols[name];
-    }
+   if (is_declare) {
+    address = slotter++;
+    symbols[name] = address;
+   } else {
+    address = symbols[name];
+   }
 
-    bytecode.push_back(op::popm);
-    bytecode.push_back(address);
+   bytecode_append(bytecode, op::popm, address);
 
-    return bytecode;
+   return bytecode;
   }
 
   // command
@@ -121,8 +120,7 @@ namespace interpreter {
   transform(cmd_l.begin(), cmd_l.end(), cmd_l.begin(), ::tolower);
   u32 cmd = opcode_get(cmd_l.c_str());
   if (cmd != op::nop) {
-   bytecode.push_back(cmd);
-   bytecode.push_back(op::nop);
+   bytecode_append(bytecode, cmd, op::nop);
   }
 
   return bytecode;
@@ -140,6 +138,17 @@ namespace interpreter {
    }
   }
  }
+}
+
+void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand) {
+ bytecode.push_back(opcode);
+ bytecode.push_back(operand);
+
+ // debug output
+ string name = opcode_name(opcode);
+ bool has_operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0);
+ string value = has_operand ? to_string(operand) : "";
+ cout << name << "\t" << value << endl;
 }
 
 static vector<string> breakdown(const string& expression) {

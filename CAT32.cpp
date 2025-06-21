@@ -1,5 +1,4 @@
 #include "module/interpreter.hpp"
-#include "module/opcode.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
 #include "core/constant.hpp"
@@ -22,14 +21,8 @@ void init() {
   vector<string> tokenized = interpreter::tokenize(line);
   vector<u32> compiled = interpreter::compile(tokenized);
   bytecode.insert(bytecode.end(), compiled.begin(), compiled.end());
- }
 
- // print readable bytecode
- for (u32 i = 0; i < bytecode.size(); i += 2) {
-  string name = opcode_name(bytecode[i]);
-  bool operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0);
-  string value = operand ? to_string(bytecode[i + 1]) : "";
-  cout << name << "\t" << value << endl;
+  cout << endl;
  }
 
  interpreter::execute(bytecode);
