@@ -83,7 +83,7 @@ namespace interpreter {
    }
 
    // variable
-   if (symbols.count(tokens[i])) {
+   if (symbols.count(tokens[i]) && i != 0) {
     bytecode_append(bytecode, op::pushm, symbols[tokens[i]]);
     continue;
    }
