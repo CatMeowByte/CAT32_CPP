@@ -4,3 +4,6 @@
 
 extern u32 memory[SYSTEM::MEMORY];
 extern u32 stacker;
+
+// TODO:
+// separate pointer, counter, and stacker for each app

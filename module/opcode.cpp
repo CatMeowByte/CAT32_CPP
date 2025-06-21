@@ -5,24 +5,40 @@
 namespace opfunc {
  u32 push(u32 value) {
   if (stacker > 0) {memory[--stacker] = value;}
-  return 0;
+  return SENTINEL;
  }
 
  u32 pop(u32 value) {
   if (stacker < SYSTEM::MEMORY) {return memory[stacker++];}
-  return 0;
+  return SENTINEL;
  }
 
  u32 pushm(u32 value) {
   if (stacker > 0) {memory[--stacker] = memory[value];}
-  return 0;
+  return SENTINEL;
  }
 
  u32 popm(u32 value) {
   if (stacker < SYSTEM::MEMORY) {
    memory[value] = memory[stacker++];
   }
-  return 0;
+  return SENTINEL;
+ }
+
+ u32 jump(u32 value) {
+  return value;
+ }
+
+ u32 jumz(u32 value) {
+  u32 check = pop(0);
+  if (check == 0) {return value;}
+  return SENTINEL;
+ }
+
+ u32 junz(u32 value) {
+  u32 check = pop(0);
+  if (check != 0) {return value;}
+  return SENTINEL;
  }
 
  u32 add(u32 value) {
@@ -31,7 +47,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a + b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 sub(u32 value) {
@@ -40,7 +56,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a - b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 mul(u32 value) {
@@ -49,7 +65,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a * b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 div(u32 value) {
@@ -61,7 +77,7 @@ namespace opfunc {
    }
    push(a / b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 eq(u32 value) {
@@ -70,7 +86,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a == b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 neq(u32 value) {
@@ -79,7 +95,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a != b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 gt(u32 value) {
@@ -88,7 +104,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a > b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 lt(u32 value) {
@@ -97,7 +113,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a < b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 geq(u32 value) {
@@ -106,7 +122,7 @@ namespace opfunc {
    u32 a = pop(0);
    push(a >= b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 leq(u32 value) {
@@ -115,13 +131,13 @@ namespace opfunc {
    u32 a = pop(0);
    push(a <= b);
   }
-  return 0;
+  return SENTINEL;
  }
 
  u32 clear(u32 value) {
   u32 color = pop(0);
   video::clear(color);
-  return 0;
+  return SENTINEL;
  }
 
  u32 pixel(u32 value) {
@@ -129,15 +145,15 @@ namespace opfunc {
   u32 y = pop(0);
   u32 x = pop(0);
   video::pixel(x, y, color);
-  return 0;
+  return SENTINEL;
  }
 
  u32 flip(u32 value) {
   video::flip();
-  return 0;
+  return SENTINEL;
  }
 
  u32 nop(u32 value) {
-  return 0;
+  return SENTINEL;
  }
 }

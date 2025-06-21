@@ -5,8 +5,12 @@
 #define OPCODES \
  OP(0x11, push) \
  OP(0x12, pop) \
- OP(0x21, pushm) \
- OP(0x22, popm) \
+ OP(0x13, pushm) \
+ OP(0x14, popm) \
+ \
+ OP(0x2D, jump) \
+ OP(0x2E, jumz) \
+ OP(0x2F, junz) \
  \
  OP(0x31, add) \
  OP(0x32, sub) \
@@ -24,6 +28,8 @@
  OP(0xA1, pixel) \
  OP(0xAF, flip) \
  OP(0x00, nop)
+
+constexpr u32 SENTINEL = 0xFFFFFFFF;
 
 namespace op {
  #define OP(hex, name) constexpr u8 name = hex;

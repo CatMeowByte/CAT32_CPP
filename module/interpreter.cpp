@@ -140,15 +140,20 @@ namespace interpreter {
  }
 
  void execute(const vector<u32>& bytecode) {
-  for (u32 counter = 0; counter < bytecode.size(); counter += 2) {
+  u32 counter = 0;
+  while (counter < bytecode.size()) {
    u32 opcode = bytecode[counter];
    u32 operand = bytecode[counter + 1];
+   u32 result = SENTINEL;
 
    switch (opcode) {
-    #define OP(hex, name) case op::name: opfunc::name(operand); break;
+    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
     OPCODES
     #undef OP
    }
+
+   if (result == SENTINEL) {counter += 2;}
+   else {counter = result;}
   }
  }
 }
