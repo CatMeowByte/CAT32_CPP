@@ -13,6 +13,13 @@
  OP(0x33, mul) \
  OP(0x34, div) \
  \
+ OP(0x41, eq) \
+ OP(0x42, neq) \
+ OP(0x43, gt) \
+ OP(0x44, lt) \
+ OP(0x45, geq) \
+ OP(0x46, leq) \
+ \
  OP(0xA0, clear) \
  OP(0xA1, pixel) \
  OP(0xAF, flip) \

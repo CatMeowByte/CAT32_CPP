@@ -64,6 +64,60 @@ namespace opfunc {
   return 0;
  }
 
+ u32 eq(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a == b);
+  }
+  return 0;
+ }
+
+ u32 neq(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a != b);
+  }
+  return 0;
+ }
+
+ u32 gt(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a > b);
+  }
+  return 0;
+ }
+
+ u32 lt(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a < b);
+  }
+  return 0;
+ }
+
+ u32 geq(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a >= b);
+  }
+  return 0;
+ }
+
+ u32 leq(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a <= b);
+  }
+  return 0;
+ }
+
  u32 clear(u32 value) {
   u32 color = pop(0);
   video::clear(color);

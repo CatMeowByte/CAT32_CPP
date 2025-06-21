@@ -10,7 +10,7 @@ vector<u32> bytecode;
 void init() {
  bytecode.clear();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/2.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/3.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }

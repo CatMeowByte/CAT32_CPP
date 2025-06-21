@@ -9,6 +9,19 @@ unordered_map<string, u32> symbols;
 
 u32 slotter = 0;
 
+static const unordered_map<string, u32> math_operations = {
+ {"+", op::add},
+ {"-", op::sub},
+ {"*", op::mul},
+ {"/", op::div},
+ {"==", op::eq},
+ {"!=", op::neq},
+ {"<", op::lt},
+ {">", op::gt},
+ {"<=", op::leq},
+ {">=", op::geq},
+};
+
 static void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand);
 static vector<string> breakdown(const string& expression);
 static vector<string> shunting_yard(const vector<string>& tokens);
@@ -63,7 +76,9 @@ namespace interpreter {
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
    // math
-   if (tokens[i].find_first_of("+-*/()") != string::npos) {
+   bool has_math_operation = false;
+   for (const auto& [key, val] : math_operations) {if (tokens[i].find(key) != string::npos) {has_math_operation = true; break;}}
+   if (has_math_operation) {
     vector<string> postfix = shunting_yard(breakdown(tokens[i]));
 
     for (string t : postfix) {
@@ -73,11 +88,9 @@ namespace interpreter {
      else if (symbols.count(t)) {
       bytecode_append(bytecode, op::pushm, symbols[t]);
      }
-     else if (t == "+") {bytecode_append(bytecode, op::add, op::nop);}
-     else if (t == "-") {bytecode_append(bytecode, op::sub, op::nop);}
-     else if (t == "*") {bytecode_append(bytecode, op::mul, op::nop);}
-     else if (t == "/") {bytecode_append(bytecode, op::div, op::nop);}
-     // else if (t == "%") {bytecode_append(bytecode, op::mod, op::nop);}
+     else if (math_operations.count(t)) {
+      bytecode_append(bytecode, math_operations.at(t), op::nop);
+     }
     }
     continue;
    }
@@ -158,6 +171,20 @@ static vector<string> breakdown(const string& expression) {
  for (u32 i = 0; i < expression.size(); i++) {
   char c = expression[i];
 
+  // multi-char operators
+  if (i + 1 < expression.size()) {
+   string two_chars = expression.substr(i, 2);
+   if (two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=") {
+    if (!token.empty()) {
+     tokens.push_back(token);
+     token.clear();
+    }
+    tokens.push_back(two_chars);
+    i++; // skip next char
+    continue;
+   }
+  }
+
   // skip whitespace
   if (c == ' ') {continue;}
 
@@ -174,13 +201,13 @@ static vector<string> breakdown(const string& expression) {
   }
 
   // negative number: unary minus at start or after ( or operator
-  if (c == '-' && (i == 0 || expression[i-1] == '(' || strchr("+-*/%", expression[i-1]))) {
+  if (c == '-' && (i == 0 || expression[i-1] == '(' || strchr("+-*/", expression[i-1]))) {
    token += c;
    continue;
   }
 
   // operator or parenthesis
-  if (strchr("+-*/%()", c)) {
+  if (strchr("+-*/()<>", c)) {
    if (!token.empty()) {
     tokens.push_back(token);
     token.clear();
@@ -196,8 +223,9 @@ static vector<string> breakdown(const string& expression) {
 }
 
 static u32 precedence(const string& op) {
- if (op == "+" || op == "-") {return 1;}
- if (op == "*" || op == "/" || op == "%") {return 2;}
+ if (op == "+" || op == "-") {return 2;}
+ if (op == "*" || op == "/") {return 3;}
+ if (op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=") {return 1;}
  return 0;
 }
 
@@ -206,7 +234,12 @@ static bool is_left_assoc(const string& op) {
 }
 
 static bool is_operator(const string& t) {
- return t == "+" || t == "-" || t == "*" || t == "/" || t == "%";
+ return
+  t == "+"  || t == "-"  ||
+  t == "*"  || t == "/"  ||
+  t == "==" || t == "!=" ||
+  t == "<"  || t == ">"  ||
+  t == "<=" || t == ">=";
 }
 
 static vector<string> shunting_yard(const vector<string>& tokens) {
