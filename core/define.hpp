@@ -21,3 +21,5 @@ using u32 = uint32_t;
 using s32 = int32_t;
 
 using str = const char*;
+
+#define cast(type, value) static_cast<type>(value)

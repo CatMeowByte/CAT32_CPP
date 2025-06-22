@@ -3,30 +3,41 @@
 #include "core/utility.hpp" // IWYU pragma: keep
 
 #define OPCODES \
+ /* stack */ \
  OP(0x11, push) \
  OP(0x12, pop) \
  OP(0x13, pushm) \
  OP(0x14, popm) \
- \
+ /* counter */ \
  OP(0x2D, jump) \
  OP(0x2E, jumz) \
  OP(0x2F, junz) \
- \
+ /* math */ \
  OP(0x31, add) \
  OP(0x32, sub) \
  OP(0x33, mul) \
  OP(0x34, div) \
- \
+ /* logic */ \
  OP(0x41, eq) \
  OP(0x42, neq) \
  OP(0x43, gt) \
  OP(0x44, lt) \
  OP(0x45, geq) \
  OP(0x46, leq) \
- \
+ OP(0x47, land) \
+ OP(0x48, lor) \
+ OP(0x49, lnot) \
+ /* bit */ \
+ OP(0x4A, band) \
+ OP(0x4B, bor) \
+ OP(0x4C, bnot) \
+ OP(0x4D, bshl) \
+ OP(0x4E, bshr) \
+ /* video */ \
  OP(0xA0, clear) \
  OP(0xA1, pixel) \
  OP(0xAF, flip) \
+ /* nop */ \
  OP(0x00, nop)
 
 constexpr u32 SENTINEL = 0xFFFFFFFF;

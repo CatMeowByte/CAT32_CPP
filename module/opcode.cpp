@@ -3,6 +3,7 @@
 #include "module/video.hpp"
 
 namespace opfunc {
+ /* stack */
  u32 push(u32 value) {
   if (stacker > 0) {memory[--stacker] = value;}
   return SENTINEL;
@@ -25,6 +26,7 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ /* counter */
  u32 jump(u32 value) {
   return value;
  }
@@ -41,6 +43,7 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ /* math */
  u32 add(u32 value) {
   if (stacker < SYSTEM::MEMORY - 1) {
    u32 b = pop(0);
@@ -80,6 +83,7 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ /* logic */
  u32 eq(u32 value) {
   if (stacker < SYSTEM::MEMORY - 1) {
    u32 b = pop(0);
@@ -134,6 +138,78 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ u32 land(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(cast(bool, a) && cast(bool, b));
+  }
+  return SENTINEL;
+ }
+
+ u32 lor(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(cast(bool, a) || cast(bool, b));
+  }
+  return SENTINEL;
+ }
+
+ u32 lnot(u32 value) {
+  if (stacker < SYSTEM::MEMORY) {
+   u32 a = pop(0);
+   push(!cast(bool, a));
+  }
+  return SENTINEL;
+ }
+
+ /* bit */
+ u32 band(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a & b);
+  }
+  return SENTINEL;
+ }
+
+ u32 bor(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a | b);
+  }
+  return SENTINEL;
+ }
+
+ u32 bnot(u32 value) {
+  if (stacker < SYSTEM::MEMORY) {
+   u32 a = pop(0);
+   push(~a);
+  }
+  return SENTINEL;
+ }
+
+ u32 bshl(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a << b);
+  }
+  return SENTINEL;
+ }
+
+ u32 bshr(u32 value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   u32 b = pop(0);
+   u32 a = pop(0);
+   push(a >> b);
+  }
+  return SENTINEL;
+ }
+
+ /* video */
  u32 clear(u32 value) {
   u32 color = pop(0);
   video::clear(color);

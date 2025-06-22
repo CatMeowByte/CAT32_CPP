@@ -20,6 +20,14 @@ static const unordered_map<string, u32> math_operations = {
  {">", op::gt},
  {"<=", op::leq},
  {">=", op::geq},
+ {"&", op::land},
+ {"|", op::lor},
+ {"!", op::lnot},
+ {"&&", op::band},
+ {"||", op::bor},
+ {"~", op::bnot},
+ {"<<", op::bshl},
+ {">>", op::bshr},
 };
 
 static void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand);
@@ -179,7 +187,10 @@ static vector<string> breakdown(const string& expression) {
   // multi-char operators
   if (i + 1 < expression.size()) {
    string two_chars = expression.substr(i, 2);
-   if (two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=") {
+   if (
+    two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=" ||
+    two_chars == "&&" || two_chars == "||" || two_chars == "<<" || two_chars == ">>"
+   ) {
     if (!token.empty()) {
      tokens.push_back(token);
      token.clear();
@@ -212,7 +223,7 @@ static vector<string> breakdown(const string& expression) {
   }
 
   // operator or parenthesis
-  if (strchr("+-*/()<>", c)) {
+  if (strchr("+-*/()<>!&|~", c)) {
    if (!token.empty()) {
     tokens.push_back(token);
     token.clear();
@@ -228,9 +239,14 @@ static vector<string> breakdown(const string& expression) {
 }
 
 static u32 precedence(const string& op) {
- if (op == "+" || op == "-") {return 2;}
- if (op == "*" || op == "/") {return 3;}
- if (op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=") {return 1;}
+ if (op == "!" || op == "~") {return 5;}
+ if (op == "*" || op == "/") {return 4;}
+ if (op == "+" || op == "-") {return 3;}
+ if (op == "<<" || op == ">>") {return 2;}
+ if (op == "<" || op == ">" || op == "<=" || op == ">=") {return 1;}
+ if (op == "==" || op == "!=") {return 1;}
+ if (op == "&&" || op == "||") {return 0;}
+ if (op == "&" || op == "|") {return 0;}
  return 0;
 }
 
@@ -244,7 +260,10 @@ static bool is_operator(const string& t) {
   t == "*"  || t == "/"  ||
   t == "==" || t == "!=" ||
   t == "<"  || t == ">"  ||
-  t == "<=" || t == ">=";
+  t == "<=" || t == ">=" ||
+  t == "&"  || t == "|"  || t == "!" ||
+  t == "&&" || t == "||" || t == "~" ||
+  t == "<<" || t == ">>";
 }
 
 static vector<string> shunting_yard(const vector<string>& tokens) {
