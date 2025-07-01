@@ -83,36 +83,18 @@ namespace interpreter {
 
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
-   // math
-   bool has_math_operation = false;
-   for (const auto& [key, val] : math_operations) {if (tokens[i].find(key) != string::npos) {has_math_operation = true; break;}}
-   if (has_math_operation) {
-    vector<string> postfix = shunting_yard(breakdown(tokens[i]));
+   vector<string> postfix = shunting_yard(breakdown(tokens[i]));
 
-    for (string t : postfix) {
-     if (utility::is_number(t.c_str())) {
-      bytecode_append(bytecode, op::push, stoi(t));
-     }
-     else if (symbols.count(t)) {
-      bytecode_append(bytecode, op::pushm, symbols[t]);
-     }
-     else if (math_operations.count(t)) {
-      bytecode_append(bytecode, math_operations.at(t), op::nop);
-     }
+   for (const string& t : postfix) {
+    if (utility::is_number(t.c_str())) {
+     bytecode_append(bytecode, op::push, stoi(t));
     }
-    continue;
-   }
-
-   // variable
-   if (symbols.count(tokens[i]) && i != 0) {
-    bytecode_append(bytecode, op::pushm, symbols[tokens[i]]);
-    continue;
-   }
-
-   // number
-   if (utility::is_number(tokens[i].c_str())) {
-    bytecode_append(bytecode, op::push, stoi(tokens[i]));
-    continue;
+    else if (symbols.count(t)) {
+     bytecode_append(bytecode, op::pushm, symbols[t]);
+    }
+    else if (math_operations.count(t)) {
+     bytecode_append(bytecode, math_operations.at(t), op::nop);
+    }
    }
   }
 
