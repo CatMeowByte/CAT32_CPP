@@ -1,16 +1,17 @@
 #include "module/interpreter.hpp"
+#include "module/opcode.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
 #include "core/constant.hpp"
+#include "core/memory.hpp"
 
 void fps();
 
-vector<u32> bytecode;
-
 void init() {
- bytecode.clear();
+ memset(bytecode, op::nop, sizeof(bytecode));
+ writer = 0;
 
- ifstream file("/media/storage/share/cpp/CAT32/example/4.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/5.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -18,14 +19,12 @@ void init() {
  string line;
  // per line
  while (getline(file, line)) {
-  vector<string> tokenized = interpreter::tokenize(line);
-  vector<u32> compiled = interpreter::compile(tokenized);
-  bytecode.insert(bytecode.end(), compiled.begin(), compiled.end());
-
+  interpreter::compile(interpreter::tokenize(line));
   cout << endl;
  }
 
- interpreter::execute(bytecode);
+ counter = 0;
+ while (counter < writer) {interpreter::step();}
 }
 
 void update() {

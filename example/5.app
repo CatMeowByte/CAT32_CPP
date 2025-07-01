@@ -1,0 +1,15 @@
+VAR X = 0
+
+START:
+X = X+1
+GOTO END
+
+MIDDLE:
+X = X+99
+
+END:
+X = X+1
+
+CLEAR 0
+PIXEL X 0 7
+FLIP

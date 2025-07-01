@@ -1,15 +1,17 @@
 #include "module/interpreter.hpp"
+#include "core/memory.hpp"
 #include "core/utility.hpp"
 #include "module/opcode.hpp"
 
 // TODO:
 // handle warning of exception, overflow, etc
 
-unordered_map<string, u32> symbols;
+hash_map<string, u32> symbols;
 
-u32 slotter = 0;
+struct Redirect {u32 address = SENTINEL; vector<u32> pending;};
+hash_map<string, Redirect> redirect;
 
-static const unordered_map<string, u32> math_operations = {
+static const hash_map<string, u32> math_operations = {
  {"+", op::add},
  {"-", op::sub},
  {"*", op::mul},
@@ -30,7 +32,7 @@ static const unordered_map<string, u32> math_operations = {
  {">>", op::bshr},
 };
 
-static void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand);
+static void bytecode_append(u32 opcode, u32 operand);
 static vector<string> breakdown(const string& expression);
 static vector<string> shunting_yard(const vector<string>& tokens);
 
@@ -74,12 +76,33 @@ namespace interpreter {
   return pack;
  }
 
- vector<u32> compile(const vector<string>& tokens) {
-  vector<u32> bytecode;
-  if (tokens.empty()) {return bytecode;}
+ void compile(const vector<string>& tokens) {
+  if (tokens.empty()) {return;}
 
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
+
+  // label
+  if (tokens[0].size() > 1 && tokens[0].back() == ':') {
+   string label = tokens[0].substr(0, tokens[0].size() - 1);
+   redirect[label].address = writer;
+
+   for (u32 pos : redirect[label].pending) {bytecode[pos] = writer;}
+
+   redirect[label].pending.clear();
+   return;
+  }
+
+  // goto
+  if (tokens[0] == "GOTO" && tokens.size() == 2) {
+   string label = tokens[1];
+   u32 target = redirect[label].address;
+
+   bytecode_append(op::jump, target);
+   if (target == SENTINEL) {redirect[label].pending.push_back(writer - 1);}
+
+   return;
+  }
 
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
@@ -87,13 +110,13 @@ namespace interpreter {
 
    for (const string& t : postfix) {
     if (utility::is_number(t.c_str())) {
-     bytecode_append(bytecode, op::push, stoi(t));
+     bytecode_append(op::push, stoi(t));
     }
     else if (symbols.count(t)) {
-     bytecode_append(bytecode, op::pushm, symbols[t]);
+     bytecode_append(op::pushm, symbols[t]);
     }
     else if (math_operations.count(t)) {
-     bytecode_append(bytecode, math_operations.at(t), op::nop);
+     bytecode_append(math_operations.at(t), op::nop);
     }
    }
   }
@@ -113,9 +136,9 @@ namespace interpreter {
     address = symbols[name];
    }
 
-   bytecode_append(bytecode, op::popm, address);
+   bytecode_append(op::popm, address);
 
-   return bytecode;
+   return;
   }
 
   // command
@@ -123,34 +146,33 @@ namespace interpreter {
   transform(cmd_l.begin(), cmd_l.end(), cmd_l.begin(), ::tolower);
   u32 cmd = opcode_get(cmd_l.c_str());
   if (cmd != op::nop) {
-   bytecode_append(bytecode, cmd, op::nop);
+   bytecode_append(cmd, op::nop);
   }
 
-  return bytecode;
+  return;
  }
 
- void execute(const vector<u32>& bytecode) {
-  u32 counter = 0;
-  while (counter < bytecode.size()) {
-   u32 opcode = bytecode[counter];
-   u32 operand = bytecode[counter + 1];
-   u32 result = SENTINEL;
+ void step() {
+  if (counter >= writer) {return;}
 
-   switch (opcode) {
-    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
-    OPCODES
-    #undef OP
-   }
+  u32 opcode = bytecode[counter];
+  u32 operand = bytecode[counter + 1];
+  u32 result = SENTINEL;
 
-   if (result == SENTINEL) {counter += 2;}
-   else {counter = result;}
+  switch (opcode) {
+   #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
+   OPCODES
+   #undef OP
   }
+
+  if (result == SENTINEL) {counter += 2;}
+  else {counter = result;}
  }
 }
 
-void bytecode_append(vector<u32>& bytecode, u32 opcode, u32 operand) {
- bytecode.push_back(opcode);
- bytecode.push_back(operand);
+void bytecode_append(u32 opcode, u32 operand) {
+ bytecode[writer++] = opcode;
+ bytecode[writer++] = operand;
 
  // debug output
  string name = opcode_name(opcode);

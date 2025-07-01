@@ -23,3 +23,4 @@ using s32 = int32_t;
 using str = const char*;
 
 #define cast(type, value) static_cast<type>(value)
+#define hash_map unordered_map

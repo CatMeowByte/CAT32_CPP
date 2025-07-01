@@ -4,6 +4,6 @@
 
 namespace interpreter {
  vector<string> tokenize(const string& text);
- vector<u32> compile(const vector<string>& tokens);
- void execute(const vector<u32>& bytecode);
+ void compile(const vector<string>& tokens);
+ void step();
 }
