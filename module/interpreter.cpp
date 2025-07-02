@@ -86,8 +86,15 @@ namespace interpreter {
   if (tokens[0].size() > 1 && tokens[0].back() == ':') {
    string label = tokens[0].substr(0, tokens[0].size() - 1);
    redirect[label].address = writer;
+   cout << label << " is at address " << writer << endl;
 
    for (u32 pos : redirect[label].pending) {bytecode[pos] = writer;}
+
+   if (!redirect[label].pending.empty()) {
+    cout << "pending [";
+    for (u32 addr : redirect[label].pending) {cout << addr << " ";}
+    cout << "] set to address " << writer << endl;
+   }
 
    redirect[label].pending.clear();
    return;
@@ -99,7 +106,13 @@ namespace interpreter {
    u32 target = redirect[label].address;
 
    bytecode_append(op::jump, target);
-   if (target == SENTINEL) {redirect[label].pending.push_back(writer - 1);}
+   if (target == SENTINEL) {
+    u32 pending_addr = writer - 1;
+    redirect[label].pending.push_back(pending_addr);
+    cout << "address " << label << " unknown; [" << pending_addr << "] added to pending" << endl;
+   } else {
+    cout << "address " << label << " is " << target << endl;
+   }
 
    return;
   }
