@@ -161,8 +161,18 @@ namespace interpreter {
    return;
   }
 
+  // argument
+  bool is_declare = (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4);
+  bool is_assign = (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3);
+
+  // FIXME:
+  // not for arrray
+  u32 argument_skip = 0;
+  if (is_declare) {argument_skip = 3;}
+  else if (is_assign) {argument_skip = 2;}
+
   // arguments
-  for (u32 i = 0; i < tokens.size(); i++) {
+  for (u32 i = argument_skip; i < tokens.size(); i++) {
    vector<string> postfix = shunting_yard(breakdown(tokens[i]));
 
    for (const string& t : postfix) {
@@ -184,9 +194,6 @@ namespace interpreter {
   }
 
   // variable declaration and reassignment
-  bool is_declare = (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4);
-  bool is_assign = (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3);
-
   if (is_declare || is_assign) {
    string name = is_declare ? tokens[1] : tokens[0];
    u32 address;
@@ -199,6 +206,8 @@ namespace interpreter {
    }
 
    bytecode_append(op::popm, address);
+
+   if (is_declare) {cout << name << " is stored in " << address << endl;}
 
    return;
   }
