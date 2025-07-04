@@ -8,8 +8,10 @@
 
 hash_map<string, u32> symbols;
 
-struct Redirect {u32 address = SENTINEL; vector<u32> pending;};
 hash_map<string, Redirect> redirect;
+
+u8 indent_previous = 0;
+vector<u32> indent_stack;
 
 static const hash_map<string, u32> math_operations = {
  {"+", op::add},
@@ -37,13 +39,19 @@ static vector<string> breakdown(const string& expression);
 static vector<string> shunting_yard(const vector<string>& tokens);
 
 namespace interpreter {
- vector<string> tokenize(const string& text) {
+ TokenLine tokenize(const string& line) {
+  u8 indent = 0;
+  while (indent < line.size() && line[indent] == ' ') {
+   indent++;
+  }
+  const string text = line.substr(indent);
+
   vector<string> pack;
   string token;
   bool in_quote = false;
 
   for (u32 character = 0; character <= text.size(); character++) {
-   char c = (character < text.size() ? text[character] : ' ');
+   const char c = (character < text.size() ? text[character] : ' ');
 
    // handle quote (with backslash escape)
    if (c == '"') {
@@ -73,14 +81,50 @@ namespace interpreter {
    token += c;
   }
 
-  return pack;
+  return {indent, pack};
  }
 
- void compile(const vector<string>& tokens) {
+ void compile(const TokenLine& line) {
+  const u8& indent = line.indent;
+  const vector<string>& tokens = line.tokens;
+
   if (tokens.empty()) {return;}
 
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
+
+  // indent
+  if (indent > indent_previous) {
+   cout << "INDENT" << endl;
+
+   const u32 last_opcode = bytecode[writer - 2];
+   if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
+    cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+   }
+
+   const u32 jump_pos = writer - 1;
+   indent_stack.push_back(jump_pos);
+   cout << "indent stack added with jump opcode operand at " << jump_pos << endl;
+  }
+
+  if (indent < indent_previous) {
+   cout << "DEDENT" << endl;
+
+   const bool is_else = (tokens[0] == "ELSE:");
+
+   if (is_else) {bytecode_append(op::jump, SENTINEL);}
+
+   const u32 jump_pos = indent_stack.back();
+   cout << "patching jump opcode operand at " << jump_pos << " to address " << writer << endl;
+   bytecode[jump_pos] = writer;
+   indent_stack.pop_back();
+
+   if (is_else) {
+    indent_stack.push_back(writer - 1);
+    cout << "else jump at operand " << writer - 1 << endl;
+   }
+  }
+  indent_previous = indent;
 
   // label
   if (tokens[0].size() > 1 && tokens[0].back() == ':') {
@@ -132,6 +176,11 @@ namespace interpreter {
      bytecode_append(math_operations.at(t), op::nop);
     }
    }
+  }
+
+  // if
+  if (tokens[0] == "IF" && tokens.back().back() == ':') {
+   bytecode_append(op::jumz, SENTINEL);
   }
 
   // variable declaration and reassignment
