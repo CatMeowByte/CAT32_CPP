@@ -10,8 +10,10 @@ hash_map<string, u32> symbols;
 
 hash_map<string, Redirect> redirect;
 
+vector<IndentFrame> indent_stack;
 u8 indent_previous = 0;
-vector<u32> indent_stack;
+IndentType indent_type_pending = IndentType::UNKNOWN;
+u32 loop_start = 0;
 
 static const hash_map<string, u32> math_operations = {
  {"+", op::add},
@@ -93,6 +95,14 @@ namespace interpreter {
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
 
+  bool is_block_if = (tokens[0] == "IF" && tokens.back().back() == ':');
+  bool is_block_else = (tokens[0] == "ELSE:");
+  bool is_block_while = (tokens[0] == "WHILE" && tokens.back().back() == ':');
+
+  if (is_block_if || is_block_while) {
+   loop_start = writer;
+  }
+
   // indent
   if (indent > indent_previous) {
    cout << "INDENT" << endl;
@@ -103,24 +113,32 @@ namespace interpreter {
    }
 
    const u32 jump_pos = writer - 1;
-   indent_stack.push_back(jump_pos);
-   cout << "indent stack added with jump opcode operand at " << jump_pos << endl;
+   indent_stack.push_back({jump_pos, loop_start, indent_type_pending});
+   indent_type_pending = IndentType::UNKNOWN;
+   cout << "indent stack added with jump operand at " << jump_pos << endl;
   }
 
+  // dedent
   if (indent < indent_previous) {
    cout << "DEDENT" << endl;
 
-   const bool is_else = (tokens[0] == "ELSE:");
+   if (is_block_else) {bytecode_append(op::jump, SENTINEL);}
 
-   if (is_else) {bytecode_append(op::jump, SENTINEL);}
 
-   const u32 jump_pos = indent_stack.back();
-   cout << "patching jump opcode operand at " << jump_pos << " to address " << writer << endl;
+   const IndentFrame& frame = indent_stack.back();
+   const u32& jump_pos = frame.jump_pos;
+
+   if (frame.type == IndentType::WHILE) {
+    bytecode_append(op::jump, frame.loop_start); // next opcode
+   }
+
    bytecode[jump_pos] = writer;
+   cout << "patching jump operand at " << jump_pos << " to address " << writer << endl;
+
    indent_stack.pop_back();
 
-   if (is_else) {
-    indent_stack.push_back(writer - 1);
+   if (is_block_else) {
+    indent_stack.push_back({writer - 1, loop_start, IndentType::ELSE});
     cout << "else jump at operand " << writer - 1 << endl;
    }
   }
@@ -189,8 +207,15 @@ namespace interpreter {
   }
 
   // if
-  if (tokens[0] == "IF" && tokens.back().back() == ':') {
+  if (is_block_if) {
    bytecode_append(op::jumz, SENTINEL);
+   indent_type_pending = IndentType::IF;
+  }
+
+  // while
+  if (is_block_while) {
+   bytecode_append(op::jumz, SENTINEL);
+   indent_type_pending = IndentType::WHILE;
   }
 
   // variable declaration and reassignment
@@ -242,14 +267,16 @@ namespace interpreter {
 }
 
 void bytecode_append(u32 opcode, u32 operand) {
+ string name = opcode_name(opcode);
+ if (name.length() < 4) {name += string(4 - name.length(), ' ');}
+
+ bool has_operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0 || name.rfind("ju", 0) == 0);
+ string value = has_operand ? (operand == SENTINEL ? "SENTINEL" : to_string(operand)) : "";
+
+ cout << "[" << writer << "] " << name << "\t[" << writer + 1 << "] " << value << endl;
+
  bytecode[writer++] = opcode;
  bytecode[writer++] = operand;
-
- // debug output
- string name = opcode_name(opcode);
- bool has_operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0);
- string value = has_operand ? to_string(operand) : "";
- cout << name << "\t" << value << endl;
 }
 
 static vector<string> breakdown(const string& expression) {

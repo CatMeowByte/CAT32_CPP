@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/constant.hpp" // IWYU pragma: keep
-#include "module/opcode.hpp" // IWYU pragma: keep
+#include "module/interpreter.hpp" // IWYU pragma: keep
 
 // memory
 extern u32 memory[SYSTEM::MEMORY];
@@ -15,11 +15,12 @@ extern u32 writer;
 // interpreter
 extern hash_map<string, u32> symbols;
 
-struct Redirect {u32 address = SENTINEL; vector<u32> pending;};
 extern hash_map<string, Redirect> redirect;
 
+extern vector<IndentFrame> indent_stack;
 extern u8 indent_previous;
-extern vector<u32> indent_stack;
+extern IndentType indent_type_pending;
+extern u32 loop_start;
 
 // executor
 extern u32 counter;

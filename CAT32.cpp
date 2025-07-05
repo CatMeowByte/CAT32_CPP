@@ -7,7 +7,11 @@
 void fps();
 
 void init() {
- ifstream file("/media/storage/share/cpp/CAT32/example/6.app");
+ memory_management::memory_reset();
+ memory_management::bytecode_reset();
+ memory_management::executor_reset();
+
+ ifstream file("/media/storage/share/cpp/CAT32/example/7.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }

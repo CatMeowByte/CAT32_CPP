@@ -1,5 +1,4 @@
 #include "core/memory.hpp"
-#include "core/constant.hpp"
 #include <cstring>
 
 // memory
@@ -31,8 +30,10 @@ namespace memory_management {
   // interpreter
   symbols.clear();
   redirect.clear();
-  indent_previous = 0;
   indent_stack.clear();
+  indent_previous = 0;
+  indent_type_pending = IndentType::UNKNOWN;
+  loop_start = 0;
  }
 
  void executor_reset() {

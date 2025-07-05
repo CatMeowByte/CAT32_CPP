@@ -1,0 +1,12 @@
+CLEAR 0
+
+VAR Y = 0
+WHILE Y<64:
+ VAR X = 0
+ WHILE X<64:
+  VAR I = X&&Y
+  PIXEL X Y I
+  X = X+1
+ Y = Y+1
+
+FLIP
