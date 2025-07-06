@@ -1,4 +1,5 @@
 #include "module/interpreter.hpp"
+#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/utility.hpp"
 #include "module/opcode.hpp"
@@ -6,16 +7,16 @@
 // TODO:
 // handle warning of exception, overflow, etc
 
-hash_map<string, u32> symbols;
+hash_map<string, addr> symbols;
 
 hash_map<string, Redirect> redirect;
 
 vector<IndentFrame> indent_stack;
 u8 indent_previous = 0;
 IndentType indent_type_pending = IndentType::UNKNOWN;
-u32 loop_start = 0;
+addr loop_start = 0;
 
-static const hash_map<string, u32> math_operations = {
+static const hash_map<string, u8> math_operations = {
  {"+", op::add},
  {"-", op::sub},
  {"*", op::mul},
@@ -36,7 +37,7 @@ static const hash_map<string, u32> math_operations = {
  {">>", op::bshr},
 };
 
-static void bytecode_append(u32 opcode, u32 operand);
+static void bytecode_append(u8 opcode, elem operand);
 static vector<string> breakdown(const string& expression);
 static vector<string> shunting_yard(const vector<string>& tokens);
 
@@ -107,12 +108,12 @@ namespace interpreter {
   if (indent > indent_previous) {
    cout << "INDENT" << endl;
 
-   const u32 last_opcode = bytecode[writer - 2];
+   const elem last_opcode = bytecode[writer - 2];
    if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
     cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
    }
 
-   const u32 jump_pos = writer - 1;
+   const addr jump_pos = writer - 1;
    indent_stack.push_back({jump_pos, loop_start, indent_type_pending});
    indent_type_pending = IndentType::UNKNOWN;
    cout << "indent stack added with jump operand at " << jump_pos << endl;
@@ -126,7 +127,7 @@ namespace interpreter {
 
 
    const IndentFrame& frame = indent_stack.back();
-   const u32& jump_pos = frame.jump_pos;
+   const addr& jump_pos = frame.jump_pos;
 
    if (frame.type == IndentType::WHILE) {
     bytecode_append(op::jump, frame.loop_start); // next opcode
@@ -150,11 +151,11 @@ namespace interpreter {
    redirect[label].address = writer;
    cout << label << " is at address " << writer << endl;
 
-   for (u32 pos : redirect[label].pending) {bytecode[pos] = writer;}
+   for (addr pos : redirect[label].pending) {bytecode[pos] = writer;}
 
    if (!redirect[label].pending.empty()) {
     cout << "pending [";
-    for (u32 addr : redirect[label].pending) {cout << addr << " ";}
+    for (addr address : redirect[label].pending) {cout << address << " ";}
     cout << "] set to address " << writer << endl;
    }
 
@@ -165,13 +166,13 @@ namespace interpreter {
   // goto
   if (tokens[0] == "GOTO" && tokens.size() == 2) {
    string label = tokens[1];
-   u32 target = redirect[label].address;
+   addr target = redirect[label].address;
 
    bytecode_append(op::jump, target);
-   if (target == SENTINEL) {
-    u32 pending_addr = writer - 1;
-    redirect[label].pending.push_back(pending_addr);
-    cout << "address " << label << " unknown; [" << pending_addr << "] added to pending" << endl;
+   if (target == cast(u32, SENTINEL)) {
+    addr pending = writer - 1;
+    redirect[label].pending.push_back(pending);
+    cout << "address " << label << " unknown; [" << pending << "] added to pending" << endl;
    } else {
     cout << "address " << label << " is " << target << endl;
    }
@@ -221,7 +222,7 @@ namespace interpreter {
   // variable declaration and reassignment
   if (is_declare || is_assign) {
    string name = is_declare ? tokens[1] : tokens[0];
-   u32 address;
+   addr address;
 
    if (is_declare) {
     address = slotter++;
@@ -238,11 +239,11 @@ namespace interpreter {
   }
 
   // command
-  string cmd_l = tokens[0];
-  transform(cmd_l.begin(), cmd_l.end(), cmd_l.begin(), ::tolower);
-  u32 cmd = opcode_get(cmd_l.c_str());
-  if (cmd != op::nop) {
-   bytecode_append(cmd, op::nop);
+  string command_lowercase = tokens[0];
+  transform(command_lowercase.begin(), command_lowercase.end(), command_lowercase.begin(), ::tolower);
+  u8 command = opcode_get(command_lowercase.c_str());
+  if (command != op::nop) {
+   bytecode_append(command, op::nop);
   }
 
   return;
@@ -251,9 +252,9 @@ namespace interpreter {
  void step() {
   if (counter >= writer) {return;}
 
-  u32 opcode = bytecode[counter];
-  u32 operand = bytecode[counter + 1];
-  u32 result = SENTINEL;
+  elem opcode = bytecode[counter];
+  elem operand = bytecode[counter + 1];
+  addr result = SENTINEL;
 
   switch (opcode) {
    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
@@ -261,12 +262,12 @@ namespace interpreter {
    #undef OP
   }
 
-  if (result == SENTINEL) {counter += 2;}
+  if (result == cast(u32, SENTINEL)) {counter += 2;}
   else {counter = result;}
  }
 }
 
-void bytecode_append(u32 opcode, u32 operand) {
+void bytecode_append(u8 opcode, elem operand) {
  string name = opcode_name(opcode);
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
@@ -340,7 +341,7 @@ static vector<string> breakdown(const string& expression) {
  return tokens;
 }
 
-static u32 precedence(const string& op) {
+static u8 precedence(const string& op) {
  if (op == "!" || op == "~") {return 5;}
  if (op == "*" || op == "/") {return 4;}
  if (op == "+" || op == "-") {return 3;}

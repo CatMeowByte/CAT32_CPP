@@ -19,3 +19,5 @@ namespace TICK {
  constexpr u8 UPDATE = 15;
  constexpr u8 DRAW = 30;
 }
+
+constexpr elem SENTINEL = 0x80000000; // minimum negative

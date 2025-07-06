@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/constant.hpp" // IWYU pragma: keep
-#include "module/opcode.hpp" // IWYU pragma: keep
 
 enum class IndentType : u8 {
  UNKNOWN = 0x00,
@@ -11,8 +10,8 @@ enum class IndentType : u8 {
 };
 
 struct TokenLine {u8 indent; vector<std::string> tokens;};
-struct Redirect {u32 address = SENTINEL; vector<u32> pending;};
-struct IndentFrame {u32 jump_pos; u32 loop_start; IndentType type;};
+struct Redirect {addr address = SENTINEL; vector<addr> pending;};
+struct IndentFrame {addr jump_pos; addr loop_start; IndentType type;};
 
 namespace interpreter {
  TokenLine tokenize(const string& text);

@@ -2,16 +2,16 @@
 #include <cstring>
 
 // memory
-u32 memory[SYSTEM::MEMORY];
+elem memory[SYSTEM::MEMORY];
 u32 slotter = 0;
-u32 stacker = SYSTEM::MEMORY;
+addr stacker = SYSTEM::MEMORY;
 
 //b bytecode
-u32 bytecode[SYSTEM::CODESIZE];
-u32 writer = 0;
+elem bytecode[SYSTEM::CODESIZE];
+addr writer = 0;
 
 // executor
-u32 counter = 0;
+addr counter = 0;
 
 // TODO:
 // possibly move the variable definition to the appropriate module/file that control it

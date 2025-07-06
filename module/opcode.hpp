@@ -40,8 +40,6 @@
  /* nop */ \
  OP(0x00, nop)
 
-constexpr u32 SENTINEL = 0xFFFFFFFF;
-
 namespace op {
  #define OP(hex, name) constexpr u8 name = hex;
  OPCODES
@@ -49,7 +47,7 @@ namespace op {
 };
 
 namespace opfunc {
- #define OP(hex, name) u32 name(u32 value);
+ #define OP(hex, name) addr name(elem value);
  OPCODES
  #undef OP
 }
