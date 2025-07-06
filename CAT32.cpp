@@ -11,7 +11,7 @@ void init() {
  memory_management::bytecode_reset();
  memory_management::executor_reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/7.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/mandelbrot.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }

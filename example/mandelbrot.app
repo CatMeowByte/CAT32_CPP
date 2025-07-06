@@ -1,0 +1,46 @@
+VAR OFFSET_X = 0
+VAR OFFSET_Y = 6400
+VAR ZOOM = 3
+VAR ITERS = 64
+
+VAR VIDEO_W = 120
+VAR VIDEO_H = 160
+
+CLEAR 0
+
+VAR ZM = 6+ZOOM
+VAR OX = OFFSET_X*(1<<ZM)/10000
+VAR OY = OFFSET_Y*(1<<ZM)/10000
+VAR ER = 256<<ZOOM
+
+VAR Y = 0
+WHILE Y<VIDEO_H:
+ VAR X = 0
+ WHILE X<VIDEO_W:
+
+  VAR CX = ((X-(VIDEO_W/2))*2)+OX
+  VAR CY = ((Y-(VIDEO_H/2))*2)+OY
+  VAR ZX = 0
+  VAR ZY = 0
+  VAR I = 0
+
+  WHILE I<ITERS:
+   VAR ZZX = ZX*ZX>>ZM
+   VAR ZZY = ZY*ZY>>ZM
+   IF ZZX+ZZY>=ER:
+    GOTO SKIP
+   ZY = (2*ZX*ZY>>ZM)+CY
+   ZX = ZZX-ZZY+CX
+   I = I+1
+
+  SKIP:
+  VAR J = I&&3
+  I = I>>2
+  I = I+((X*2+Y&&3)<J)
+
+  PIXEL X Y I
+  X = X+1
+ Y = Y+1
+
+PIXEL VIDEO_W/2 VIDEO_H/2 7
+FLIP

@@ -73,8 +73,8 @@ namespace opfunc {
 
  u32 div(u32 value) {
   if (stacker < SYSTEM::MEMORY - 1) {
-   u32 b = pop(0);
-   u32 a = pop(0);
+   s32 b = pop(0);
+   s32 a = pop(0);
    if (b == 0) { // TODO: division zero
     push(0);
    }
@@ -193,8 +193,8 @@ namespace opfunc {
 
  u32 bshl(u32 value) {
   if (stacker < SYSTEM::MEMORY - 1) {
-   u32 b = pop(0);
-   u32 a = pop(0);
+   s32 b = pop(0);
+   s32 a = pop(0);
    push(a << b);
   }
   return SENTINEL;
@@ -202,8 +202,8 @@ namespace opfunc {
 
  u32 bshr(u32 value) {
   if (stacker < SYSTEM::MEMORY - 1) {
-   u32 b = pop(0);
-   u32 a = pop(0);
+   s32 b = pop(0);
+   s32 a = pop(0);
    push(a >> b);
   }
   return SENTINEL;
