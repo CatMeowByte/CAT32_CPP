@@ -31,5 +31,16 @@ namespace memory_management {
  void executor_reset();
 }
 
+namespace fpu {
+ inline s32 pack(s32 number) {return number << SYSTEM::FIXED_POINT_WIDTH;}
+ inline s32 unpack(s32 fixed_point) {return fixed_point >> SYSTEM::FIXED_POINT_WIDTH;}
+
+ inline s64 pack_wide(s64 number) {return number << SYSTEM::FIXED_POINT_WIDTH;}
+ inline s64 unpack_wide(s64 fixed_point) {return fixed_point >> SYSTEM::FIXED_POINT_WIDTH;}
+
+ inline float scale(float number) {return number * (1 << SYSTEM::FIXED_POINT_WIDTH);}
+ inline float unscale(s32 fixed_point) {return cast(float, fixed_point) / (1 << SYSTEM::FIXED_POINT_WIDTH);}
+}
+
 // TODO:
 // separate pointer, counter, and stacker for each app

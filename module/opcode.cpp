@@ -65,21 +65,21 @@ namespace opfunc {
 
  addr mul(elem value) {
   if (stacker < SYSTEM::MEMORY - 1) {
-   elem b = pop(0);
-   elem a = pop(0);
-   push(a * b);
+   s64 b = cast(s32, pop(0));
+   s64 a = cast(s32, pop(0));
+   push(cast(elem, fpu::unpack_wide(a * b)));
   }
   return SENTINEL;
  }
 
  addr div(elem value) {
   if (stacker < SYSTEM::MEMORY - 1) {
-   elem b = pop(0);
-   elem a = pop(0);
+   s64 b = cast(s32, pop(0));
+   s64 a = cast(s32, pop(0));
    if (b == 0) { // TODO: division zero
     push(0);
    }
-   push(a / b);
+   push(cast(elem, fpu::pack_wide(a) / b));
   }
   return SENTINEL;
  }
@@ -89,7 +89,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a == b);
+   push(fpu::pack(a == b));
   }
   return SENTINEL;
  }
@@ -98,7 +98,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a != b);
+   push(fpu::pack(a != b));
   }
   return SENTINEL;
  }
@@ -107,7 +107,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a > b);
+   push(fpu::pack(a > b));
   }
   return SENTINEL;
  }
@@ -116,7 +116,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a < b);
+   push(fpu::pack(a < b));
   }
   return SENTINEL;
  }
@@ -125,7 +125,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a >= b);
+   push(fpu::pack(a >= b));
   }
   return SENTINEL;
  }
@@ -134,7 +134,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a <= b);
+   push(fpu::pack(a <= b));
   }
   return SENTINEL;
  }
@@ -143,7 +143,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(cast(bool, a) && cast(bool, b));
+   push(fpu::pack(cast(bool, a) && cast(bool, b)));
   }
   return SENTINEL;
  }
@@ -152,7 +152,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(cast(bool, a) || cast(bool, b));
+   push(fpu::pack(cast(bool, a) || cast(bool, b)));
   }
   return SENTINEL;
  }
@@ -160,7 +160,7 @@ namespace opfunc {
  addr lnot(elem value) {
   if (stacker < SYSTEM::MEMORY) {
    elem a = pop(0);
-   push(!cast(bool, a));
+   push(fpu::pack(!cast(bool, a)));
   }
   return SENTINEL;
  }
@@ -196,7 +196,7 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a << b);
+   push(a << fpu::unpack(b));
   }
   return SENTINEL;
  }
@@ -205,22 +205,22 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    elem b = pop(0);
    elem a = pop(0);
-   push(a >> b);
+   push(a >> fpu::unpack(b));
   }
   return SENTINEL;
  }
 
  /* video */
  addr clear(elem value) {
-  elem color = pop(0);
+  elem color = fpu::unpack(pop(0));
   video::clear(color);
   return SENTINEL;
  }
 
  addr pixel(elem value) {
-  elem color = pop(0);
-  elem y = pop(0);
-  elem x = pop(0);
+  elem color = fpu::unpack(pop(0));
+  elem y = fpu::unpack(pop(0));
+  elem x = fpu::unpack(pop(0));
   video::pixel(x, y, color);
   return SENTINEL;
  }

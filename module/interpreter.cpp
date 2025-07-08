@@ -1,7 +1,6 @@
-#include "module/interpreter.hpp"
 #include "core/define.hpp"
 #include "core/memory.hpp"
-#include "core/utility.hpp"
+#include "module/interpreter.hpp"
 #include "module/opcode.hpp"
 
 // TODO:
@@ -180,7 +179,7 @@ namespace interpreter {
    return;
   }
 
-  // argument
+  // variable set check
   bool is_declare = (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4);
   bool is_assign = (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3);
 
@@ -196,7 +195,7 @@ namespace interpreter {
 
    for (const string& t : postfix) {
     if (utility::is_number(t.c_str())) {
-     bytecode_append(op::push, stoi(t));
+     bytecode_append(op::push, cast(elem, fpu::scale(stod(t)))); // fixed point
     }
     else if (symbols.count(t)) {
      bytecode_append(op::pushm, symbols[t]);
