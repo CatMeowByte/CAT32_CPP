@@ -39,6 +39,7 @@
  OP(0xAF, flip) \
  /* misc */ \
  OP(0xFA, see) \
+ OP(0xFF, wait) \
  OP(0x00, nop)
 
 namespace op {

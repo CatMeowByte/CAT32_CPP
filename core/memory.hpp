@@ -24,6 +24,7 @@ extern addr loop_start;
 
 // executor
 extern addr counter;
+extern u32 sleeper;
 
 namespace memory_management {
  void memory_reset();

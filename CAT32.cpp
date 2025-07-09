@@ -11,7 +11,7 @@ void init() {
  memory_management::bytecode_reset();
  memory_management::executor_reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/8.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/9.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -22,11 +22,11 @@ void init() {
   interpreter::compile(interpreter::tokenize(line));
   cout << endl;
  }
-
- while (counter < writer) {interpreter::step();}
 }
 
 void update() {
+ if (sleeper) {sleeper--;}
+ while (counter < writer && sleeper == 0) {interpreter::step();}
 }
 
 void draw() {

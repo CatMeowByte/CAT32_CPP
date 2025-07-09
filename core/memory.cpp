@@ -12,6 +12,7 @@ addr writer = 0;
 
 // executor
 addr counter = 0;
+u32 sleeper = 0;
 
 // TODO:
 // possibly move the variable definition to the appropriate module/file that control it
@@ -38,5 +39,6 @@ namespace memory_management {
 
  void executor_reset() {
   counter = 0;
+  sleeper = 0;
  }
 }

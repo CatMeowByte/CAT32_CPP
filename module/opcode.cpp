@@ -257,6 +257,11 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ addr wait(elem value) {
+  sleeper = fpu::unpack(pop(0));
+  return SENTINEL;
+ }
+
  addr nop(elem value) {
   return SENTINEL;
  }
