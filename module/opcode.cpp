@@ -230,6 +230,33 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ /* misc */
+
+ addr see(elem value) {
+  elem literal_value = pop(0);
+  float decimal_value = fpu::unscale(literal_value);
+
+  // format hex
+  ostringstream hex_out;
+  hex_out.setf(ios::uppercase);
+  hex_out << hex;
+  hex_out << setw(8);
+  hex_out << setfill('0');
+  hex_out << literal_value;
+  string hex_string = hex_out.str();
+
+  int dot_position = SYSTEM::FIXED_POINT_WIDTH / 4;
+  string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
+
+  // format float
+  ostringstream float_out;
+  float_out << decimal_value;
+  string decimal_string = float_out.str();
+
+  cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
+  return SENTINEL;
+ }
+
  addr nop(elem value) {
   return SENTINEL;
  }

@@ -37,7 +37,8 @@
  OP(0xA0, clear) \
  OP(0xA1, pixel) \
  OP(0xAF, flip) \
- /* nop */ \
+ /* misc */ \
+ OP(0xFA, see) \
  OP(0x00, nop)
 
 namespace op {

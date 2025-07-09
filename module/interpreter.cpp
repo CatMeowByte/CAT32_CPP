@@ -195,7 +195,7 @@ namespace interpreter {
 
    for (const string& t : postfix) {
     if (utility::is_number(t.c_str())) {
-     bytecode_append(op::push, cast(elem, fpu::scale(stod(t)))); // fixed point
+     bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
      bytecode_append(op::pushm, symbols[t]);
