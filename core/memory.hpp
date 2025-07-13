@@ -13,7 +13,20 @@ extern elem bytecode[SYSTEM::CODESIZE];
 extern addr writer;
 
 // interpreter
-extern hash_map<string, addr> symbols;
+enum SymbolType {
+  ALIAS,
+  NUMBER,
+  STRIPE,
+  FUNCTION,
+};
+
+struct SymbolData {
+  addr address;
+  SymbolType type;
+  s32 attribute;
+};
+
+extern hash_map<string, SymbolData> symbols;
 
 extern hash_map<string, Redirect> redirect;
 

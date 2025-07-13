@@ -6,7 +6,7 @@
 // TODO:
 // handle warning of exception, overflow, etc
 
-hash_map<string, addr> symbols;
+hash_map<string, SymbolData> symbols;
 
 hash_map<string, Redirect> redirect;
 
@@ -227,7 +227,7 @@ namespace interpreter {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
-     bytecode_append(op::pushm, symbols[t]);
+     bytecode_append(op::pushm, symbols[t].address);
     }
     else if (math_operations.count(t)) {
      bytecode_append(math_operations.at(t), op::nop);
@@ -254,9 +254,9 @@ namespace interpreter {
 
    if (is_declare) {
     address = slotter++;
-    symbols[name] = address;
+    symbols[name].address = address;
    } else {
-    address = symbols[name];
+    address = symbols[name].address;
    }
 
    bytecode_append(op::popm, address);
