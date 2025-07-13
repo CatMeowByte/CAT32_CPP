@@ -15,25 +15,54 @@ u8 indent_previous = 0;
 IndentType indent_type_pending = IndentType::UNKNOWN;
 addr loop_start = 0;
 
+enum Precedence : u8 {
+ BASE = 0,
+ LOGIC = 0,
+ COMPARE = 1,
+ SHIFT = 2,
+ ADD = 3,
+ MUL = 4,
+ UNARY = 5,
+};
+
+#define SORTED_OPERATORS \
+ OP("==", op::eq, COMPARE) \
+ OP("!=", op::neq, COMPARE) \
+ OP("<=", op::leq, COMPARE) \
+ OP(">=", op::geq, COMPARE) \
+ OP("&&", op::band, LOGIC) \
+ OP("||", op::bor, LOGIC) \
+ OP("~~", op::bnot, UNARY) \
+ OP("<<", op::bshl, SHIFT) \
+ OP(">>", op::bshr, SHIFT) \
+ OP("+", op::add, ADD) \
+ OP("-", op::sub, ADD) \
+ OP("*", op::mul, MUL) \
+ OP("/", op::div, MUL) \
+ OP("<", op::lt, COMPARE) \
+ OP(">", op::gt, COMPARE) \
+ OP("&", op::land, LOGIC) \
+ OP("|", op::lor, LOGIC) \
+ OP("!", op::lnot, UNARY)
+
 static const hash_map<string, u8> math_operations = {
- {"+", op::add},
- {"-", op::sub},
- {"*", op::mul},
- {"/", op::div},
- {"==", op::eq},
- {"!=", op::neq},
- {"<", op::lt},
- {">", op::gt},
- {"<=", op::leq},
- {">=", op::geq},
- {"&", op::land},
- {"|", op::lor},
- {"!", op::lnot},
- {"&&", op::band},
- {"||", op::bor},
- {"~", op::bnot},
- {"<<", op::bshl},
- {">>", op::bshr},
+#define OP(sym, code, prec) {sym, code},
+ SORTED_OPERATORS
+#undef OP
+};
+
+static const vector<string> math_operations_sorted = {
+#define OP(sym, code, prec) sym,
+ SORTED_OPERATORS
+#undef OP
+};
+
+static const vector<string> math_operations_with_bracket = {
+#define OP(sym, code, prec) sym,
+ SORTED_OPERATORS
+#undef OP
+ "(",
+ ")",
 };
 
 static void bytecode_append(u8 opcode, elem operand);
@@ -286,22 +315,21 @@ static vector<string> breakdown(const string& expression) {
  for (u32 i = 0; i < expression.size(); i++) {
   char c = expression[i];
 
-  // multi-char operators
-  if (i + 1 < expression.size()) {
-   string two_chars = expression.substr(i, 2);
-   if (
-    two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=" ||
-    two_chars == "&&" || two_chars == "||" || two_chars == "<<" || two_chars == ">>"
-   ) {
+  // operators
+  bool operator_matched = false;
+  for (const string& op : math_operations_with_bracket) {
+   if (expression.substr(i, op.size()) == op) {
     if (!token.empty()) {
      tokens.push_back(token);
      token.clear();
     }
-    tokens.push_back(two_chars);
-    i++; // skip next char
-    continue;
+    tokens.push_back(op);
+    i += op.size() - 1;
+    operator_matched = true;
+    break;
    }
   }
+  if (operator_matched) {continue;}
 
   // skip whitespace
   if (c == ' ') {continue;}
@@ -323,16 +351,6 @@ static vector<string> breakdown(const string& expression) {
    token += c;
    continue;
   }
-
-  // operator or parenthesis
-  if (strchr("+-*/()<>!&|~", c)) {
-   if (!token.empty()) {
-    tokens.push_back(token);
-    token.clear();
-   }
-   tokens.push_back(string(1, c));
-   continue;
-  }
  }
 
  if (!token.empty()) {tokens.push_back(token);}
@@ -341,15 +359,10 @@ static vector<string> breakdown(const string& expression) {
 }
 
 static u8 precedence(const string& op) {
- if (op == "!" || op == "~") {return 5;}
- if (op == "*" || op == "/") {return 4;}
- if (op == "+" || op == "-") {return 3;}
- if (op == "<<" || op == ">>") {return 2;}
- if (op == "<" || op == ">" || op == "<=" || op == ">=") {return 1;}
- if (op == "==" || op == "!=") {return 1;}
- if (op == "&&" || op == "||") {return 0;}
- if (op == "&" || op == "|") {return 0;}
- return 0;
+#define OP(sym, code, prec) if (op == sym) {return prec;}
+ SORTED_OPERATORS
+#undef OP
+ return BASE;
 }
 
 static bool is_left_assoc(const string& op) {
@@ -357,15 +370,7 @@ static bool is_left_assoc(const string& op) {
 }
 
 static bool is_operator(const string& t) {
- return
-  t == "+"  || t == "-"  ||
-  t == "*"  || t == "/"  ||
-  t == "==" || t == "!=" ||
-  t == "<"  || t == ">"  ||
-  t == "<=" || t == ">=" ||
-  t == "&"  || t == "|"  || t == "!" ||
-  t == "&&" || t == "||" || t == "~" ||
-  t == "<<" || t == ">>";
+ return find(math_operations_sorted.begin(), math_operations_sorted.end(), t) != math_operations_sorted.end();
 }
 
 static vector<string> shunting_yard(const vector<string>& tokens) {
@@ -399,8 +404,9 @@ static vector<string> shunting_yard(const vector<string>& tokens) {
     output.push_back(operator_stack.back());
     operator_stack.pop_back();
    }
-   if (!operator_stack.empty() && operator_stack.back() == "(")
+   if (!operator_stack.empty() && operator_stack.back() == "(") {
     operator_stack.pop_back();
+   }
   }
   else {
    // number or variable

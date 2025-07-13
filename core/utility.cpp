@@ -10,7 +10,7 @@ namespace utility {
   if (text[0] == '-' || text[0] == '+') i++;
 
   for (; text[i] != '\0'; i++) {
-   if (text[i] >= '0' && text[i] <= '9') {
+   if (isdigit(text[i])) {
     has_digit = true;
     continue;
    }
