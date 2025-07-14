@@ -6,8 +6,9 @@
  /* stack */ \
  OP(0x11, push) \
  OP(0x12, pop) \
- OP(0x13, pushm) \
- OP(0x14, popm) \
+ /* memory */ \
+ OP(0x13, takefrom) \
+ OP(0x14, storeto) \
  /* counter */ \
  OP(0x2D, jump) \
  OP(0x2E, jumz) \

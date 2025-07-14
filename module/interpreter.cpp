@@ -227,7 +227,7 @@ namespace interpreter {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
-     bytecode_append(op::pushm, symbols[t].address);
+     bytecode_append(op::takefrom, symbols[t].address);
     }
     else if (math_operations.count(t)) {
      bytecode_append(math_operations.at(t), op::nop);
@@ -259,7 +259,7 @@ namespace interpreter {
     address = symbols[name].address;
    }
 
-   bytecode_append(op::popm, address);
+   bytecode_append(op::storeto, address);
 
    if (is_declare) {cout << name << " is stored in " << address << endl;}
 
@@ -299,8 +299,17 @@ void bytecode_append(u8 opcode, elem operand) {
  string name = opcode_name(opcode);
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
- bool has_operand = (name.rfind("pop", 0) == 0 || name.rfind("push", 0) == 0 || name.rfind("ju", 0) == 0);
- string value = has_operand ? (operand == SENTINEL ? "SENTINEL" : to_string(operand)) : "";
+ bool has_operand = (
+  name == "pop"    || name == "push" ||
+  name == "takefrom" || name == "storeto" ||
+  name == "jump"   || name == "jumz" || name == "junz"
+ );
+ string value = "";
+ if (has_operand) {
+  if (operand == SENTINEL) {value = "SENTINEL";}
+  else if (name == "pop" || name == "push") {ostringstream oss; oss << fpu::unscale(operand); value = oss.str();}
+  else {value = to_string(operand);}
+ }
 
  cout << "[" << writer << "] " << name << "\t[" << writer + 1 << "] " << value << endl;
 

@@ -15,12 +15,13 @@ namespace opfunc {
   return SENTINEL;
  }
 
- addr pushm(elem value) {
+ /* memory */
+ addr takefrom(elem value) {
   if (stacker > 0) {memory[--stacker] = memory[value];}
   return SENTINEL;
  }
 
- addr popm(elem value) {
+ addr storeto(elem value) {
   if (stacker < SYSTEM::MEMORY) {
    memory[value] = memory[stacker++];
   }
