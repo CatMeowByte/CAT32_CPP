@@ -14,7 +14,6 @@ extern addr writer;
 
 // interpreter
 enum SymbolType {
-  ALIAS,
   NUMBER,
   STRIPE,
   FUNCTION,

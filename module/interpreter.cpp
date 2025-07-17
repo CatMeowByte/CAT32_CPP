@@ -1,5 +1,6 @@
 #include "core/define.hpp"
 #include "core/memory.hpp"
+#include "core/utility.hpp"
 #include "module/interpreter.hpp"
 #include "module/opcode.hpp"
 
@@ -67,7 +68,7 @@ static const vector<string> math_operations_with_bracket = {
 
 static void bytecode_append(u8 opcode, elem operand);
 static vector<string> breakdown(const string& expression);
-static vector<string> shunting_yard(const vector<string>& tokens);
+static vector<string> postfix(const vector<string>& tokens);
 
 namespace interpreter {
  TokenLine tokenize(const string& line) {
@@ -121,14 +122,26 @@ namespace interpreter {
 
   if (tokens.empty()) {return;}
 
+  // flags
+  enum BlockType : u8 {BLOCK_NONE, BLOCK_IF, BLOCK_WHILE, BLOCK_ELSE};
+  BlockType block_type = BLOCK_NONE;
+
+  enum AssignType : u8 {ASSIGN_NONE, ASSIGN_DECLARE, ASSIGN_SET};
+  AssignType assign_type = ASSIGN_NONE;
+
+  enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
+  DeclareStyle declare_style = DECLARE_NONE;
+
+  bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
+
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
 
-  bool is_block_if = (tokens[0] == "IF" && tokens.back().back() == ':');
-  bool is_block_else = (tokens[0] == "ELSE:");
-  bool is_block_while = (tokens[0] == "WHILE" && tokens.back().back() == ':');
+  if (tokens[0] == "IF" && tokens.back().back() == ':') {block_type = BLOCK_IF;}
+  if (tokens[0] == "WHILE" && tokens.back().back() == ':') {block_type = BLOCK_WHILE;}
+  if (tokens[0] == "ELSE:") {block_type = BLOCK_ELSE;}
 
-  if (is_block_if || is_block_while) {
+  if (block_type == BLOCK_IF || block_type == BLOCK_WHILE) {
    loop_start = writer;
   }
 
@@ -151,8 +164,7 @@ namespace interpreter {
   if (indent < indent_previous) {
    cout << "DEDENT" << endl;
 
-   if (is_block_else) {bytecode_append(op::jump, SENTINEL);}
-
+   if (block_type == BLOCK_ELSE) {bytecode_append(op::jump, SENTINEL);}
 
    const IndentFrame& frame = indent_stack.back();
    const addr& jump_pos = frame.jump_pos;
@@ -166,7 +178,7 @@ namespace interpreter {
 
    indent_stack.pop_back();
 
-   if (is_block_else) {
+   if (block_type == BLOCK_ELSE) {
     indent_stack.push_back({writer - 1, loop_start, IndentType::ELSE});
     cout << "else jump at operand " << writer - 1 << endl;
    }
@@ -209,25 +221,28 @@ namespace interpreter {
   }
 
   // variable set check
-  bool is_declare = (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4);
-  bool is_assign = (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3);
-
-  // FIXME:
-  // not for arrray
-  u32 argument_skip = 0;
-  if (is_declare) {argument_skip = 3;}
-  else if (is_assign) {argument_skip = 2;}
+  if (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4) {assign_type = ASSIGN_DECLARE; declare_style = DECLARE_VAR;}
+  if (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3) {assign_type = ASSIGN_SET;}
 
   // arguments
-  for (u32 i = argument_skip; i < tokens.size(); i++) {
-   vector<string> postfix = shunting_yard(breakdown(tokens[i]));
+  for (u32 i = 0; i < tokens.size(); i++) {
+   if (tokens[i] == "=") {is_expression = true; continue;}
 
-   for (const string& t : postfix) {
+   vector<string> expression_ordered = postfix(breakdown(tokens[i]));
+   for (const string& t : expression_ordered) {
     if (utility::is_number(t.c_str())) {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
-     bytecode_append(op::takefrom, symbols[t].address);
+     const SymbolData& symbol = symbols[t];
+     switch (symbol.type) {
+      case NUMBER: {
+       if (!is_expression) {continue;}
+       bytecode_append(op::takefrom, symbol.address);
+       break;
+      }
+      default: {break;}
+     }
     }
     else if (math_operations.count(t)) {
      bytecode_append(math_operations.at(t), op::nop);
@@ -236,34 +251,37 @@ namespace interpreter {
   }
 
   // if
-  if (is_block_if) {
+  if (block_type == BLOCK_IF) {
    bytecode_append(op::jumz, SENTINEL);
    indent_type_pending = IndentType::IF;
   }
 
   // while
-  if (is_block_while) {
+  if (block_type == BLOCK_WHILE) {
    bytecode_append(op::jumz, SENTINEL);
    indent_type_pending = IndentType::WHILE;
   }
 
   // variable declaration and reassignment
-  if (is_declare || is_assign) {
-   string name = is_declare ? tokens[1] : tokens[0];
-   addr address;
+  if (assign_type == ASSIGN_DECLARE) {
+   string name = tokens[1];
+   addr address = 0;
 
-   if (is_declare) {
-    address = slotter++;
-    symbols[name].address = address;
-   } else {
-    address = symbols[name].address;
+   switch (declare_style) {
+    case DECLARE_VAR: {
+     address = slotter++;
+     symbols[name].type = NUMBER;
+     symbols[name].address = address;
+     bytecode_append(op::storeto, address);
+     cout << name << " is stored in " << address << endl;
+     break;
+    }
+    default: {break;}
    }
-
+  } else if (assign_type == ASSIGN_SET) {
+   string name = tokens[0];
+   addr address = symbols[name].address;
    bytecode_append(op::storeto, address);
-
-   if (is_declare) {cout << name << " is stored in " << address << endl;}
-
-   return;
   }
 
   // command
@@ -307,7 +325,7 @@ void bytecode_append(u8 opcode, elem operand) {
  string value = "";
  if (has_operand) {
   if (operand == SENTINEL) {value = "SENTINEL";}
-  else if (name == "pop" || name == "push") {ostringstream oss; oss << fpu::unscale(operand); value = oss.str();}
+  // else if (name == "pop" || name == "push") {value = utility::string_no_trailing(fpu::unscale(operand));}
   else {value = to_string(operand);}
  }
 
@@ -382,7 +400,7 @@ static bool is_operator(const string& t) {
  return find(math_operations_sorted.begin(), math_operations_sorted.end(), t) != math_operations_sorted.end();
 }
 
-static vector<string> shunting_yard(const vector<string>& tokens) {
+static vector<string> postfix(const vector<string>& tokens) {
  vector<string> output;
  vector<string> operator_stack;
 

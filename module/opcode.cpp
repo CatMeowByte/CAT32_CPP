@@ -1,3 +1,4 @@
+#include "core/constant.hpp"
 #include "core/define.hpp"
 #include "core/memory.hpp"
 #include "module/opcode.hpp"
@@ -24,6 +25,23 @@ namespace opfunc {
  addr storeto(elem value) {
   if (stacker < SYSTEM::MEMORY) {
    memory[value] = memory[stacker++];
+  }
+  return SENTINEL;
+ }
+
+ addr peek(elem value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   addr address = fpu::unpack(pop(0));
+   push(memory[address]);
+  }
+  return SENTINEL;
+ }
+
+ addr poke(elem value) {
+  if (stacker < SYSTEM::MEMORY - 1) {
+   elem a = pop(0);
+   addr address = fpu::unpack(pop(0));
+   memory[address] = a;
   }
   return SENTINEL;
  }
@@ -77,8 +95,8 @@ namespace opfunc {
   if (stacker < SYSTEM::MEMORY - 1) {
    s64 b = cast(s32, pop(0));
    s64 a = cast(s32, pop(0));
-   if (b == 0) { // TODO: division zero
-    push(0);
+   if (b == 0) {
+    push(SENTINEL);
    }
    push(cast(elem, fpu::pack_wide(a) / b));
   }
@@ -250,9 +268,7 @@ namespace opfunc {
   string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
 
   // format float
-  ostringstream float_out;
-  float_out << decimal_value;
-  string decimal_string = float_out.str();
+  string decimal_string = utility::string_no_trailing(decimal_value);
 
   cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
   return SENTINEL;

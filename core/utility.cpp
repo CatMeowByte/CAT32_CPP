@@ -1,4 +1,5 @@
 #include "core/utility.hpp"
+#include <cassert>
 
 namespace utility {
  bool is_number(str text) {
@@ -21,5 +22,12 @@ namespace utility {
    return false;
   }
   return has_digit;
+ }
+
+ string string_no_trailing(double value) {
+  string s = to_string(value);
+  s.erase(s.find_last_not_of('0') + 1, string::npos); // remove trailing zeros
+  if(s.back()=='.') {s.pop_back();} // remove trailing dot
+  return s;
  }
 }

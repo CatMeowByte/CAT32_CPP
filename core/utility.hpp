@@ -13,4 +13,6 @@ namespace utility {
  }
 
  bool is_number(str text);
+
+ string string_no_trailing(double value);
 }
