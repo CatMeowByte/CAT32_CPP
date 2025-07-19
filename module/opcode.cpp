@@ -4,33 +4,36 @@
 #include "module/opcode.hpp"
 #include "module/video.hpp"
 
+#define STACK_NOT_OVERFLOW if (stacker > 0)
+#define STACK_AT_LEAST(N) if (stacker <= SYSTEM::MEMORY - (N))
+
 namespace opfunc {
  /* stack */
  addr push(elem value) {
-  if (stacker > 0) {memory[--stacker] = value;}
+  STACK_NOT_OVERFLOW {memory[--stacker] = value;}
   return SENTINEL;
  }
 
  addr pop(elem value) {
-  if (stacker < SYSTEM::MEMORY) {return memory[stacker++];}
+  STACK_AT_LEAST(1) {return memory[stacker++];}
   return SENTINEL;
  }
 
  /* memory */
  addr takefrom(elem value) {
-  if (stacker > 0) {memory[--stacker] = memory[value];}
+  STACK_NOT_OVERFLOW {memory[--stacker] = memory[value];}
   return SENTINEL;
  }
 
  addr storeto(elem value) {
-  if (stacker < SYSTEM::MEMORY) {
+  STACK_AT_LEAST(1) {
    memory[value] = memory[stacker++];
   }
   return SENTINEL;
  }
 
  addr peek(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(1) {
    addr address = fpu::unpack(pop(0));
    push(memory[address]);
   }
@@ -38,7 +41,7 @@ namespace opfunc {
  }
 
  addr poke(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem a = pop(0);
    addr address = fpu::unpack(pop(0));
    memory[address] = a;
@@ -52,20 +55,24 @@ namespace opfunc {
  }
 
  addr jumz(elem value) {
-  elem check = pop(0);
-  if (check == 0) {return value;}
+  STACK_AT_LEAST(1) {
+   elem check = pop(0);
+   if (check == 0) {return value;}
+  }
   return SENTINEL;
  }
 
  addr junz(elem value) {
-  elem check = pop(0);
-  if (check != 0) {return value;}
+  STACK_AT_LEAST(1) {
+   elem check = pop(0);
+   if (check != 0) {return value;}
+  }
   return SENTINEL;
  }
 
  /* math */
  addr add(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a + b);
@@ -74,7 +81,7 @@ namespace opfunc {
  }
 
  addr sub(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a - b);
@@ -83,7 +90,7 @@ namespace opfunc {
  }
 
  addr mul(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    s64 b = cast(s32, pop(0));
    s64 a = cast(s32, pop(0));
    push(cast(elem, fpu::unpack_wide(a * b)));
@@ -92,7 +99,7 @@ namespace opfunc {
  }
 
  addr div(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    s64 b = cast(s32, pop(0));
    s64 a = cast(s32, pop(0));
    if (b == 0) {
@@ -104,7 +111,7 @@ namespace opfunc {
  }
 
  addr neg(elem value) {
-  if (stacker < SYSTEM::MEMORY) {
+  STACK_AT_LEAST(1) {
    elem a = pop(0);
    push(-a);
   }
@@ -113,7 +120,7 @@ namespace opfunc {
 
  /* logic */
  addr eq(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a == b));
@@ -122,7 +129,7 @@ namespace opfunc {
  }
 
  addr neq(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a != b));
@@ -131,7 +138,7 @@ namespace opfunc {
  }
 
  addr gt(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a > b));
@@ -140,7 +147,7 @@ namespace opfunc {
  }
 
  addr lt(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a < b));
@@ -149,7 +156,7 @@ namespace opfunc {
  }
 
  addr geq(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a >= b));
@@ -158,7 +165,7 @@ namespace opfunc {
  }
 
  addr leq(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(a <= b));
@@ -167,7 +174,7 @@ namespace opfunc {
  }
 
  addr land(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(cast(bool, a) && cast(bool, b)));
@@ -176,7 +183,7 @@ namespace opfunc {
  }
 
  addr lor(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(fpu::pack(cast(bool, a) || cast(bool, b)));
@@ -185,7 +192,7 @@ namespace opfunc {
  }
 
  addr lnot(elem value) {
-  if (stacker < SYSTEM::MEMORY) {
+  STACK_AT_LEAST(1) {
    elem a = pop(0);
    push(fpu::pack(!cast(bool, a)));
   }
@@ -194,7 +201,7 @@ namespace opfunc {
 
  /* bit */
  addr band(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a & b);
@@ -203,7 +210,7 @@ namespace opfunc {
  }
 
  addr bor(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a | b);
@@ -212,7 +219,7 @@ namespace opfunc {
  }
 
  addr bnot(elem value) {
-  if (stacker < SYSTEM::MEMORY) {
+  STACK_AT_LEAST(1) {
    elem a = pop(0);
    push(~a);
   }
@@ -220,7 +227,7 @@ namespace opfunc {
  }
 
  addr bshl(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a << fpu::unpack(b));
@@ -229,7 +236,7 @@ namespace opfunc {
  }
 
  addr bshr(elem value) {
-  if (stacker < SYSTEM::MEMORY - 1) {
+  STACK_AT_LEAST(2) {
    elem b = pop(0);
    elem a = pop(0);
    push(a >> fpu::unpack(b));
@@ -239,16 +246,20 @@ namespace opfunc {
 
  /* video */
  addr clear(elem value) {
-  elem color = fpu::unpack(pop(0));
-  video::clear(color);
+  STACK_AT_LEAST(1) {
+   elem color = fpu::unpack(pop(0));
+   video::clear(color);
+  }
   return SENTINEL;
  }
 
  addr pixel(elem value) {
-  elem color = fpu::unpack(pop(0));
-  elem y = fpu::unpack(pop(0));
-  elem x = fpu::unpack(pop(0));
-  video::pixel(x, y, color);
+  STACK_AT_LEAST(3) {
+   elem color = fpu::unpack(pop(0));
+   elem y = fpu::unpack(pop(0));
+   elem x = fpu::unpack(pop(0));
+   video::pixel(x, y, color);
+  }
   return SENTINEL;
  }
 
@@ -260,30 +271,32 @@ namespace opfunc {
  /* misc */
 
  addr see(elem value) {
-  elem literal_value = pop(0);
-  float decimal_value = fpu::unscale(literal_value);
+  STACK_AT_LEAST(1) {
+   elem literal_value = pop(0);
+   float decimal_value = fpu::unscale(literal_value);
 
-  // format hex
-  ostringstream hex_out;
-  hex_out.setf(ios::uppercase);
-  hex_out << hex;
-  hex_out << setw(8);
-  hex_out << setfill('0');
-  hex_out << literal_value;
-  string hex_string = hex_out.str();
+   // format hex
+   ostringstream hex_out;
+   hex_out.setf(ios::uppercase);
+   hex_out << hex;
+   hex_out << setw(8);
+   hex_out << setfill('0');
+   hex_out << literal_value;
+   string hex_string = hex_out.str();
 
-  int dot_position = SYSTEM::FIXED_POINT_WIDTH / 4;
-  string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
+   int dot_position = SYSTEM::FIXED_POINT_WIDTH / 4;
+   string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
 
-  // format float
-  string decimal_string = utility::string_no_trailing(decimal_value);
+   // format float
+   string decimal_string = utility::string_no_trailing(decimal_value);
 
-  cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
-  return SENTINEL;
+   cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
+  }
+   return SENTINEL;
  }
 
  addr wait(elem value) {
-  sleeper = fpu::unpack(pop(0));
+  STACK_AT_LEAST(1) {sleeper = fpu::unpack(pop(0));}
   return SENTINEL;
  }
 
