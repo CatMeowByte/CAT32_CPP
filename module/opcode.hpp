@@ -20,6 +20,7 @@
  OP(0x32, sub) \
  OP(0x33, mul) \
  OP(0x34, div) \
+ OP(0x35, neg) \
  /* logic */ \
  OP(0x41, eq) \
  OP(0x42, neq) \

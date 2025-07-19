@@ -9,6 +9,7 @@
 #include <iomanip> // IWYU pragma: export
 #include <iostream> // IWYU pragma: export
 #include <unordered_map> // IWYU pragma: export
+#include <unordered_set> // IWYU pragma: export
 #include <sstream> // IWYU pragma: export
 #include <string> // IWYU pragma: export
 #include <vector> // IWYU pragma: export
@@ -31,3 +32,4 @@ using str = const char*;
 
 #define cast(type, value) static_cast<type>(value)
 #define hash_map unordered_map
+#define set unordered_set

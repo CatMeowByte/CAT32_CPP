@@ -103,6 +103,14 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ addr neg(elem value) {
+  if (stacker < SYSTEM::MEMORY) {
+   elem a = pop(0);
+   push(-a);
+  }
+  return SENTINEL;
+ }
+
  /* logic */
  addr eq(elem value) {
   if (stacker < SYSTEM::MEMORY - 1) {

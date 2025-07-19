@@ -46,19 +46,20 @@ enum Precedence : u8 {
  OP("|", op::lor, LOGIC) \
  OP("!", op::lnot, UNARY)
 
-static const hash_map<string, u8> math_operations = {
+static const hash_map<string, u8> math_opcodes = {
 #define OP(sym, code, prec) {sym, code},
  SORTED_OPERATORS
 #undef OP
+{"NEG", op::neg},
 };
 
-static const vector<string> math_operations_sorted = {
+static const set<string> math_list_operations = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
 };
 
-static const vector<string> math_operations_with_bracket = {
+static const set<string> math_list_operations_bracket = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
@@ -244,8 +245,8 @@ namespace interpreter {
       default: {break;}
      }
     }
-    else if (math_operations.count(t)) {
-     bytecode_append(math_operations.at(t), op::nop);
+    else if (math_opcodes.count(t)) {
+     bytecode_append(math_opcodes.at(t), op::nop);
     }
    }
   }
@@ -338,20 +339,36 @@ void bytecode_append(u8 opcode, elem operand) {
 static vector<string> breakdown(const string& expression) {
  vector<string> tokens;
  string token;
+ bool is_negative = false;
 
  for (u32 i = 0; i < expression.size(); i++) {
   char c = expression[i];
 
+  // negative number: unary minus at start or after ( or operator
+  if (c == '-' && (i == 0 || expression[i-1] == '(' || math_list_operations.count(string(1, expression[i-1])))) {
+   if (i+1 < expression.size() && (isdigit(expression[i+1]) || expression[i+1] == '.')) {
+    token += c;
+    continue;
+   }
+   is_negative = true;
+   continue;
+  }
+
   // operators
   bool operator_matched = false;
-  for (const string& op : math_operations_with_bracket) {
-   if (expression.substr(i, op.size()) == op) {
+  for (u8 len = 3; len > 0 && i + len <= expression.size(); len--) {
+   string candidate = expression.substr(i, len);
+   if (math_list_operations_bracket.count(candidate)) {
     if (!token.empty()) {
      tokens.push_back(token);
+     if (is_negative) {
+      tokens.push_back("NEG");
+      is_negative = false;
+     }
      token.clear();
     }
-    tokens.push_back(op);
-    i += op.size() - 1;
+    tokens.push_back(candidate);
+    i += len - 1;
     operator_matched = true;
     break;
    }
@@ -372,15 +389,15 @@ static vector<string> breakdown(const string& expression) {
    token += c;
    continue;
   }
-
-  // negative number: unary minus at start or after ( or operator
-  if (c == '-' && (i == 0 || expression[i-1] == '(' || strchr("+-*/", expression[i-1]))) {
-   token += c;
-   continue;
-  }
  }
 
- if (!token.empty()) {tokens.push_back(token);}
+ if (!token.empty()) {
+  tokens.push_back(token);
+  if (is_negative) {
+   tokens.push_back("NEG");
+   is_negative = false;
+  }
+ }
 
  return tokens;
 }
@@ -392,29 +409,21 @@ static u8 precedence(const string& op) {
  return BASE;
 }
 
-static bool is_left_assoc(const string& op) {
- return true; // all basic ops are left-associative
-}
-
-static bool is_operator(const string& t) {
- return find(math_operations_sorted.begin(), math_operations_sorted.end(), t) != math_operations_sorted.end();
-}
-
 static vector<string> postfix(const vector<string>& tokens) {
  vector<string> output;
  vector<string> operator_stack;
 
  for (u32 i = 0; i < tokens.size(); i++) {
   const string& t = tokens[i];
-  if (is_operator(t)) {
+  if (math_list_operations.count(t)) {
    while (
     !operator_stack.empty()
-    && is_operator(operator_stack.back())
+    && math_list_operations.count(operator_stack.back())
     && (
      (precedence(operator_stack.back()) > precedence(t))
      || (
       precedence(operator_stack.back()) == precedence(t)
-      && is_left_assoc(t)
+      && true // is_left_assoc(t) // all basic ops are left-associative
      )
     )
    ) {
