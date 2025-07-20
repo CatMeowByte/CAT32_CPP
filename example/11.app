@@ -1,0 +1,17 @@
+VAR A = 128
+A = 2
+
+STRIPE FOO = -4 A*3 8
+
+SEE FOO#0
+SEE FOO#1
+SEE FOO#2
+
+FOO#0 = A
+SEE FOO#0
+
+FOO#(A-1) = 32
+SEE FOO#1
+
+FOO#A = 64
+SEE FOO#A

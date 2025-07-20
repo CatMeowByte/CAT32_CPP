@@ -23,7 +23,8 @@ enum Precedence : u8 {
  SHIFT = 2,
  ADD = 3,
  MUL = 4,
- UNARY = 5,
+ OFFSET = 5,
+ UNARY = 6,
 };
 
 #define SORTED_OPERATORS \
@@ -56,12 +57,14 @@ static const hash_set<string> math_list_operations = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
+ "#",
 };
 
 static const hash_set<string> math_list_operations_bracket = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
+ "#",
  "(",
  ")",
 };
@@ -131,6 +134,9 @@ namespace interpreter {
 
   enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
   DeclareStyle declare_style = DECLARE_NONE;
+
+  enum SetStyle : u8 {SET_NONE, SET_VAR, SET_STRIPE};
+  SetStyle set_style = SET_NONE;
 
   bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
 
@@ -221,15 +227,28 @@ namespace interpreter {
   }
 
   // variable set check
-  if (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4) {assign_type = ASSIGN_DECLARE; declare_style = DECLARE_VAR;}
-  if (symbols.count(tokens[0]) && tokens[1] == "=" && tokens.size() == 3) {assign_type = ASSIGN_SET;}
+  if (tokens.size() >= 4 && tokens[2] == "=") {
+   assign_type = ASSIGN_DECLARE;
+   if (tokens[0] == "VAR") {declare_style = DECLARE_VAR;}
+   if (tokens[0] == "STRIPE") {declare_style = DECLARE_STRIPE_FULL;}
+  }
+  if (tokens.size() == 3 && tokens[1] == "=") {
+   assign_type = ASSIGN_SET;
+   u64 has_hash = tokens[0].find('#');
+   if (symbols.count(tokens[0].substr(0, has_hash))) {
+    if (has_hash == string::npos) {set_style = SET_VAR;}
+    else {set_style = SET_STRIPE;}
+   }
+  }
 
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
    if (tokens[i] == "=") {is_expression = true; continue;}
 
    vector<string> expression_ordered = postfix(breakdown(tokens[i]));
-   for (const string& t : expression_ordered) {
+   for (u32 j = 0; j < expression_ordered.size(); j++) {
+    const string& t = expression_ordered[j];
+
     if (utility::is_number(t.c_str())) {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
@@ -237,8 +256,12 @@ namespace interpreter {
      const SymbolData& symbol = symbols[t];
      switch (symbol.type) {
       case NUMBER: {
-       if (!is_expression) {continue;}
+       if (assign_type == ASSIGN_SET && set_style == SET_VAR && !is_expression && t == tokens[0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
+       break;
+      }
+      case STRIPE: {
+       bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
       default: {break;}
@@ -246,6 +269,11 @@ namespace interpreter {
     }
     else if (t == "NEG") {
      bytecode_append(op::neg, op::nop);
+    }
+    else if (t == "#") {
+     bytecode_append(op::add, op::nop);
+     if (assign_type == ASSIGN_SET && set_style == SET_STRIPE && !is_expression && j == expression_ordered.size() - 1) {continue;}
+     bytecode_append(op::peek, op::nop);
     }
     else if (math_opcodes.count(t)) {
      bytecode_append(math_opcodes.at(t), op::nop);
@@ -279,12 +307,37 @@ namespace interpreter {
      cout << name << " is stored in " << address << endl;
      break;
     }
+    case DECLARE_STRIPE_FULL: {
+     string name = tokens[1];
+     s32 count = tokens.size() - 3;
+     addr base = slotter;
+     slotter += count;
+
+     symbols[name].type = STRIPE;
+     symbols[name].address = base;
+     symbols[name].attribute = count;
+
+     for (s32 i = count - 1; i >= 0; i--) {bytecode_append(op::storeto, base + i);}
+     cout << name << " stripe is stored in " << base << " with size " << count << endl;
+     break;
+    }
     default: {break;}
    }
-  } else if (assign_type == ASSIGN_SET) {
-   string name = tokens[0];
-   addr address = symbols[name].address;
-   bytecode_append(op::storeto, address);
+  }
+  if (assign_type == ASSIGN_SET) {
+   switch (set_style) {
+    case SET_VAR: {
+     string name = tokens[0];
+     addr address = symbols[name].address;
+     bytecode_append(op::storeto, address);
+     break;
+    }
+    case SET_STRIPE: {
+     bytecode_append(op::poke, op::nop);
+     break;
+    }
+    default: {break;}
+   }
   }
 
   // command
@@ -331,6 +384,11 @@ void bytecode_append(u8 opcode, elem operand) {
   else {
    value = to_string(operand);
    if (name == "pop" || name == "push") {value += " (" + utility::string_no_trailing(fpu::unscale(operand)) + ")";}
+   if (name == "takefrom" || name == "storeto") {
+    for (hash_map<string, SymbolData>::iterator it = symbols.begin(); it != symbols.end(); ++it) {
+     if (cast(elem, it->second.address) == operand) {value += " (" + it->first + ")"; break;}
+    }
+   }
   }
  }
 
@@ -406,6 +464,7 @@ static u8 precedence(const string& op) {
 #define OP(sym, code, prec) if (op == sym) {return prec;}
  SORTED_OPERATORS
 #undef OP
+ if (op == "#") {return OFFSET;}
  return BASE;
 }
 
