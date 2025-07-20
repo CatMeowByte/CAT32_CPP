@@ -32,4 +32,4 @@ using str = const char*;
 
 #define cast(type, value) static_cast<type>(value)
 #define hash_map unordered_map
-#define set unordered_set
+#define hash_set unordered_set

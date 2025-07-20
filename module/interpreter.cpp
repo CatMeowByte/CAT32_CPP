@@ -50,16 +50,15 @@ static const hash_map<string, u8> math_opcodes = {
 #define OP(sym, code, prec) {sym, code},
  SORTED_OPERATORS
 #undef OP
-{"NEG", op::neg},
 };
 
-static const set<string> math_list_operations = {
+static const hash_set<string> math_list_operations = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
 };
 
-static const set<string> math_list_operations_bracket = {
+static const hash_set<string> math_list_operations_bracket = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
@@ -245,6 +244,9 @@ namespace interpreter {
       default: {break;}
      }
     }
+    else if (t == "NEG") {
+     bytecode_append(op::neg, op::nop);
+    }
     else if (math_opcodes.count(t)) {
      bytecode_append(math_opcodes.at(t), op::nop);
     }
@@ -326,8 +328,10 @@ void bytecode_append(u8 opcode, elem operand) {
  string value = "";
  if (has_operand) {
   if (operand == SENTINEL) {value = "SENTINEL";}
-  // else if (name == "pop" || name == "push") {value = utility::string_no_trailing(fpu::unscale(operand));}
-  else {value = to_string(operand);}
+  else {
+   value = to_string(operand);
+   if (name == "pop" || name == "push") {value += " (" + utility::string_no_trailing(fpu::unscale(operand)) + ")";}
+  }
  }
 
  cout << "[" << writer << "] " << name << "\t[" << writer + 1 << "] " << value << endl;
@@ -356,7 +360,7 @@ static vector<string> breakdown(const string& expression) {
 
   // operators
   bool operator_matched = false;
-  for (u8 len = 3; len > 0 && i + len <= expression.size(); len--) {
+  for (u8 len : {2, 1}) {
    string candidate = expression.substr(i, len);
    if (math_list_operations_bracket.count(candidate)) {
     if (!token.empty()) {
@@ -393,10 +397,6 @@ static vector<string> breakdown(const string& expression) {
 
  if (!token.empty()) {
   tokens.push_back(token);
-  if (is_negative) {
-   tokens.push_back("NEG");
-   is_negative = false;
-  }
  }
 
  return tokens;
