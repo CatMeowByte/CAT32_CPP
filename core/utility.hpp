@@ -12,7 +12,7 @@ namespace utility {
   return hash;
  }
 
- bool is_number(str text);
+ bool is_number(const string& text);
 
  string string_no_trailing(double value);
 }

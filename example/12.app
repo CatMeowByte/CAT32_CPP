@@ -1,0 +1,12 @@
+STRIPE X 256
+VAR Y = 0
+WHILE Y<64:
+ X#(Y*4) = Y
+ Y = Y+1
+
+CLEAR 0
+VAR I = 0
+WHILE I<256:
+ PIXEL X#I I 7
+ I = I+1
+FLIP

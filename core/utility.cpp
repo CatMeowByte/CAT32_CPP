@@ -2,15 +2,15 @@
 #include <cassert>
 
 namespace utility {
- bool is_number(str text) {
-  if (!text || !*text) {return false;}
+ bool is_number(const string& text) {
+  if (text.empty()) {return false;}
   u32 i = 0;
   bool has_digit = false;
   bool has_dot = false;
 
   if (text[0] == '-' || text[0] == '+') i++;
 
-  for (; text[i] != '\0'; i++) {
+  for (; i < text.length(); i++) {
    if (isdigit(text[i])) {
     has_digit = true;
     continue;

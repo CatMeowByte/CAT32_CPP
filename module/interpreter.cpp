@@ -227,10 +227,17 @@ namespace interpreter {
   }
 
   // variable set check
-  if (tokens.size() >= 4 && tokens[2] == "=") {
+  if (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4) {
    assign_type = ASSIGN_DECLARE;
-   if (tokens[0] == "VAR") {declare_style = DECLARE_VAR;}
-   if (tokens[0] == "STRIPE") {declare_style = DECLARE_STRIPE_FULL;}
+   declare_style = DECLARE_VAR;
+  }
+  if (tokens[0] == "STRIPE" && tokens[2] == "=" && tokens.size() >= 4) {
+   assign_type = ASSIGN_DECLARE;
+   declare_style = DECLARE_STRIPE_FULL;
+  }
+  if (tokens[0] == "STRIPE" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+   assign_type = ASSIGN_DECLARE;
+   declare_style = DECLARE_STRIPE_SIZE;
   }
   if (tokens.size() == 3 && tokens[1] == "=") {
    assign_type = ASSIGN_SET;
@@ -249,7 +256,7 @@ namespace interpreter {
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& t = expression_ordered[j];
 
-    if (utility::is_number(t.c_str())) {
+    if (utility::is_number(t) && declare_style != DECLARE_STRIPE_SIZE) {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
@@ -319,6 +326,18 @@ namespace interpreter {
 
      for (s32 i = count - 1; i >= 0; i--) {bytecode_append(op::storeto, base + i);}
      cout << name << " stripe is stored in " << base << " with size " << count << endl;
+     break;
+    }
+    case DECLARE_STRIPE_SIZE: {
+     string name = tokens[1];
+     s32 count = cast(s32, stof(tokens[2])); // truncate
+     addr base = slotter;
+     slotter += count;
+
+     symbols[name].type = STRIPE;
+     symbols[name].address = base;
+     symbols[name].attribute = count;
+     cout << name << " empty stripe is stored in " << base << " with size " << count << endl;
      break;
     }
     default: {break;}
