@@ -135,7 +135,7 @@ namespace interpreter {
   enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRING, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
   DeclareStyle declare_style = DECLARE_NONE;
 
-  enum SetStyle : u8 {SET_NONE, SET_VAR, SET_STRIPE};
+  enum SetStyle : u8 {SET_NONE, SET_VAR, SET_STRING, SET_STRIPE};
   SetStyle set_style = SET_NONE;
 
   bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
@@ -245,11 +245,11 @@ namespace interpreter {
   }
   if (tokens.size() == 3 && tokens[1] == "=") {
    assign_type = ASSIGN_SET;
+   set_style = SET_VAR;
+
    u64 has_hash = tokens[0].find('#');
-   if (symbols.count(tokens[0].substr(0, has_hash))) {
-    if (has_hash == string::npos) {set_style = SET_VAR;}
-    else {set_style = SET_STRIPE;}
-   }
+   if (has_hash != string::npos && symbols.count(tokens[0].substr(0, has_hash))) {set_style = SET_STRIPE;}
+   if (symbols.count(tokens[0]) && symbols[tokens[0]].type == STRING) {set_style = SET_STRING;}
   }
 
   // string
@@ -263,14 +263,25 @@ namespace interpreter {
      continue;
     }
 
+    addr address = slotter;
     u32 length = content.size();
-    bytecode_append(op::push, length);
-    bytecode_append(op::storeto, slotter++);
-    for (u32 j = 0; j < length; j++) {
-     bytecode_append(op::push, content[j]);
-     bytecode_append(op::storeto, slotter++);
+    addr slot_after = slotter + length + 1;
+    if (set_style == SET_STRING) {
+     address = symbols[tokens[0]].address;
+     slot_after = slotter;
     }
-    if (declare_style == DECLARE_STRING) {continue;}
+    bytecode_append(op::push, fpu::pack(length));
+    for (u32 j = 0; j < length; j++) {
+     bytecode_append(op::push, fpu::pack(content[j]));
+    }
+
+    for (s32 i = length; i >= 0; i--) {
+     bytecode_append(op::storeto, address + i);
+    }
+
+    slotter = slot_after;
+
+    if (declare_style == DECLARE_STRING || set_style == SET_STRING) {continue;}
     // hidden declare
     symbols[name].type = STRING;
     symbols[name].address = slotter - (length + 1);
@@ -286,6 +297,7 @@ namespace interpreter {
 
    // string
    if (token.front() == '"' && token.back() == '"') {
+    if (declare_style == DECLARE_STRING || set_style == SET_STRING) {continue;}
     string string_text = "$:" + token.substr(1, token.size() - 2);
     bytecode_append(op::push, fpu::pack(symbols[string_text].address));
     continue;
@@ -304,6 +316,11 @@ namespace interpreter {
       case NUMBER: {
        if (assign_type == ASSIGN_SET && set_style == SET_VAR && !is_expression && t == tokens[0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
+       break;
+      }
+      case STRING: {
+       if (assign_type == ASSIGN_SET && set_style == SET_STRING && !is_expression && t == tokens[0]) {break;}
+       bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
       case STRIPE: {
@@ -379,7 +396,7 @@ namespace interpreter {
 
     case DECLARE_STRIPE_SIZE: {
      address = slotter;
-     s32 count = cast(s32, stof(tokens[2])); // truncate
+     s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbols[name].type = STRIPE;
      symbols[name].address = address;
 
@@ -452,8 +469,9 @@ void bytecode_append(u8 opcode, elem operand) {
    value = to_string(operand);
    if (name == "pop" || name == "push") {
     value += " (" + utility::string_no_trailing(fpu::unscale(operand)) + ")";
-    if (operand >= 32 && operand <= 126) { // printable ASCII
-     value += " \"" + string(1, cast(char, operand)) + "\"";
+    elem operand_unpacked = fpu::unpack(operand);
+    if (operand_unpacked >= 32 && operand_unpacked <= 126) { // printable ASCII
+     value += " \"" + string(1, cast(char, operand_unpacked)) + "\"";
     }
    }
    if (name == "takefrom" || name == "storeto") {

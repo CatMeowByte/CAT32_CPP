@@ -33,7 +33,7 @@ namespace utility {
 
  string string_pick(addr address) {
  string out;
- for (u32 i = 0; i < memory[address]; i++) {out += char(memory[address + 1 + i]);}
+ for (s32 i = 0; i < fpu::unpack(memory[address]); i++) {out += cast(char, fpu::unpack(memory[address + 1 + i]));}
  return out;
 }
 }
