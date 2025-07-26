@@ -15,6 +15,7 @@ extern addr writer;
 // interpreter
 enum SymbolType {
   NUMBER,
+  STRING,
   STRIPE,
   FUNCTION,
 };
@@ -22,7 +23,7 @@ enum SymbolType {
 struct SymbolData {
   addr address;
   SymbolType type;
-  s32 attribute;
+  // s32 attribute;
 };
 
 extern hash_map<string, SymbolData> symbols;

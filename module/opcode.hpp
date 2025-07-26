@@ -40,6 +40,7 @@
  /* video */ \
  OP(0xA0, clear) \
  OP(0xA1, pixel) \
+ OP(0xA2, text) \
  OP(0xAF, flip) \
  /* misc */ \
  OP(0xFA, see) \

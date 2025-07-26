@@ -263,6 +263,17 @@ namespace opfunc {
   return SENTINEL;
  }
 
+ addr text(elem value) {
+  STACK_AT_LEAST(3) {
+   elem color = fpu::unpack(pop(0));
+   elem address = fpu::unpack(pop(0));
+   elem y = fpu::unpack(pop(0));
+   elem x = fpu::unpack(pop(0));
+   video::text(x, y, utility::string_pick(address).c_str(), color, 0); // FIXME: need fixed character
+  }
+  return SENTINEL;
+ }
+
  addr flip(elem value) {
   video::flip();
   return SENTINEL;

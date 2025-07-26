@@ -132,7 +132,7 @@ namespace interpreter {
   enum AssignType : u8 {ASSIGN_NONE, ASSIGN_DECLARE, ASSIGN_SET};
   AssignType assign_type = ASSIGN_NONE;
 
-  enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
+  enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRING, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
   DeclareStyle declare_style = DECLARE_NONE;
 
   enum SetStyle : u8 {SET_NONE, SET_VAR, SET_STRIPE};
@@ -231,6 +231,10 @@ namespace interpreter {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_VAR;
   }
+  if (tokens[0] == "STRING" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
+   assign_type = ASSIGN_DECLARE;
+   declare_style = DECLARE_STRING;
+  }
   if (tokens[0] == "STRIPE" && tokens[2] == "=" && tokens.size() >= 4) {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_STRIPE_FULL;
@@ -248,11 +252,46 @@ namespace interpreter {
    }
   }
 
+  // string
+  for (u32 i = 0; i < tokens.size(); i++) {
+   const string& token = tokens[i];
+   if (token.front() == '"' && token.back() == '"') {
+    string content = token.substr(1, token.size() - 2); // strip quotes
+    string name = "$:" + content;
+    if (symbols.count(name)) {
+     cout << "string already exist in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+     continue;
+    }
+
+    u32 length = content.size();
+    bytecode_append(op::push, length);
+    bytecode_append(op::storeto, slotter++);
+    for (u32 j = 0; j < length; j++) {
+     bytecode_append(op::push, content[j]);
+     bytecode_append(op::storeto, slotter++);
+    }
+    if (declare_style == DECLARE_STRING) {continue;}
+    // hidden declare
+    symbols[name].type = STRING;
+    symbols[name].address = slotter - (length + 1);
+
+    cout << "string hidden declare in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+   }
+  }
+
   // arguments
   for (u32 i = 0; i < tokens.size(); i++) {
-   if (tokens[i] == "=") {is_expression = true; continue;}
+   const string& token = tokens[i];
+   if (token == "=") {is_expression = true; continue;}
 
-   vector<string> expression_ordered = postfix(breakdown(tokens[i]));
+   // string
+   if (token.front() == '"' && token.back() == '"') {
+    string string_text = "$:" + token.substr(1, token.size() - 2);
+    bytecode_append(op::push, fpu::pack(symbols[string_text].address));
+    continue;
+   }
+
+   vector<string> expression_ordered = postfix(breakdown(token));
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& t = expression_ordered[j];
 
@@ -314,30 +353,39 @@ namespace interpreter {
      cout << name << " is stored in " << address << endl;
      break;
     }
-    case DECLARE_STRIPE_FULL: {
-     string name = tokens[1];
-     s32 count = tokens.size() - 3;
-     addr base = slotter;
-     slotter += count;
+    case DECLARE_STRING: {
+     u32 length = tokens[3].size() - 2; // exclude quotes
+     symbols[name].type = STRING;
+     symbols[name].address = slotter - (length + 1);
 
-     symbols[name].type = STRIPE;
-     symbols[name].address = base;
-     symbols[name].attribute = count;
-
-     for (s32 i = count - 1; i >= 0; i--) {bytecode_append(op::storeto, base + i);}
-     cout << name << " stripe is stored in " << base << " with size " << count << endl;
+     cout << name << " string is stored in " << symbols[name].address << " with length " << length << endl;
      break;
     }
-    case DECLARE_STRIPE_SIZE: {
-     string name = tokens[1];
-     s32 count = cast(s32, stof(tokens[2])); // truncate
-     addr base = slotter;
+    case DECLARE_STRIPE_FULL: {
+     address = slotter;
+     s32 count = tokens.size() - 3;
+     symbols[name].type = STRIPE;
+     symbols[name].address = address;
+
      slotter += count;
 
+     for (s32 i = count - 1; i >= 0; i--) {
+      bytecode_append(op::storeto, address + i);
+     }
+
+     cout << name << " stripe is stored in " << address << " with size " << count << endl;
+     break;
+    }
+
+    case DECLARE_STRIPE_SIZE: {
+     address = slotter;
+     s32 count = cast(s32, stof(tokens[2])); // truncate
      symbols[name].type = STRIPE;
-     symbols[name].address = base;
-     symbols[name].attribute = count;
-     cout << name << " empty stripe is stored in " << base << " with size " << count << endl;
+     symbols[name].address = address;
+
+     slotter += count;
+
+     cout << name << " empty stripe is stored in " << address << " with size " << count << endl;
      break;
     }
     default: {break;}
@@ -402,7 +450,12 @@ void bytecode_append(u8 opcode, elem operand) {
   if (operand == SENTINEL) {value = "SENTINEL";}
   else {
    value = to_string(operand);
-   if (name == "pop" || name == "push") {value += " (" + utility::string_no_trailing(fpu::unscale(operand)) + ")";}
+   if (name == "pop" || name == "push") {
+    value += " (" + utility::string_no_trailing(fpu::unscale(operand)) + ")";
+    if (operand >= 32 && operand <= 126) { // printable ASCII
+     value += " \"" + string(1, cast(char, operand)) + "\"";
+    }
+   }
    if (name == "takefrom" || name == "storeto") {
     for (hash_map<string, SymbolData>::iterator it = symbols.begin(); it != symbols.end(); ++it) {
      if (cast(elem, it->second.address) == operand) {value += " (" + it->first + ")"; break;}

@@ -1,5 +1,5 @@
+#include "core/memory.hpp"
 #include "core/utility.hpp"
-#include <cassert>
 
 namespace utility {
  bool is_number(const string& text) {
@@ -30,4 +30,10 @@ namespace utility {
   if(s.back()=='.') {s.pop_back();} // remove trailing dot
   return s;
  }
+
+ string string_pick(addr address) {
+ string out;
+ for (u32 i = 0; i < memory[address]; i++) {out += char(memory[address + 1 + i]);}
+ return out;
+}
 }

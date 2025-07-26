@@ -15,4 +15,6 @@ namespace utility {
  bool is_number(const string& text);
 
  string string_no_trailing(double value);
+
+ string string_pick(addr address);
 }
