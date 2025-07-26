@@ -132,7 +132,7 @@ namespace interpreter {
   enum AssignType : u8 {ASSIGN_NONE, ASSIGN_DECLARE, ASSIGN_SET};
   AssignType assign_type = ASSIGN_NONE;
 
-  enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRING, DECLARE_STRIPE_SIZE, DECLARE_STRIPE_FULL};
+  enum DeclareStyle : u8 {DECLARE_NONE, DECLARE_VAR, DECLARE_STRING_FULL, DECLARE_STRING_SIZE, DECLARE_STRIPE_FULL, DECLARE_STRIPE_SIZE};
   DeclareStyle declare_style = DECLARE_NONE;
 
   enum SetStyle : u8 {SET_NONE, SET_VAR, SET_STRING, SET_STRIPE};
@@ -233,7 +233,11 @@ namespace interpreter {
   }
   if (tokens[0] == "STRING" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
    assign_type = ASSIGN_DECLARE;
-   declare_style = DECLARE_STRING;
+   declare_style = DECLARE_STRING_FULL;
+  }
+  if (tokens[0] == "STRING" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+   assign_type = ASSIGN_DECLARE;
+   declare_style = DECLARE_STRING_SIZE;
   }
   if (tokens[0] == "STRIPE" && tokens[2] == "=" && tokens.size() >= 4) {
    assign_type = ASSIGN_DECLARE;
@@ -281,7 +285,7 @@ namespace interpreter {
 
     slotter = slot_after;
 
-    if (declare_style == DECLARE_STRING || set_style == SET_STRING) {continue;}
+    if (declare_style == DECLARE_STRING_FULL || set_style == SET_STRING) {continue;}
     // hidden declare
     symbols[name].type = STRING;
     symbols[name].address = slotter - (length + 1);
@@ -297,7 +301,7 @@ namespace interpreter {
 
    // string
    if (token.front() == '"' && token.back() == '"') {
-    if (declare_style == DECLARE_STRING || set_style == SET_STRING) {continue;}
+    if (declare_style == DECLARE_STRING_FULL || set_style == SET_STRING) {continue;}
     string string_text = "$:" + token.substr(1, token.size() - 2);
     bytecode_append(op::push, fpu::pack(symbols[string_text].address));
     continue;
@@ -307,7 +311,7 @@ namespace interpreter {
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& t = expression_ordered[j];
 
-    if (utility::is_number(t) && declare_style != DECLARE_STRIPE_SIZE) {
+    if (utility::is_number(t) && declare_style != DECLARE_STRIPE_SIZE && declare_style != DECLARE_STRING_SIZE) {
      bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
     }
     else if (symbols.count(t)) {
@@ -370,12 +374,23 @@ namespace interpreter {
      cout << name << " is stored in " << address << endl;
      break;
     }
-    case DECLARE_STRING: {
+    case DECLARE_STRING_FULL: {
      u32 length = tokens[3].size() - 2; // exclude quotes
      symbols[name].type = STRING;
      symbols[name].address = slotter - (length + 1);
 
      cout << name << " string is stored in " << symbols[name].address << " with length " << length << endl;
+     break;
+    }
+    case DECLARE_STRING_SIZE: {
+     address = slotter;
+     s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
+     symbols[name].type = STRING;
+     symbols[name].address = address;
+
+     slotter += length;
+
+     cout << name << " empty string is stored in " << address << " with length " << length << endl;
      break;
     }
     case DECLARE_STRIPE_FULL: {
@@ -393,7 +408,6 @@ namespace interpreter {
      cout << name << " stripe is stored in " << address << " with size " << count << endl;
      break;
     }
-
     case DECLARE_STRIPE_SIZE: {
      address = slotter;
      s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
