@@ -7,6 +7,10 @@
 // TODO:
 // handle warning of exception, overflow, etc
 
+constexpr str SYMBOL_STRING_PREFIX = "&:";
+constexpr str OPERATOR_OFFSET = "#";
+constexpr u8 OPERATOR_COMMENT = '$';
+
 hash_map<string, SymbolData> symbols;
 
 hash_map<string, Redirect> redirect;
@@ -57,14 +61,14 @@ static const hash_set<string> math_list_operations = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
- "#",
+ OPERATOR_OFFSET,
 };
 
 static const hash_set<string> math_list_operations_bracket = {
 #define OP(sym, code, prec) sym,
  SORTED_OPERATORS
 #undef OP
- "#",
+ OPERATOR_OFFSET,
  "(",
  ")",
 };
@@ -88,9 +92,9 @@ namespace interpreter {
   for (u32 character = 0; character <= text.size(); character++) {
    const char c = (character < text.size() ? text[character] : ' ');
 
-   // handle quote (with backslash escape)
+   // quote (with backslash escape)
    if (c == '"') {
-    u32 bs = 0;
+    u8 bs = 0;
     for (u32 pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
     if (bs % 2 == 0) in_quote = !in_quote;
     token += c;
@@ -102,6 +106,9 @@ namespace interpreter {
     token += c;
     continue;
    }
+
+   // comment (skip rest of line)
+   if (!in_quote && c == OPERATOR_COMMENT) {break;}
 
    // boundary on space or end string
    if (c == ' ' || character == text.size()) {
@@ -125,7 +132,7 @@ namespace interpreter {
 
   if (tokens.empty()) {return;}
 
-  // flags
+  // flag
   enum BlockType : u8 {BLOCK_NONE, BLOCK_IF, BLOCK_WHILE, BLOCK_ELSE};
   BlockType block_type = BLOCK_NONE;
 
@@ -143,9 +150,9 @@ namespace interpreter {
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
 
-  if (tokens[0] == "IF" && tokens.back().back() == ':') {block_type = BLOCK_IF;}
-  if (tokens[0] == "WHILE" && tokens.back().back() == ':') {block_type = BLOCK_WHILE;}
-  if (tokens[0] == "ELSE:") {block_type = BLOCK_ELSE;}
+  if (tokens[0] == "if" && tokens.back().back() == ':') {block_type = BLOCK_IF;}
+  if (tokens[0] == "while" && tokens.back().back() == ':') {block_type = BLOCK_WHILE;}
+  if (tokens[0] == "else:") {block_type = BLOCK_ELSE;}
 
   if (block_type == BLOCK_IF || block_type == BLOCK_WHILE) {
    loop_start = writer;
@@ -210,7 +217,7 @@ namespace interpreter {
   }
 
   // goto
-  if (tokens[0] == "GOTO" && tokens.size() == 2) {
+  if (tokens[0] == "goto" && tokens.size() == 2) {
    string label = tokens[1];
    addr target = redirect[label].address;
 
@@ -226,24 +233,24 @@ namespace interpreter {
    return;
   }
 
-  // variable set check
-  if (tokens[0] == "VAR" && tokens[2] == "=" && tokens.size() == 4) {
+  // set type
+  if (tokens[0] == "var" && tokens[2] == "=" && tokens.size() == 4) {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_VAR;
   }
-  if (tokens[0] == "STRING" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
+  if (tokens[0] == "string" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_STRING_FULL;
   }
-  if (tokens[0] == "STRING" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+  if (tokens[0] == "string" && tokens.size() == 3 && utility::is_number(tokens[2])) {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_STRING_SIZE;
   }
-  if (tokens[0] == "STRIPE" && tokens[2] == "=" && tokens.size() >= 4) {
+  if (tokens[0] == "stripe" && tokens[2] == "=" && tokens.size() >= 4) {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_STRIPE_FULL;
   }
-  if (tokens[0] == "STRIPE" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+  if (tokens[0] == "stripe" && tokens.size() == 3 && utility::is_number(tokens[2])) {
    assign_type = ASSIGN_DECLARE;
    declare_style = DECLARE_STRIPE_SIZE;
   }
@@ -256,74 +263,78 @@ namespace interpreter {
    if (symbols.count(tokens[0]) && symbols[tokens[0]].type == STRING) {set_style = SET_STRING;}
   }
 
-  // string
-  for (u32 i = 0; i < tokens.size(); i++) {
-   const string& token = tokens[i];
-   if (token.front() == '"' && token.back() == '"') {
-    string content = token.substr(1, token.size() - 2); // strip quotes
-    string name = "$:" + content;
-    if (symbols.count(name)) {
-     cout << "string already exist in " << symbols[name].address << " is written \"" << content << "\"" << endl;
-     continue;
-    }
-
-    addr address = slotter;
-    u32 length = content.size();
-    addr slot_after = slotter + length + 1;
-    if (set_style == SET_STRING) {
-     address = symbols[tokens[0]].address;
-     slot_after = slotter;
-    }
-    bytecode_append(op::push, fpu::pack(length));
-    for (u32 j = 0; j < length; j++) {
-     bytecode_append(op::push, fpu::pack(content[j]));
-    }
-
-    for (s32 i = length; i >= 0; i--) {
-     bytecode_append(op::storeto, address + i);
-    }
-
-    slotter = slot_after;
-
-    if (declare_style == DECLARE_STRING_FULL || set_style == SET_STRING) {continue;}
-    // hidden declare
-    symbols[name].type = STRING;
-    symbols[name].address = slotter - (length + 1);
-
-    cout << "string hidden declare in " << symbols[name].address << " is written \"" << content << "\"" << endl;
-   }
-  }
-
-  // arguments
+  // token breakdown
   for (u32 i = 0; i < tokens.size(); i++) {
    const string& token = tokens[i];
    if (token == "=") {is_expression = true; continue;}
 
-   // string
-   if (token.front() == '"' && token.back() == '"') {
-    if (declare_style == DECLARE_STRING_FULL || set_style == SET_STRING) {continue;}
-    string string_text = "$:" + token.substr(1, token.size() - 2);
-    bytecode_append(op::push, fpu::pack(symbols[string_text].address));
-    continue;
-   }
-
-   vector<string> expression_ordered = postfix(breakdown(token));
+   vector<string> expression_breaked = breakdown(token);
+   // cout << "BREAK: "; for (const std::string &token : expression_breaked) {cout << "'" << token << "' ";} cout << endl;
+   vector<string> expression_ordered = postfix(expression_breaked);
+   // cout << "SORT: "; for (const std::string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
    for (u32 j = 0; j < expression_ordered.size(); j++) {
-    const string& t = expression_ordered[j];
+    const string& token = expression_ordered[j];
 
-    if (utility::is_number(t) && declare_style != DECLARE_STRIPE_SIZE && declare_style != DECLARE_STRING_SIZE) {
-     bytecode_append(op::push, cast(elem, round(fpu::scale(stod(t))))); // fixed point
+    // command
+    u8 command = opcode_get(token.c_str());
+    if (command != op::nop) {
+     bytecode_append(command, op::nop);
     }
-    else if (symbols.count(t)) {
-     const SymbolData& symbol = symbols[t];
+
+    // string
+    if (token.front() == '"' && token.back() == '"') {
+     string content = token.substr(1, token.size() - 2); // strip quotes
+     string name = SYMBOL_STRING_PREFIX + content;
+     if (symbols.count(name)) {
+      cout << "string already exist in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+      continue;
+     }
+
+     addr address = slotter;
+     u32 length = content.size();
+     addr slot_after = slotter + length + 1;
+     if (set_style == SET_STRING) {
+      address = symbols[tokens[0]].address;
+      slot_after = slotter;
+     }
+     bytecode_append(op::push, fpu::pack(length));
+     for (u32 j = 0; j < length; j++) {
+      bytecode_append(op::push, fpu::pack(content[j]));
+     }
+
+     for (s32 i = length; i >= 0; i--) {
+      bytecode_append(op::storeto, address + i);
+     }
+
+     slotter = slot_after;
+
+     if (declare_style == DECLARE_STRING_FULL || set_style == SET_STRING) {continue;}
+     // hidden declare
+     symbols[name].type = STRING;
+     symbols[name].address = slotter - (length + 1);
+
+     cout << "string hidden declare in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+
+     // also push to stack for other use
+     bytecode_append(op::push, fpu::pack(symbols[name].address));
+    }
+
+    // number
+    if (utility::is_number(token) && declare_style != DECLARE_STRIPE_SIZE && declare_style != DECLARE_STRING_SIZE) {
+     bytecode_append(op::push, cast(elem, round(fpu::scale(stod(token))))); // fixed point
+    }
+
+    // symbol
+    if (symbols.count(token)) {
+     const SymbolData& symbol = symbols[token];
      switch (symbol.type) {
       case NUMBER: {
-       if (assign_type == ASSIGN_SET && set_style == SET_VAR && !is_expression && t == tokens[0]) {break;}
+       if (assign_type == ASSIGN_SET && set_style == SET_VAR && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
        break;
       }
       case STRING: {
-       if (assign_type == ASSIGN_SET && set_style == SET_STRING && !is_expression && t == tokens[0]) {break;}
+       if (assign_type == ASSIGN_SET && set_style == SET_STRING && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
@@ -334,16 +345,17 @@ namespace interpreter {
       default: {break;}
      }
     }
-    else if (t == "NEG") {
-     bytecode_append(op::neg, op::nop);
-    }
-    else if (t == "#") {
+
+    // "#"
+    if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, op::nop);
      if (assign_type == ASSIGN_SET && set_style == SET_STRIPE && !is_expression && j == expression_ordered.size() - 1) {continue;}
      bytecode_append(op::peek, op::nop);
     }
-    else if (math_opcodes.count(t)) {
-     bytecode_append(math_opcodes.at(t), op::nop);
+
+    // math operations
+    if (math_opcodes.count(token)) {
+     bytecode_append(math_opcodes.at(token), op::nop);
     }
    }
   }
@@ -360,7 +372,7 @@ namespace interpreter {
    indent_type_pending = IndentType::WHILE;
   }
 
-  // variable declaration and reassignment
+  // declaration
   if (assign_type == ASSIGN_DECLARE) {
    string name = tokens[1];
    addr address = 0;
@@ -422,6 +434,8 @@ namespace interpreter {
     default: {break;}
    }
   }
+
+  // assignment
   if (assign_type == ASSIGN_SET) {
    switch (set_style) {
     case SET_VAR: {
@@ -436,14 +450,6 @@ namespace interpreter {
     }
     default: {break;}
    }
-  }
-
-  // command
-  string command_lowercase = tokens[0];
-  transform(command_lowercase.begin(), command_lowercase.end(), command_lowercase.begin(), ::tolower);
-  u8 command = opcode_get(command_lowercase.c_str());
-  if (command != op::nop) {
-   bytecode_append(command, op::nop);
   }
 
   return;
@@ -505,20 +511,24 @@ void bytecode_append(u8 opcode, elem operand) {
 static vector<string> breakdown(const string& expression) {
  vector<string> tokens;
  string token;
- bool is_negative = false;
+ bool in_quote = false;
 
  for (u32 i = 0; i < expression.size(); i++) {
   char c = expression[i];
 
-  // negative number: unary minus at start or after ( or operator
-  if (c == '-' && (i == 0 || expression[i-1] == '(' || math_list_operations.count(string(1, expression[i-1])))) {
-   if (i+1 < expression.size() && (isdigit(expression[i+1]) || expression[i+1] == '.')) {
-    token += c;
+  // quote (with backslash escape)
+  if (c == '"') {
+   u8 bs = 0;
+   for (s32 pos = i - 1; pos >= 0 && expression[pos] == '\\'; pos--) bs++;
+   if (bs % 2 == 0) {
+    if (in_quote) {token += c;}
+    if (!token.empty()) {tokens.push_back(token); token.clear();}
+    if (!in_quote) {token += c;}
+    in_quote = !in_quote;
     continue;
    }
-   is_negative = true;
-   continue;
   }
+  if (in_quote) {token += c; continue;}
 
   // operators
   bool operator_matched = false;
@@ -527,10 +537,6 @@ static vector<string> breakdown(const string& expression) {
    if (math_list_operations_bracket.count(candidate)) {
     if (!token.empty()) {
      tokens.push_back(token);
-     if (is_negative) {
-      tokens.push_back("NEG");
-      is_negative = false;
-     }
      token.clear();
     }
     tokens.push_back(candidate);
@@ -541,8 +547,15 @@ static vector<string> breakdown(const string& expression) {
   }
   if (operator_matched) {continue;}
 
-  // skip whitespace
-  if (c == ' ') {continue;}
+  // comma
+  if (c == ',') {
+   if (!token.empty()) {
+    tokens.push_back(token);
+    token.clear();
+   }
+   tokens.push_back(",");
+   continue;
+  }
 
   // number/decimal (digits or one dot)
   if (isdigit(c) || (c == '.' && !token.empty() && all_of(token.begin(), token.end(), [](char tc){return isdigit(tc);}) && token.find('.') == string::npos)) {
@@ -568,7 +581,7 @@ static u8 precedence(const string& op) {
 #define OP(sym, code, prec) if (op == sym) {return prec;}
  SORTED_OPERATORS
 #undef OP
- if (op == "#") {return OFFSET;}
+ if (op == OPERATOR_OFFSET) {return OFFSET;}
  return BASE;
 }
 
@@ -577,28 +590,52 @@ static vector<string> postfix(const vector<string>& tokens) {
  vector<string> operator_stack;
 
  for (u32 i = 0; i < tokens.size(); i++) {
-  const string& t = tokens[i];
-  if (math_list_operations.count(t)) {
+  string token = tokens[i];
+
+  // skip comma
+  if (token == ",") {continue;}
+
+  // unary "-"
+  if (token == "-" && (i == 0 || math_list_operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
+   // merge with number
+   if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {
+    output.push_back("-" + tokens[++i]); // skip next token
+    continue;
+   }
+   // convert to "neg"
+   token = "neg";
+  }
+
+  // function
+  u8 function = opcode_get(token.c_str());
+  if (function != op::nop) {
+   operator_stack.push_back(token);
+   continue;
+  }
+
+  if (math_list_operations.count(token)) {
    while (
     !operator_stack.empty()
     && math_list_operations.count(operator_stack.back())
     && (
-     (precedence(operator_stack.back()) > precedence(t))
+     (precedence(operator_stack.back()) > precedence(token))
      || (
-      precedence(operator_stack.back()) == precedence(t)
-      && true // is_left_assoc(t) // all basic ops are left-associative
+      precedence(operator_stack.back()) == precedence(token)
+      && true // is_left_assoc(token) // all basic ops are left-associative
      )
     )
    ) {
     output.push_back(operator_stack.back());
     operator_stack.pop_back();
    }
-   operator_stack.push_back(t);
+   operator_stack.push_back(token);
   }
-  else if (t == "(") {
-   operator_stack.push_back(t);
+
+  else if (token == "(") {
+   operator_stack.push_back(token);
   }
-  else if (t == ")") {
+
+  else if (token == ")") {
    while (!operator_stack.empty() && operator_stack.back() != "(") {
     output.push_back(operator_stack.back());
     operator_stack.pop_back();
@@ -606,11 +643,16 @@ static vector<string> postfix(const vector<string>& tokens) {
    if (!operator_stack.empty() && operator_stack.back() == "(") {
     operator_stack.pop_back();
    }
+
+   // emit function after its arguments
+   if (!operator_stack.empty() && opcode_get(operator_stack.back().c_str()) != op::nop) {
+    output.push_back(operator_stack.back());
+    operator_stack.pop_back();
+   }
   }
-  else {
-   // number or variable
-   output.push_back(t);
-  }
+
+  // number or variable
+  else {output.push_back(token);}
  }
 
  // pop any remaining ops

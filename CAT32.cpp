@@ -11,7 +11,7 @@ void init() {
  memory_management::bytecode_reset();
  memory_management::executor_reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/13.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/14.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -19,8 +19,11 @@ void init() {
  string line;
  // per line
  while (getline(file, line)) {
-  interpreter::compile(interpreter::tokenize(line));
-  cout << endl;
+  TokenLine tokenline = interpreter::tokenize(line);
+  interpreter::compile(tokenline);
+
+  if (tokenline.tokens.empty()) {cout << line << endl;}
+  else {cout << endl;}
  }
 }
 

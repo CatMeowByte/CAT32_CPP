@@ -59,7 +59,7 @@ namespace opfunc {
  #undef OP
 }
 
-constexpr u8 opcode_get(const char *cmd) {
+constexpr u8 opcode_get(str cmd) {
  switch (utility::hash(cmd)) {
   #define OP(hex, name) case utility::hash(#name): return op::name;
   OPCODES
