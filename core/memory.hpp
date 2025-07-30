@@ -11,6 +11,7 @@ extern addr stacker;
 //b bytecode
 extern elem bytecode[SYSTEM::CODESIZE];
 extern addr writer;
+extern vector<addr> framer;
 
 // interpreter
 enum SymbolType {
@@ -33,7 +34,7 @@ extern hash_map<string, Redirect> redirect;
 extern vector<IndentFrame> indent_stack;
 extern u8 indent_previous;
 extern IndentType indent_type_pending;
-extern addr loop_start;
+extern addr block_start;
 
 // executor
 extern addr counter;

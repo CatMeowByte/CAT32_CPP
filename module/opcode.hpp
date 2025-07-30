@@ -12,6 +12,8 @@
  OP(0x15, peek) \
  OP(0x16, poke) \
  /* counter */ \
+ OP(0x2A, subgo) \
+ OP(0x2B, subret) \
  OP(0x2D, jump) \
  OP(0x2E, jumz) \
  OP(0x2F, junz) \

@@ -1,3 +1,4 @@
+#include "core/constant.hpp"
 #include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/utility.hpp"
@@ -18,7 +19,7 @@ hash_map<string, Redirect> redirect;
 vector<IndentFrame> indent_stack;
 u8 indent_previous = 0;
 IndentType indent_type_pending = IndentType::UNKNOWN;
-addr loop_start = 0;
+addr block_start = 0;
 
 enum Precedence : u8 {
  BASE = 0,
@@ -133,7 +134,8 @@ namespace interpreter {
   if (tokens.empty()) {return;}
 
   // flag
-  enum BlockType : u8 {BLOCK_NONE, BLOCK_IF, BLOCK_WHILE, BLOCK_ELSE};
+
+  enum BlockType : u8 {BLOCK_NONE, BLOCK_IF, BLOCK_WHILE, BLOCK_ELSE, BLOCK_FUNC};
   BlockType block_type = BLOCK_NONE;
 
   enum AssignType : u8 {ASSIGN_NONE, ASSIGN_DECLARE, ASSIGN_SET};
@@ -147,30 +149,38 @@ namespace interpreter {
 
   bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
 
+  bool is_return = tokens[0] == "return";
+
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
 
   if (tokens[0] == "if" && tokens.back().back() == ':') {block_type = BLOCK_IF;}
   if (tokens[0] == "while" && tokens.back().back() == ':') {block_type = BLOCK_WHILE;}
   if (tokens[0] == "else:") {block_type = BLOCK_ELSE;}
+  if (tokens[0] == "func" && tokens.back().back() == ':') {block_type = BLOCK_FUNC;}
 
-  if (block_type == BLOCK_IF || block_type == BLOCK_WHILE) {
-   loop_start = writer;
+  if (block_type == BLOCK_IF || block_type == BLOCK_WHILE || block_type == BLOCK_FUNC) {
+   block_start = writer;
   }
 
   // indent
   if (indent > indent_previous) {
    cout << "INDENT" << endl;
 
-   const elem last_opcode = bytecode[writer - 2];
-   if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
-    cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+   if (indent_type_pending == IndentType::FUNCTION) {
+    indent_stack.push_back({block_start + 1, block_start, indent_type_pending}); // reuse block_start for function
    }
+   else {
+    const elem last_opcode = bytecode[writer - 2];
+    if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
+     cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+    }
 
-   const addr jump_pos = writer - 1;
-   indent_stack.push_back({jump_pos, loop_start, indent_type_pending});
-   indent_type_pending = IndentType::UNKNOWN;
-   cout << "indent stack added with jump operand at " << jump_pos << endl;
+    const addr jump_pos = writer - 1;
+    indent_stack.push_back({jump_pos, block_start, indent_type_pending});
+    indent_type_pending = IndentType::UNKNOWN;
+    cout << "indent stack added with jump operand at " << jump_pos << endl;
+   }
   }
 
   // dedent
@@ -183,7 +193,7 @@ namespace interpreter {
    const addr& jump_pos = frame.jump_pos;
 
    if (frame.type == IndentType::WHILE) {
-    bytecode_append(op::jump, frame.loop_start); // next opcode
+    bytecode_append(op::jump, frame.block_start); // next opcode
    }
 
    bytecode[jump_pos] = writer;
@@ -192,7 +202,7 @@ namespace interpreter {
    indent_stack.pop_back();
 
    if (block_type == BLOCK_ELSE) {
-    indent_stack.push_back({writer - 1, loop_start, IndentType::ELSE});
+    indent_stack.push_back({writer - 1, block_start, IndentType::ELSE});
     cout << "else jump at operand " << writer - 1 << endl;
    }
   }
@@ -326,6 +336,7 @@ namespace interpreter {
 
     // symbol
     if (symbols.count(token)) {
+     if (block_type == BLOCK_FUNC) {continue;} // FIXME: seems like the BLOCK FUNC only true on the header only. its working but its not quite descriptive because it sounds like it should represent the inner block, maybe the inner block use the IndentFrame type. so TODO:: BLOCK_* flags should be renamed to HEADER_*
      const SymbolData& symbol = symbols[token];
      switch (symbol.type) {
       case NUMBER: {
@@ -340,6 +351,10 @@ namespace interpreter {
       }
       case STRIPE: {
        bytecode_append(op::push, fpu::pack(symbol.address));
+       break;
+      }
+      case FUNCTION: {
+       bytecode_append(op::subgo, symbol.address);
        break;
       }
       default: {break;}
@@ -357,8 +372,39 @@ namespace interpreter {
     if (math_opcodes.count(token)) {
      bytecode_append(math_opcodes.at(token), op::nop);
     }
+
+    // function declaration
+    if (block_type == BLOCK_FUNC && i == 1 && j == 0) {
+     bytecode_append(op::jump, SENTINEL);
+     indent_type_pending = IndentType::FUNCTION;
+
+     string name = token;
+     addr address = writer;
+
+     // name
+     symbols[name].type = FUNCTION;
+     symbols[name].address = address;
+     cout << name << " function is written at bytecode [" << address << "]" << endl;
+
+     // arguments
+     address = slotter;
+     u8 length = expression_ordered.size() - 2;
+     addr slot_after = slotter + length + 1;
+     for (s32 i = length; i >= 0; i--) {
+      name = expression_ordered[i + 1];
+      symbols[name].type = NUMBER;
+      symbols[name].address = address + i;
+      bytecode_append(op::storeto, address + i);
+      cout << name << " is stored in " << address + i << endl;
+     }
+
+     slotter = slot_after;
+    }
    }
   }
+
+  // return
+  if (is_return) {bytecode_append(op::subret, 0);}
 
   // if
   if (block_type == BLOCK_IF) {
@@ -480,11 +526,12 @@ void bytecode_append(u8 opcode, elem operand) {
  bool has_operand = (
   name == "pop"    || name == "push" ||
   name == "takefrom" || name == "storeto" ||
-  name == "jump"   || name == "jumz" || name == "junz"
+  name == "jump"   || name == "jumz" || name == "junz" ||
+  name == "subgo"
  );
  string value = "";
  if (has_operand) {
-  if (operand == SENTINEL) {value = "SENTINEL";}
+  if (operand == SENTINEL) {value = "???";}
   else {
    value = to_string(operand);
    if (name == "pop" || name == "push") {
@@ -607,8 +654,9 @@ static vector<string> postfix(const vector<string>& tokens) {
   }
 
   // function
-  u8 function = opcode_get(token.c_str());
-  if (function != op::nop) {
+  bool is_opcode = opcode_get(token.c_str()) != op::nop;
+  bool is_function = symbols.count(token) && symbols[token].type == FUNCTION;
+  if (is_opcode || is_function) {
    operator_stack.push_back(token);
    continue;
   }
@@ -645,9 +693,13 @@ static vector<string> postfix(const vector<string>& tokens) {
    }
 
    // emit function after its arguments
-   if (!operator_stack.empty() && opcode_get(operator_stack.back().c_str()) != op::nop) {
-    output.push_back(operator_stack.back());
-    operator_stack.pop_back();
+   if (!operator_stack.empty()) {
+    is_opcode = opcode_get(operator_stack.back().c_str()) != op::nop;
+    is_function = symbols.count(operator_stack.back()) && symbols[operator_stack.back()].type == FUNCTION;
+    if (is_opcode || is_function) {
+     output.push_back(operator_stack.back());
+     operator_stack.pop_back();
+    }
    }
   }
 

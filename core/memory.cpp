@@ -9,6 +9,7 @@ addr stacker = SYSTEM::MEMORY;
 //b bytecode
 elem bytecode[SYSTEM::CODESIZE];
 addr writer = 0;
+vector<addr> framer;
 
 // executor
 addr counter = 0;
@@ -27,6 +28,7 @@ namespace memory_management {
  void bytecode_reset() {
   memset(bytecode, 0, sizeof(bytecode));
   writer = 0;
+  framer.clear();
 
   // interpreter
   symbols.clear();
@@ -34,7 +36,7 @@ namespace memory_management {
   indent_stack.clear();
   indent_previous = 0;
   indent_type_pending = IndentType::UNKNOWN;
-  loop_start = 0;
+  block_start = 0;
  }
 
  void executor_reset() {

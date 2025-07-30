@@ -50,6 +50,18 @@ namespace opfunc {
  }
 
  /* counter */
+ addr subgo(elem value) {
+  framer.push_back(counter);
+  return value;
+ }
+
+ addr subret(elem value) {
+  if (framer.empty()) {return SENTINEL;}
+  addr address = framer.back();
+  framer.pop_back();
+  return address + 2;
+ }
+
  addr jump(elem value) {
   return value;
  }
