@@ -12,7 +12,7 @@ enum class IndentType : u8 {
 
 struct TokenLine {u8 indent; vector<std::string> tokens;};
 struct Redirect {addr address = SENTINEL; vector<addr> pending;};
-struct IndentFrame {addr jump_pos; addr block_start; IndentType type;};
+struct IndentFrame {addr jump_pos; addr header_start; IndentType type;};
 
 namespace interpreter {
  TokenLine tokenize(const string& text);

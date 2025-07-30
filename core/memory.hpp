@@ -34,7 +34,7 @@ extern hash_map<string, Redirect> redirect;
 extern vector<IndentFrame> indent_stack;
 extern u8 indent_previous;
 extern IndentType indent_type_pending;
-extern addr block_start;
+extern addr header_start;
 
 // executor
 extern addr counter;

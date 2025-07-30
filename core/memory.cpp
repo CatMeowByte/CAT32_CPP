@@ -36,7 +36,7 @@ namespace memory_management {
   indent_stack.clear();
   indent_previous = 0;
   indent_type_pending = IndentType::UNKNOWN;
-  block_start = 0;
+  header_start = 0;
  }
 
  void executor_reset() {
