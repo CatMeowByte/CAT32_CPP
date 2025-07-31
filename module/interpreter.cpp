@@ -165,45 +165,50 @@ namespace interpreter {
 
   // indent
   if (indent > indent_previous) {
-   cout << "INDENT" << endl;
+   if (indent - indent_previous > 1) {cout << "WARNING: too much indent" << endl;}
+   for (u8 indent_level = indent_previous + 1; indent_level <= indent; ++indent_level) {
+    cout << "INDENT" << endl;
 
-   if (indent_type_pending == IndentType::FUNCTION) {
-    indent_stack.push_back({header_start + 1, header_start, indent_type_pending}); // reuse header_start for function
-   }
-   else {
-    const elem last_opcode = bytecode[writer - 2];
-    if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
-     cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+    if (indent_type_pending == IndentType::FUNCTION) {
+     indent_stack.push_back({header_start + 1, header_start, indent_type_pending}); // reuse header_start for function
     }
+    else {
+     const elem last_opcode = bytecode[writer - 2];
+     if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
+      cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+     }
 
-    const addr jump_pos = writer - 1;
-    indent_stack.push_back({jump_pos, header_start, indent_type_pending});
-    indent_type_pending = IndentType::UNKNOWN;
-    cout << "indent stack added with jump operand at " << jump_pos << endl;
+     const addr jump_pos = writer - 1;
+     indent_stack.push_back({jump_pos, header_start, indent_type_pending});
+     indent_type_pending = IndentType::UNKNOWN;
+     cout << "indent stack added with jump operand at " << jump_pos << endl;
+    }
    }
   }
 
   // dedent
   if (indent < indent_previous) {
-   cout << "DEDENT" << endl;
+   for (u8 indent_level = indent_previous; indent_level > indent; --indent_level) {
+    cout << "DEDENT" << endl;
 
-   if (header_type == HeaderType::ELSE) {bytecode_append(op::jump, SENTINEL);}
+    if (header_type == HeaderType::ELSE) {bytecode_append(op::jump, SENTINEL);}
 
-   const IndentFrame& frame = indent_stack.back();
-   const addr& jump_pos = frame.jump_pos;
+    const IndentFrame& frame = indent_stack.back();
+    const addr& jump_pos = frame.jump_pos;
 
-   if (frame.type == IndentType::WHILE) {
-    bytecode_append(op::jump, frame.header_start); // next opcode
-   }
+    if (frame.type == IndentType::WHILE) {
+     bytecode_append(op::jump, frame.header_start); // next opcode
+    }
 
-   bytecode[jump_pos] = writer;
-   cout << "patching jump operand at " << jump_pos << " to address " << writer << endl;
+    bytecode[jump_pos] = writer;
+    cout << "patching jump operand at " << jump_pos << " to address " << writer << endl;
 
-   indent_stack.pop_back();
+    indent_stack.pop_back();
 
-   if (header_type == HeaderType::ELSE) {
-    indent_stack.push_back({writer - 1, header_start, IndentType::ELSE});
-    cout << "else jump at operand " << writer - 1 << endl;
+    if (header_type == HeaderType::ELSE) {
+     indent_stack.push_back({writer - 1, header_start, IndentType::ELSE});
+     cout << "else jump at operand " << writer - 1 << endl;
+    }
    }
   }
   indent_previous = indent;
