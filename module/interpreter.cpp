@@ -330,8 +330,9 @@ namespace interpreter {
     }
 
     // number
-    if (utility::is_number(token) && declare_style != DeclareStyle::STRIPE_SIZE && declare_style != DeclareStyle::STRING_SIZE) {
-     bytecode_append(op::push, cast(elem, round(fpu::scale(stod(token))))); // fixed point
+    if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::STRIPE_SIZE && declare_style != DeclareStyle::STRING_SIZE) {
+     double value = utility::is_hex(token) ? utility::hex_to_number(token) : stod(token);
+     bytecode_append(op::push, cast(elem, round(fpu::scale(value)))); // rounded fixed point
     }
 
     // symbol
@@ -576,6 +577,22 @@ static vector<string> breakdown(const string& expression) {
    }
   }
   if (in_quote) {token += c; continue;}
+
+  // hex
+  if (c == '0' && (i + 1 < expression.size()) && (expression[i+1] == 'x' || expression[i+1] == 'X')) {
+   string hexnum = "0x";
+   i += 2;
+   bool has_dot = false;
+   while (i < expression.size() && (isxdigit(expression[i]) || (!has_dot && expression[i] == '.'))) {
+    if (expression[i] == '.') {
+     has_dot = true;
+    }
+    hexnum += expression[i++];
+   }
+   tokens.push_back(hexnum);
+   i--; // adjust for loop increment
+   continue;
+  }
 
   // operators
   bool operator_matched = false;
