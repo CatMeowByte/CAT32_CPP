@@ -335,9 +335,11 @@ namespace interpreter {
     }
 
     // number
+    // hardest part to document
+    // all detail of rounding, casting, data type is important
     if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::STRIPE_SIZE && declare_style != DeclareStyle::STRING_SIZE) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : stod(token);
-     bytecode_append(op::push, cast(elem, round(fpu::scale(value)))); // rounded fixed point
+     bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value))))); // rounded fixed point
     }
 
     // symbol

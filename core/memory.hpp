@@ -53,8 +53,8 @@ namespace fpu {
  inline s64 pack_wide(s64 number) {return number << SYSTEM::FIXED_POINT_WIDTH;}
  inline s64 unpack_wide(s64 fixed_point) {return fixed_point >> SYSTEM::FIXED_POINT_WIDTH;}
 
- inline float scale(float number) {return number * (1 << SYSTEM::FIXED_POINT_WIDTH);}
- inline float unscale(s32 fixed_point) {return cast(float, fixed_point) / (1 << SYSTEM::FIXED_POINT_WIDTH);}
+ inline double scale(double number) {return number * (1 << SYSTEM::FIXED_POINT_WIDTH);}
+ inline double unscale(s32 fixed_point) {return cast(double, fixed_point) / (1 << SYSTEM::FIXED_POINT_WIDTH);}
 }
 
 // TODO:

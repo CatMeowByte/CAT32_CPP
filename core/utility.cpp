@@ -42,26 +42,20 @@ namespace utility {
   return true;
  }
 
- double hex_to_number(const string& text) {
-  size_t dot = text.find('.');
-  string int_part = (dot == string::npos) ? text.substr(2) : text.substr(2, dot - 2);
-  string frac_part = (dot == string::npos) ? "" : text.substr(dot + 1);
-  double value = 0;
-  if (!int_part.empty()) {value = stoi(int_part, nullptr, 16);}
-  if (!frac_part.empty()) {
-   double frac = 0;
-   double base = 1;
-   for (char c : frac_part) {
-    base /= 16.0;
-    int digit = (c >= '0' && c <= '9') ? (c - '0')
-     : (c >= 'a' && c <= 'f') ? (c - 'a' + 10)
-     : (c >= 'A' && c <= 'F') ? (c - 'A' + 10)
-     : 0;
-    frac += digit * base;
-   }
-   value += frac;
+ double hex_to_number(const string &text) {
+  u64 dot = text.find('.');
+  string hex = "";
+  if (dot == string::npos) {
+   hex += string(8 - hex.length(), '0');
+   hex = text.substr(2) + hex;
+  } else {
+   hex += text.substr(dot + 1);
+   hex += string(8 - hex.length(), '0');
+   hex = text.substr(2, dot - 2) + hex;
   }
-  return value;
+  hex = string(16 - hex.length(), '0') + hex;
+  double value = stoll(hex, nullptr, 16);
+  return value / double(1ULL << 32);
  }
 
  string string_no_trailing(double value) {
