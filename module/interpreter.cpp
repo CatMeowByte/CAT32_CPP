@@ -639,8 +639,14 @@ static vector<string> postfix(const vector<string>& tokens) {
  for (u32 i = 0; i < tokens.size(); i++) {
   string token = tokens[i];
 
-  // skip comma
-  if (token == ",") {continue;}
+  // flush when comma
+  if (token == ",") {
+   while (!operator_stack.empty() && operator_stack.back() != "(") {
+    output.push_back(operator_stack.back());
+    operator_stack.pop_back();
+   }
+   continue;
+  }
 
   // unary "-"
   if (token == "-" && (i == 0 || math_list_operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
