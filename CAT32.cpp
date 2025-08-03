@@ -11,7 +11,7 @@ void init() {
  memory_management::bytecode_reset();
  memory_management::executor_reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/hexsprite.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/fruit.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -31,7 +31,7 @@ void init() {
  tokenline = interpreter::tokenize("quit:");
  interpreter::compile(tokenline);
 
- cout << "\nBEGIN ===============================\n" << endl;
+ // cout << "\nBEGIN ===============================\n" << endl;
 }
 
 void update() {

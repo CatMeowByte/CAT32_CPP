@@ -1,4 +1,4 @@
-func fruiter(value):
+func fruit(value):
  var shift = value*8
  if value==0:
   text(10,10+shift,"Apple",8)
@@ -22,7 +22,7 @@ wait(10)
 var i = 0
 while i<3+1+4:
  wait(10)
- fruiter(i)
+ fruit(i)
  flip()
  see(i)
  i = i+1

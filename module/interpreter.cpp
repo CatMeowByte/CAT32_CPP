@@ -19,7 +19,8 @@ hash_map<string, Redirect> redirect;
 vector<IndentFrame> indent_stack;
 u8 indent_previous = 0;
 IndentType indent_type_pending = IndentType::UNKNOWN;
-addr header_start = 0;
+addr jump_operand = SENTINEL;
+addr header_start = SENTINEL;
 
 enum Precedence : u8 {
  BASE = 0,
@@ -152,16 +153,12 @@ namespace interpreter {
 
   bool is_return = tokens[0] == "return";
 
-  for (const string& t : tokens) {cout << t << " ";}
-  cout << endl;
-
-  if (tokens[0] == "if" && tokens.back().back() == ':') {header_type = HeaderType::IF;}
-  if (tokens[0] == "while" && tokens.back().back() == ':') {header_type = HeaderType::WHILE;}
   if (tokens[0] == "else:") {header_type = HeaderType::ELSE;}
-  if (tokens[0] == "func" && tokens.back().back() == ':') {header_type = HeaderType::FUNCTION;}
-
-  if (header_type == HeaderType::IF || header_type == HeaderType::WHILE || header_type == HeaderType::FUNCTION) {
+  if (tokens.back().back() == ':') {
    header_start = writer;
+   if (tokens[0] == "if") {header_type = HeaderType::IF;}
+   if (tokens[0] == "while") {header_type = HeaderType::WHILE;}
+   if (tokens[0] == "func") {header_type = HeaderType::FUNCTION;}
   }
 
   // indent
@@ -170,20 +167,18 @@ namespace interpreter {
    for (u8 indent_level = indent_previous + 1; indent_level <= indent; ++indent_level) {
     cout << "INDENT" << endl;
 
-    if (indent_type_pending == IndentType::FUNCTION) {
-     indent_stack.push_back({header_start + 1, header_start, indent_type_pending}); // reuse header_start for function
-    }
-    else {
+    if (indent_type_pending != IndentType::FUNCTION) {
+     jump_operand = writer - 1;
+
      const elem last_opcode = bytecode[writer - 2];
      if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
       cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
      }
-
-     const addr jump_pos = writer - 1;
-     indent_stack.push_back({jump_pos, header_start, indent_type_pending});
-     indent_type_pending = IndentType::UNKNOWN;
-     cout << "indent stack added with jump operand at " << jump_pos << endl;
     }
+
+    indent_stack.push_back({jump_operand, header_start, indent_type_pending});
+    indent_type_pending = IndentType::UNKNOWN;
+    cout << "indent stack added with jump operand at " << jump_operand << endl;
    }
   }
 
@@ -205,14 +200,19 @@ namespace interpreter {
     cout << "patching jump operand at " << jump_pos << " to address " << writer << endl;
 
     indent_stack.pop_back();
-
-    if (header_type == HeaderType::ELSE) {
-     indent_stack.push_back({writer - 1, header_start, IndentType::ELSE});
-     cout << "else jump at operand " << writer - 1 << endl;
-    }
    }
   }
   indent_previous = indent;
+
+  cout << "\n";
+  for (const string& t : tokens) {cout << t << " ";}
+  cout << endl;
+
+  // else
+  if (header_type == HeaderType::ELSE) {
+   indent_type_pending = IndentType::ELSE;
+   return;
+  }
 
   // label
   if (tokens[0].size() > 1 && tokens[0].back() == ':') {
@@ -382,8 +382,10 @@ namespace interpreter {
      bytecode_append(math_opcodes.at(token), op::nop);
     }
 
-    // function declaration
+    // function
+    // this is oneshot, inside breakdown for function name extraction
     if (header_type == HeaderType::FUNCTION && i == 1 && j == 0) {
+     jump_operand = writer + 1;
      bytecode_append(op::jump, SENTINEL);
      indent_type_pending = IndentType::FUNCTION;
 
@@ -517,7 +519,7 @@ namespace interpreter {
   elem operand = bytecode[counter + 1];
   addr result = SENTINEL;
 
-  debug_opcode(opcode, operand, counter);
+  // debug_opcode(opcode, operand, counter);
 
   switch (opcode) {
    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
