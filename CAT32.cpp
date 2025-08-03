@@ -11,20 +11,27 @@ void init() {
  memory_management::bytecode_reset();
  memory_management::executor_reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/17.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/hexsprite.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
 
  string line;
+ TokenLine tokenline = {};
  // per line
  while (getline(file, line)) {
-  TokenLine tokenline = interpreter::tokenize(line);
+  tokenline = interpreter::tokenize(line);
   interpreter::compile(tokenline);
 
   if (tokenline.tokens.empty()) {cout << line << endl;}
   else {cout << endl;}
  }
+
+ // dedent
+ tokenline = interpreter::tokenize("quit:");
+ interpreter::compile(tokenline);
+
+ cout << "\nBEGIN ===============================\n" << endl;
 }
 
 void update() {

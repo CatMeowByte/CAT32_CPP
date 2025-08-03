@@ -74,6 +74,7 @@ static const hash_set<string> math_list_operations_bracket = {
  ")",
 };
 
+static void debug_opcode(u8 opcode, elem operand, addr ticker);
 static void bytecode_append(u8 opcode, elem operand);
 static vector<string> breakdown(const string& expression);
 static vector<string> postfix(const vector<string>& tokens);
@@ -429,7 +430,7 @@ namespace interpreter {
   // declaration
   if (assign_type == AssignType::DECLARE) {
    string name = tokens[1];
-   addr address = 0;
+   addr address = SENTINEL;
 
    switch (declare_style) {
     case DeclareStyle::VAR: {
@@ -516,6 +517,8 @@ namespace interpreter {
   elem operand = bytecode[counter + 1];
   addr result = SENTINEL;
 
+  debug_opcode(opcode, operand, counter);
+
   switch (opcode) {
    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
    OPCODES
@@ -528,6 +531,12 @@ namespace interpreter {
 }
 
 void bytecode_append(u8 opcode, elem operand) {
+ debug_opcode(opcode, operand, writer);
+ bytecode[writer++] = opcode;
+ bytecode[writer++] = operand;
+}
+
+static void debug_opcode(u8 opcode, elem operand, addr ticker) {
  string name = opcode_name(opcode);
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
@@ -557,10 +566,7 @@ void bytecode_append(u8 opcode, elem operand) {
   }
  }
 
- cout << "[" << writer << "] " << name << "\t[" << writer + 1 << "] " << value << endl;
-
- bytecode[writer++] = opcode;
- bytecode[writer++] = operand;
+ cout << "[" << ticker << "] " << name << "\t[" << ticker + 1 << "] " << value << endl;
 }
 
 static vector<string> breakdown(const string& expression) {
