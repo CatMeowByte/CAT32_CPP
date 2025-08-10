@@ -42,7 +42,7 @@ namespace utility {
   return true;
  }
 
- double hex_to_number(const string &text) {
+ double hex_to_number(const string& text) {
   u64 dot = text.find('.');
   string hex = "";
   if (dot == string::npos) {

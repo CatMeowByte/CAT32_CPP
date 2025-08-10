@@ -17,6 +17,27 @@ u32 sleeper = 0;
 
 // TODO:
 // possibly move the variable definition to the appropriate module/file that control it
+// or not, why dont keep things organized by just clump it in one predictable searchable place
+// just define it here
+
+namespace symbol {
+ vector<Data> table;
+
+ s32 get_index_reverse(const string& name) {
+  for (u32 i = table.size(); i-- > 0;) {
+   if (symbol::table[i].name == name) {return i;}
+  }
+  return -1;
+ }
+
+ bool exist(const string& name) {
+  return get_index_reverse(name) >= 0;
+ }
+
+ Data& get(const string& name) {
+  return table[get_index_reverse(name)];
+ }
+}
 
 namespace memory_management {
  void memory_reset() {
@@ -31,7 +52,7 @@ namespace memory_management {
   framer.clear();
 
   // interpreter
-  symbols.clear();
+  symbol::table.clear();
   redirect.clear();
   indent_stack.clear();
   indent_previous = 0;

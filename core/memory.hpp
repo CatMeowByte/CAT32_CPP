@@ -2,6 +2,7 @@
 
 #include "core/constant.hpp" // IWYU pragma: keep
 #include "module/interpreter.hpp" // IWYU pragma: keep
+#include <vector>
 
 // memory
 extern elem memory[SYSTEM::MEMORY];
@@ -14,20 +15,29 @@ extern addr writer;
 extern vector<addr> framer;
 
 // interpreter
-enum SymbolType {
-  NUMBER,
-  STRING,
-  STRIPE,
-  FUNCTION,
-};
 
-struct SymbolData {
-  addr address;
-  SymbolType type;
-  // s32 attribute;
-};
+// symbol data are presistent in memory eventhough only used in compile time because of per line compile and console
+// remember to clear the table before compiling app
+namespace symbol {
+ enum class Type : u8 {
+  Number,
+  String,
+  Stripe,
+  Function,
+ };
 
-extern hash_map<string, SymbolData> symbols;
+ struct Data {
+  string name;
+  addr address = SENTINEL;
+  Type type = Type::Number;
+ };
+
+ extern vector<Data> table;
+
+ s32 get_index_reverse(const string& name);
+ bool exist(const string& name);
+ Data& get(const string& name);
+}
 
 extern hash_map<string, Redirect> redirect;
 

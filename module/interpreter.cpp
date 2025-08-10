@@ -12,8 +12,6 @@ constexpr str SYMBOL_STRING_PREFIX = "&:";
 constexpr str OPERATOR_OFFSET = "#";
 constexpr u8 OPERATOR_COMMENT = '$';
 
-hash_map<string, SymbolData> symbols;
-
 hash_map<string, Redirect> redirect;
 
 vector<IndentFrame> indent_stack;
@@ -275,8 +273,8 @@ namespace interpreter {
    set_style = SetStyle::VAR;
 
    u64 has_hash = tokens[0].find('#');
-   if (has_hash != string::npos && symbols.count(tokens[0].substr(0, has_hash))) {set_style = SetStyle::STRIPE;}
-   if (symbols.count(tokens[0]) && symbols[tokens[0]].type == STRING) {set_style = SetStyle::STRING;}
+   if (has_hash != string::npos && symbol::exist(tokens[0].substr(0, has_hash))) {set_style = SetStyle::STRIPE;}
+   if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::STRING;}
   }
 
   // token breakdown
@@ -285,9 +283,9 @@ namespace interpreter {
    if (token == "=") {is_expression = true; continue;}
 
    vector<string> expression_breaked = breakdown(token);
-   // cout << "BREAK: "; for (const std::string &token : expression_breaked) {cout << "'" << token << "' ";} cout << endl;
+   // cout << "BREAK: "; for (const string &token : expression_breaked) {cout << "'" << token << "' ";} cout << endl;
    vector<string> expression_ordered = postfix(expression_breaked);
-   // cout << "SORT: "; for (const std::string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
+   // cout << "SORT: "; for (const string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& token = expression_ordered[j];
 
@@ -301,8 +299,8 @@ namespace interpreter {
     if (token.front() == '"' && token.back() == '"') {
      string content = token.substr(1, token.size() - 2); // strip quotes
      string name = SYMBOL_STRING_PREFIX + content;
-     if (symbols.count(name)) {
-      cout << "string already exist in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+     if (symbol::exist(name)) {
+      cout << "string already exist in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
       continue;
      }
 
@@ -310,7 +308,7 @@ namespace interpreter {
      u32 length = content.size();
      addr slot_after = slotter + length + 1;
      if (set_style == SetStyle::STRING) {
-      address = symbols[tokens[0]].address;
+      address = symbol::get(tokens[0]).address;
       slot_after = slotter;
      }
      bytecode_append(op::push, fpu::pack(length));
@@ -326,13 +324,12 @@ namespace interpreter {
 
      if (declare_style == DeclareStyle::STRING_FULL || set_style == SetStyle::STRING) {continue;}
      // hidden declare
-     symbols[name].type = STRING;
-     symbols[name].address = slotter - (length + 1);
+     symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
 
-     cout << "string hidden declare in " << symbols[name].address << " is written \"" << content << "\"" << endl;
+     cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
 
      // also push to stack for other use
-     bytecode_append(op::push, fpu::pack(symbols[name].address));
+     bytecode_append(op::push, fpu::pack(symbol::get(name).address));
     }
 
     // number
@@ -344,25 +341,25 @@ namespace interpreter {
     }
 
     // symbol
-    if (symbols.count(token)) {
+    if (symbol::exist(token)) {
      if (header_type == HeaderType::FUNCTION) {continue;}
-     const SymbolData& symbol = symbols[token];
+     const symbol::Data& symbol = symbol::get(token);
      switch (symbol.type) {
-      case NUMBER: {
+      case symbol::Type::Number: {
        if (assign_type == AssignType::SET && set_style == SetStyle::VAR && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
        break;
       }
-      case STRING: {
+      case symbol::Type::String: {
        if (assign_type == AssignType::SET && set_style == SetStyle::STRING && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
-      case STRIPE: {
+      case symbol::Type::Stripe: {
        bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
-      case FUNCTION: {
+      case symbol::Type::Function: {
        bytecode_append(op::subgo, symbol.address);
        break;
       }
@@ -393,8 +390,7 @@ namespace interpreter {
      addr address = writer;
 
      // name
-     symbols[name].type = FUNCTION;
-     symbols[name].address = address;
+     symbol::table.push_back({name, address, symbol::Type::Function});
      cout << name << " function is written at bytecode [" << address << "]" << endl;
 
      // arguments
@@ -403,8 +399,7 @@ namespace interpreter {
      addr slot_after = slotter + length + 1;
      for (s32 i = length; i >= 0; i--) {
       name = expression_ordered[i + 1];
-      symbols[name].type = NUMBER;
-      symbols[name].address = address + i;
+      symbol::table.push_back({name, address + i, symbol::Type::Number});
       bytecode_append(op::storeto, address + i);
       cout << name << " is stored in " << address + i << endl;
      }
@@ -437,25 +432,22 @@ namespace interpreter {
    switch (declare_style) {
     case DeclareStyle::VAR: {
      address = slotter++;
-     symbols[name].type = NUMBER;
-     symbols[name].address = address;
+     symbol::table.push_back({name, address, symbol::Type::Number});
      bytecode_append(op::storeto, address);
      cout << name << " is stored in " << address << endl;
      break;
     }
     case DeclareStyle::STRING_FULL: {
      u32 length = tokens[3].size() - 2; // exclude quotes
-     symbols[name].type = STRING;
-     symbols[name].address = slotter - (length + 1);
+     symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
 
-     cout << name << " string is stored in " << symbols[name].address << " with length " << length << endl;
+     cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
     }
     case DeclareStyle::STRING_SIZE: {
      address = slotter;
      s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
-     symbols[name].type = STRING;
-     symbols[name].address = address;
+     symbol::table.push_back({name, address, symbol::Type::String});
 
      slotter += length;
 
@@ -465,8 +457,7 @@ namespace interpreter {
     case DeclareStyle::STRIPE_FULL: {
      address = slotter;
      s32 count = tokens.size() - 3;
-     symbols[name].type = STRIPE;
-     symbols[name].address = address;
+     symbol::table.push_back({name, address, symbol::Type::Stripe});
 
      slotter += count;
 
@@ -480,8 +471,7 @@ namespace interpreter {
     case DeclareStyle::STRIPE_SIZE: {
      address = slotter;
      s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
-     symbols[name].type = STRIPE;
-     symbols[name].address = address;
+     symbol::table.push_back({name, address, symbol::Type::Stripe});
 
      slotter += count;
 
@@ -497,7 +487,7 @@ namespace interpreter {
    switch (set_style) {
     case SetStyle::VAR: {
      string name = tokens[0];
-     addr address = symbols[name].address;
+     addr address = symbol::get(name).address;
      bytecode_append(op::storeto, address);
      break;
     }
@@ -561,8 +551,11 @@ static void debug_opcode(u8 opcode, elem operand, addr ticker) {
     }
    }
    if (name == "takefrom" || name == "storeto") {
-    for (hash_map<string, SymbolData>::iterator it = symbols.begin(); it != symbols.end(); ++it) {
-     if (cast(elem, it->second.address) == operand) {value += " (" + it->first + ")"; break;}
+    for (u32 i = 0; i < symbol::table.size(); i++) {
+     if (cast(elem, symbol::table[i].address) == operand) {
+      value += " (" + symbol::table[i].name + ")";
+      break;
+     }
     }
    }
   }
@@ -637,7 +630,7 @@ static vector<string> breakdown(const string& expression) {
   }
 
   // number/decimal (digits or one dot)
-  if (isdigit(c) || (c == '.' && !token.empty() && all_of(token.begin(), token.end(), [](char tc){return isdigit(tc);}) && token.find('.') == string::npos)) {
+  if (isdigit(c) || (c == '.' && !token.empty() && all_of(token.begin(), token.end(), cast(int(*)(int), isdigit)) && token.find('.') == string::npos)) {
    token += c;
    continue;
   }
@@ -693,7 +686,7 @@ static vector<string> postfix(const vector<string>& tokens) {
 
   // function
   bool is_opcode = opcode_get(token.c_str()) != op::nop;
-  bool is_function = symbols.count(token) && symbols[token].type == FUNCTION;
+  bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
   if (is_opcode || is_function) {
    operator_stack.push_back(token);
    continue;
@@ -733,7 +726,7 @@ static vector<string> postfix(const vector<string>& tokens) {
    // emit function after its arguments
    if (!operator_stack.empty()) {
     is_opcode = opcode_get(operator_stack.back().c_str()) != op::nop;
-    is_function = symbols.count(operator_stack.back()) && symbols[operator_stack.back()].type == FUNCTION;
+    is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
     if (is_opcode || is_function) {
      output.push_back(operator_stack.back());
      operator_stack.pop_back();
