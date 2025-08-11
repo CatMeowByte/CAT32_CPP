@@ -2,17 +2,12 @@
 
 #include "core/constant.hpp" // IWYU pragma: keep
 
-enum class IndentType : u8 {
- UNKNOWN,
- IF,
- ELSE,
- WHILE,
- FUNCTION,
+struct TokenLine {
+ u8 indent = 0;
+ vector<string> tokens;
 };
 
-struct TokenLine {u8 indent; vector<string> tokens;};
-struct Redirect {addr address = SENTINEL; vector<addr> pending;};
-struct IndentFrame {addr jump_pos; addr header_start; IndentType type;};
+struct Redirect {addr address = SENTINEL; vector<addr> pending;}; // TODO: delete goto jump likely incompatible with scope
 
 namespace interpreter {
  TokenLine tokenize(const string& text);

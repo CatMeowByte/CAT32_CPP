@@ -1,5 +1,4 @@
 #include "core/memory.hpp"
-#include <cstring>
 
 // memory
 elem memory[SYSTEM::MEMORY];
@@ -39,6 +38,15 @@ namespace symbol {
  }
 }
 
+namespace scope {
+ vector<Frame> stack;
+ u8 previous = 0;
+
+ addr last_jump_operand = SENTINEL;
+ addr last_line_start = SENTINEL;
+ Type last_line_scope_set = Type::Generic;
+}
+
 namespace memory_management {
  void memory_reset() {
   memset(memory, 0, sizeof(memory));
@@ -51,13 +59,15 @@ namespace memory_management {
   writer = 0;
   framer.clear();
 
-  // interpreter
   symbol::table.clear();
+
   redirect.clear();
-  indent_stack.clear();
-  indent_previous = 0;
-  indent_type_pending = IndentType::UNKNOWN;
-  header_start = 0;
+
+  scope::stack.clear();
+  scope::previous = 0;
+  scope::last_jump_operand = SENTINEL;
+  scope::last_line_start = SENTINEL;
+  scope::last_line_scope_set = scope::Type::Generic;
  }
 
  void executor_reset() {

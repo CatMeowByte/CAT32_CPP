@@ -1,5 +1,3 @@
-#include "core/constant.hpp"
-#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/utility.hpp"
 #include "module/interpreter.hpp"
@@ -14,42 +12,36 @@ constexpr u8 OPERATOR_COMMENT = '$';
 
 hash_map<string, Redirect> redirect;
 
-vector<IndentFrame> indent_stack;
-u8 indent_previous = 0;
-IndentType indent_type_pending = IndentType::UNKNOWN;
-addr jump_operand = SENTINEL;
-addr header_start = SENTINEL;
-
-enum Precedence : u8 {
- BASE = 0,
- LOGIC = 0,
- COMPARE = 1,
- SHIFT = 2,
- ADD = 3,
- MUL = 4,
- OFFSET = 5,
- UNARY = 6,
+enum class Precedence : u8 {
+ Base = 0,
+ Logic = 0,
+ Compare = 1,
+ Shift = 2,
+ Add = 3,
+ Multiply = 4,
+ Offset = 5,
+ Unary = 6,
 };
 
 #define SORTED_OPERATORS \
- OP("==", op::eq, COMPARE) \
- OP("!=", op::neq, COMPARE) \
- OP("<=", op::leq, COMPARE) \
- OP(">=", op::geq, COMPARE) \
- OP("&&", op::band, LOGIC) \
- OP("||", op::bor, LOGIC) \
- OP("~~", op::bnot, UNARY) \
- OP("<<", op::bshl, SHIFT) \
- OP(">>", op::bshr, SHIFT) \
- OP("+", op::add, ADD) \
- OP("-", op::sub, ADD) \
- OP("*", op::mul, MUL) \
- OP("/", op::div, MUL) \
- OP("<", op::lt, COMPARE) \
- OP(">", op::gt, COMPARE) \
- OP("&", op::land, LOGIC) \
- OP("|", op::lor, LOGIC) \
- OP("!", op::lnot, UNARY)
+ OP("==", op::eq, Precedence::Compare) \
+ OP("!=", op::neq, Precedence::Compare) \
+ OP("<=", op::leq, Precedence::Compare) \
+ OP(">=", op::geq, Precedence::Compare) \
+ OP("&&", op::band, Precedence::Logic) \
+ OP("||", op::bor, Precedence::Logic) \
+ OP("~~", op::bnot, Precedence::Unary) \
+ OP("<<", op::bshl, Precedence::Shift) \
+ OP(">>", op::bshr, Precedence::Shift) \
+ OP("+", op::add, Precedence::Add) \
+ OP("-", op::sub, Precedence::Add) \
+ OP("*", op::mul, Precedence::Multiply) \
+ OP("/", op::div, Precedence::Multiply) \
+ OP("<", op::lt, Precedence::Compare) \
+ OP(">", op::gt, Precedence::Compare) \
+ OP("&", op::land, Precedence::Logic) \
+ OP("|", op::lor, Precedence::Logic) \
+ OP("!", op::lnot, Precedence::Unary)
 
 static const hash_map<string, u8> math_opcodes = {
 #define OP(sym, code, prec) {sym, code},
@@ -135,82 +127,82 @@ namespace interpreter {
 
   // flag
 
-  enum class HeaderType : u8 {NONE, IF, WHILE, ELSE, FUNCTION};
-  HeaderType header_type = HeaderType::NONE;
+  enum class HeaderType : u8 {None, If, While, Else, Function};
+  HeaderType header_type = HeaderType::None;
 
-  enum class AssignType : u8 {NONE, DECLARE, SET};
-  AssignType assign_type = AssignType::NONE;
+  enum class AssignType : u8 {None, Declare, Set};
+  AssignType assign_type = AssignType::None;
 
-  enum class DeclareStyle : u8 {NONE, VAR, STRING_FULL, STRING_SIZE, STRIPE_FULL, STRIPE_SIZE};
-  DeclareStyle declare_style = DeclareStyle::NONE;
+  enum class DeclareStyle : u8 {None, Variable, StringFull, StringSize, StripeFull, StripeSize};
+  DeclareStyle declare_style = DeclareStyle::None;
 
-  enum class SetStyle : u8 {NONE, VAR, STRING, STRIPE};
-  SetStyle set_style = SetStyle::NONE;
+  enum class SetStyle : u8 {None, Variable, String, Stripe};
+  SetStyle set_style = SetStyle::None;
 
   bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
 
   bool is_return = tokens[0] == "return";
 
-  if (tokens[0] == "else:") {header_type = HeaderType::ELSE;}
-  if (tokens.back().back() == ':') {
-   header_start = writer;
-   if (tokens[0] == "if") {header_type = HeaderType::IF;}
-   if (tokens[0] == "while") {header_type = HeaderType::WHILE;}
-   if (tokens[0] == "func") {header_type = HeaderType::FUNCTION;}
-  }
-
   // indent
-  if (indent > indent_previous) {
-   if (indent - indent_previous > 1) {cout << "WARNING: too much indent" << endl;}
-   for (u8 indent_level = indent_previous + 1; indent_level <= indent; ++indent_level) {
-    cout << "INDENT" << endl;
+  if (indent > scope::previous) {
+   if (indent - scope::previous > 1) {cout << "caution: too much indent" << endl;}
+   for (u8 indent_level = scope::previous + 1; indent_level <= indent; ++indent_level) {
+    cout << ">>>>" << endl;
 
-    if (indent_type_pending != IndentType::FUNCTION) {
-     jump_operand = writer - 1;
-
+    if (scope::last_line_scope_set != scope::Type::Function) { // if, while, and else
      const elem last_opcode = bytecode[writer - 2];
      if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
-      cout << "WARNING: last opcode before indent is not jump/jumz/junz" << endl;
+      cout << "caution: last opcode before indent is not jump/jumz/junz" << endl;
      }
     }
 
-    indent_stack.push_back({jump_operand, header_start, indent_type_pending});
-    indent_type_pending = IndentType::UNKNOWN;
-    cout << "indent stack added with jump operand at " << jump_operand << endl;
+    scope::stack.push_back({scope::last_jump_operand, scope::last_line_start, scope::last_line_scope_set});
+    scope::last_line_scope_set = scope::Type::Generic;
+    cout << "indent stack added with jump operand at " << scope::last_jump_operand << endl;
    }
   }
 
   // dedent
-  if (indent < indent_previous) {
-   for (u8 indent_level = indent_previous; indent_level > indent; --indent_level) {
-    cout << "DEDENT" << endl;
+  if (indent < scope::previous) {
+   for (u8 indent_level = scope::previous; indent_level > indent; --indent_level) {
+    cout << "<<<<" << endl;
 
-    if (header_type == HeaderType::ELSE) {bytecode_append(op::jump, SENTINEL);}
+    // only handle else because at "else" its a single line dedent with only one keyword
+    // so this handled earlier before patching the bytecode jump operand with writer
+    if (tokens[0] == "else") {
+     header_type = HeaderType::Else;
 
-    const IndentFrame& frame = indent_stack.back();
-    const addr& jump_pos = frame.jump_pos;
+     bytecode_append(op::jump, SENTINEL);
+     scope::last_jump_operand = writer - 1;
+     scope::last_line_scope_set = scope::Type::Else;
+    }
 
-    if (frame.type == IndentType::WHILE) {
+    const scope::Frame& frame = scope::stack.back();
+
+    if (frame.type == scope::Type::While) {
      bytecode_append(op::jump, frame.header_start); // next opcode
     }
 
-    bytecode[jump_pos] = writer;
-    cout << "patching jump operand at " << jump_pos << " to address " << writer << endl;
+    bytecode[frame.jump_operand] = writer;
+    cout << "patching jump operand at " << frame.jump_operand << " to address " << writer << endl;
 
-    indent_stack.pop_back();
+    scope::stack.pop_back();
    }
   }
-  indent_previous = indent;
+  scope::previous = indent;
 
   cout << "\n";
   for (const string& t : tokens) {cout << t << " ";}
   cout << endl;
 
+  if (tokens[0] == "if") {header_type = HeaderType::If;}
+  if (tokens[0] == "while") {header_type = HeaderType::While;}
+  if (tokens[0] == "func") {header_type = HeaderType::Function;}
+  scope::last_line_start = writer;
+
   // else
-  if (header_type == HeaderType::ELSE) {
-   indent_type_pending = IndentType::ELSE;
-   return;
-  }
+  // already handled earlier in dedent
+  if (header_type == HeaderType::Else) {return;}
 
   // label
   if (tokens[0].size() > 1 && tokens[0].back() == ':') {
@@ -249,32 +241,32 @@ namespace interpreter {
 
   // set type
   if (tokens[0] == "var" && tokens[2] == "=" && tokens.size() == 4) {
-   assign_type = AssignType::DECLARE;
-   declare_style = DeclareStyle::VAR;
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::Variable;
   }
   if (tokens[0] == "string" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
-   assign_type = AssignType::DECLARE;
-   declare_style = DeclareStyle::STRING_FULL;
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::StringFull;
   }
   if (tokens[0] == "string" && tokens.size() == 3 && utility::is_number(tokens[2])) {
-   assign_type = AssignType::DECLARE;
-   declare_style = DeclareStyle::STRING_SIZE;
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::StringSize;
   }
   if (tokens[0] == "stripe" && tokens[2] == "=" && tokens.size() >= 4) {
-   assign_type = AssignType::DECLARE;
-   declare_style = DeclareStyle::STRIPE_FULL;
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::StripeFull;
   }
   if (tokens[0] == "stripe" && tokens.size() == 3 && utility::is_number(tokens[2])) {
-   assign_type = AssignType::DECLARE;
-   declare_style = DeclareStyle::STRIPE_SIZE;
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::StripeSize;
   }
   if (tokens.size() == 3 && tokens[1] == "=") {
-   assign_type = AssignType::SET;
-   set_style = SetStyle::VAR;
+   assign_type = AssignType::Set;
+   set_style = SetStyle::Variable;
 
    u64 has_hash = tokens[0].find('#');
-   if (has_hash != string::npos && symbol::exist(tokens[0].substr(0, has_hash))) {set_style = SetStyle::STRIPE;}
-   if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::STRING;}
+   if (has_hash != string::npos && symbol::exist(tokens[0].substr(0, has_hash))) {set_style = SetStyle::Stripe;}
+   if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::String;}
   }
 
   // token breakdown
@@ -307,7 +299,7 @@ namespace interpreter {
      addr address = slotter;
      u32 length = content.size();
      addr slot_after = slotter + length + 1;
-     if (set_style == SetStyle::STRING) {
+     if (set_style == SetStyle::String) {
       address = symbol::get(tokens[0]).address;
       slot_after = slotter;
      }
@@ -322,7 +314,7 @@ namespace interpreter {
 
      slotter = slot_after;
 
-     if (declare_style == DeclareStyle::STRING_FULL || set_style == SetStyle::STRING) {continue;}
+     if (declare_style == DeclareStyle::StringFull || set_style == SetStyle::String) {continue;}
      // hidden declare
      symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
 
@@ -335,23 +327,23 @@ namespace interpreter {
     // number
     // hardest part to document
     // all detail of rounding, casting, data type is important
-    if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::STRIPE_SIZE && declare_style != DeclareStyle::STRING_SIZE) {
+    if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : stod(token);
      bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value))))); // rounded fixed point
     }
 
     // symbol
     if (symbol::exist(token)) {
-     if (header_type == HeaderType::FUNCTION) {continue;}
+     if (header_type == HeaderType::Function) {continue;}
      const symbol::Data& symbol = symbol::get(token);
      switch (symbol.type) {
       case symbol::Type::Number: {
-       if (assign_type == AssignType::SET && set_style == SetStyle::VAR && !is_expression && token == tokens[0]) {break;}
+       if (assign_type == AssignType::Set && set_style == SetStyle::Variable && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
        break;
       }
       case symbol::Type::String: {
-       if (assign_type == AssignType::SET && set_style == SetStyle::STRING && !is_expression && token == tokens[0]) {break;}
+       if (assign_type == AssignType::Set && set_style == SetStyle::String && !is_expression && token == tokens[0]) {break;}
        bytecode_append(op::push, fpu::pack(symbol.address));
        break;
       }
@@ -370,7 +362,7 @@ namespace interpreter {
     // "#"
     if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, op::nop);
-     if (assign_type == AssignType::SET && set_style == SetStyle::STRIPE && !is_expression && j == expression_ordered.size() - 1) {continue;}
+     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
      bytecode_append(op::peek, op::nop);
     }
 
@@ -381,10 +373,10 @@ namespace interpreter {
 
     // function
     // this is oneshot, inside breakdown for function name extraction
-    if (header_type == HeaderType::FUNCTION && i == 1 && j == 0) {
-     jump_operand = writer + 1;
+    if (header_type == HeaderType::Function && i == 1 && j == 0) {
+     scope::last_jump_operand = writer + 1;
      bytecode_append(op::jump, SENTINEL);
-     indent_type_pending = IndentType::FUNCTION;
+     scope::last_line_scope_set = scope::Type::Function;
 
      string name = token;
      addr address = writer;
@@ -413,38 +405,40 @@ namespace interpreter {
   if (is_return) {bytecode_append(op::subret, 0);}
 
   // if
-  if (header_type == HeaderType::IF) {
+  if (header_type == HeaderType::If) {
    bytecode_append(op::jumz, SENTINEL);
-   indent_type_pending = IndentType::IF;
+   scope::last_jump_operand = writer - 1;
+   scope::last_line_scope_set = scope::Type::If;
   }
 
   // while
-  if (header_type == HeaderType::WHILE) {
+  if (header_type == HeaderType::While) {
    bytecode_append(op::jumz, SENTINEL);
-   indent_type_pending = IndentType::WHILE;
+   scope::last_jump_operand = writer - 1;
+   scope::last_line_scope_set = scope::Type::While;
   }
 
   // declaration
-  if (assign_type == AssignType::DECLARE) {
+  if (assign_type == AssignType::Declare) {
    string name = tokens[1];
    addr address = SENTINEL;
 
    switch (declare_style) {
-    case DeclareStyle::VAR: {
+    case DeclareStyle::Variable: {
      address = slotter++;
      symbol::table.push_back({name, address, symbol::Type::Number});
      bytecode_append(op::storeto, address);
      cout << name << " is stored in " << address << endl;
      break;
     }
-    case DeclareStyle::STRING_FULL: {
+    case DeclareStyle::StringFull: {
      u32 length = tokens[3].size() - 2; // exclude quotes
      symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
 
      cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
     }
-    case DeclareStyle::STRING_SIZE: {
+    case DeclareStyle::StringSize: {
      address = slotter;
      s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::String});
@@ -454,7 +448,7 @@ namespace interpreter {
      cout << name << " empty string is stored in " << address << " with length " << length << endl;
      break;
     }
-    case DeclareStyle::STRIPE_FULL: {
+    case DeclareStyle::StripeFull: {
      address = slotter;
      s32 count = tokens.size() - 3;
      symbol::table.push_back({name, address, symbol::Type::Stripe});
@@ -468,7 +462,7 @@ namespace interpreter {
      cout << name << " stripe is stored in " << address << " with size " << count << endl;
      break;
     }
-    case DeclareStyle::STRIPE_SIZE: {
+    case DeclareStyle::StripeSize: {
      address = slotter;
      s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::Stripe});
@@ -483,15 +477,15 @@ namespace interpreter {
   }
 
   // assignment
-  if (assign_type == AssignType::SET) {
+  if (assign_type == AssignType::Set) {
    switch (set_style) {
-    case SetStyle::VAR: {
+    case SetStyle::Variable: {
      string name = tokens[0];
      addr address = symbol::get(name).address;
      bytecode_append(op::storeto, address);
      break;
     }
-    case SetStyle::STRIPE: {
+    case SetStyle::Stripe: {
      bytecode_append(op::poke, op::nop);
      break;
     }
@@ -649,12 +643,12 @@ static vector<string> breakdown(const string& expression) {
  return tokens;
 }
 
-static u8 precedence(const string& op) {
+static Precedence precedence(const string& op) {
 #define OP(sym, code, prec) if (op == sym) {return prec;}
  SORTED_OPERATORS
 #undef OP
- if (op == OPERATOR_OFFSET) {return OFFSET;}
- return BASE;
+ if (op == OPERATOR_OFFSET) {return Precedence::Offset;}
+ return Precedence::Base;
 }
 
 static vector<string> postfix(const vector<string>& tokens) {

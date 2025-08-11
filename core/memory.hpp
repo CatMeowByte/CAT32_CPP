@@ -1,8 +1,7 @@
 #pragma once
 
-#include "core/constant.hpp" // IWYU pragma: keep
-#include "module/interpreter.hpp" // IWYU pragma: keep
-#include <vector>
+#include "core/constant.hpp"
+#include "module/interpreter.hpp"
 
 // memory
 extern elem memory[SYSTEM::MEMORY];
@@ -41,10 +40,31 @@ namespace symbol {
 
 extern hash_map<string, Redirect> redirect;
 
-extern vector<IndentFrame> indent_stack;
-extern u8 indent_previous;
-extern IndentType indent_type_pending;
-extern addr header_start;
+namespace scope {
+ enum class Type : u8 {
+  Generic,
+  If,
+  Else,
+  While,
+  Function,
+ };
+
+ struct Frame {
+  addr jump_operand = SENTINEL;
+  addr header_start = SENTINEL;
+  Type type = Type::Generic;
+
+  u32 symbol_start = 0;
+  addr stack_start = SYSTEM::MEMORY - 1;
+ };
+
+ extern vector<Frame> stack;
+ extern u8 previous;
+
+ extern addr last_jump_operand;
+ extern addr last_line_start; // for while loop
+ extern Type last_line_scope_set;
+}
 
 // executor
 extern addr counter;
