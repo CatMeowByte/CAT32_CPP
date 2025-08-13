@@ -55,7 +55,7 @@ namespace scope {
   Type type = Type::Generic;
 
   u32 symbol_start = 0;
-  addr stack_start = SYSTEM::MEMORY - 1;
+  addr stack_start = SYSTEM::MEMORY;
  };
 
  extern vector<Frame> stack;

@@ -156,7 +156,14 @@ namespace interpreter {
      }
     }
 
-    scope::stack.push_back({scope::last_jump_operand, scope::last_line_start, scope::last_line_scope_set});
+    scope::Frame frame;
+    frame.jump_operand = scope::last_jump_operand;
+    frame.header_start = scope::last_line_start;
+    frame.type = scope::last_line_scope_set;
+    frame.symbol_start = symbol::table.size();
+    frame.stack_start = stacker;
+    scope::stack.push_back(frame);
+
     scope::last_line_scope_set = scope::Type::Generic;
     cout << "indent stack added with jump operand at " << scope::last_jump_operand << endl;
    }
@@ -178,6 +185,9 @@ namespace interpreter {
     }
 
     const scope::Frame& frame = scope::stack.back();
+
+    symbol::table.resize(frame.symbol_start);
+    stacker = frame.stack_start;
 
     if (frame.type == scope::Type::While) {
      bytecode_append(op::jump, frame.header_start); // next opcode
@@ -281,14 +291,15 @@ namespace interpreter {
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& token = expression_ordered[j];
 
+    if (false) {}
+
     // command
-    u8 command = opcode_get(token.c_str());
-    if (command != op::nop) {
-     bytecode_append(command, op::nop);
+    else if (opcode::exist(token.c_str())) {
+     bytecode_append(opcode::get(token.c_str()), op::nop);
     }
 
     // string
-    if (token.front() == '"' && token.back() == '"') {
+    else if (token.front() == '"' && token.back() == '"') {
      string content = token.substr(1, token.size() - 2); // strip quotes
      string name = SYMBOL_STRING_PREFIX + content;
      if (symbol::exist(name)) {
@@ -327,13 +338,13 @@ namespace interpreter {
     // number
     // hardest part to document
     // all detail of rounding, casting, data type is important
-    if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
+    else if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : stod(token);
      bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value))))); // rounded fixed point
     }
 
     // symbol
-    if (symbol::exist(token)) {
+    else if (symbol::exist(token)) {
      if (header_type == HeaderType::Function) {continue;}
      const symbol::Data& symbol = symbol::get(token);
      switch (symbol.type) {
@@ -360,20 +371,20 @@ namespace interpreter {
     }
 
     // "#"
-    if (token == OPERATOR_OFFSET) {
+    else if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, op::nop);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
      bytecode_append(op::peek, op::nop);
     }
 
     // math operations
-    if (math_opcodes.count(token)) {
+    else if (math_opcodes.count(token)) {
      bytecode_append(math_opcodes.at(token), op::nop);
     }
 
     // function
     // this is oneshot, inside breakdown for function name extraction
-    if (header_type == HeaderType::Function && i == 1 && j == 0) {
+    else if (header_type == HeaderType::Function && i == 1 && j == 0) {
      scope::last_jump_operand = writer + 1;
      bytecode_append(op::jump, SENTINEL);
      scope::last_line_scope_set = scope::Type::Function;
@@ -397,6 +408,23 @@ namespace interpreter {
      }
 
      slotter = slot_after;
+    }
+
+    // invalid
+    else if ( // FIXME: terrible code, need proper non-keyword check
+     token != "var" &&
+     token != "string" &&
+     token != "stripe" &&
+     token != "if" &&
+     token != "while" &&
+     token != "else" &&
+     token != "func" &&
+     token != "goto" &&
+     token != "return" &&
+     !(assign_type == AssignType::Declare && i == 1)
+    )
+    {
+     cout << "error: invalid identifier \"" << token << "\"" << endl;
     }
    }
   }
@@ -523,7 +551,7 @@ void bytecode_append(u8 opcode, elem operand) {
 }
 
 static void debug_opcode(u8 opcode, elem operand, addr ticker) {
- string name = opcode_name(opcode);
+ string name = opcode::name(opcode);
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
  bool has_operand = (
@@ -679,7 +707,7 @@ static vector<string> postfix(const vector<string>& tokens) {
   }
 
   // function
-  bool is_opcode = opcode_get(token.c_str()) != op::nop;
+  bool is_opcode = opcode::exist(token.c_str());
   bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
   if (is_opcode || is_function) {
    operator_stack.push_back(token);
@@ -719,7 +747,7 @@ static vector<string> postfix(const vector<string>& tokens) {
 
    // emit function after its arguments
    if (!operator_stack.empty()) {
-    is_opcode = opcode_get(operator_stack.back().c_str()) != op::nop;
+    is_opcode = opcode::exist(operator_stack.back().c_str());
     is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
     if (is_opcode || is_function) {
      output.push_back(operator_stack.back());

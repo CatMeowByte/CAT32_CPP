@@ -61,19 +61,25 @@ namespace opfunc {
  #undef OP
 }
 
-constexpr u8 opcode_get(str cmd) {
- switch (utility::hash(cmd)) {
-  #define OP(hex, name) case utility::hash(#name): return op::name;
-  OPCODES
-  #undef OP
- default: return op::nop;
+namespace opcode {
+ constexpr u8 get(str cmd) {
+  switch (utility::hash(cmd)) {
+   #define OP(hex, name) case utility::hash(#name): {return op::name;}
+   OPCODES
+   #undef OP
+  default: return op::nop;
+  }
  }
-}
 
-constexpr str opcode_name(u8 value) {
- return
-  #define OP(hex, name) value == hex ? #name :
-  OPCODES
-  #undef OP
-  "UNKNOWN";
+ constexpr bool exist (str name) {
+  return get(name) != op::nop;
+ }
+
+ constexpr str name(u8 value) {
+  return
+   #define OP(hex, name) value == hex ? #name :
+   OPCODES
+   #undef OP
+   "UNKNOWN";
+ }
 }
