@@ -1,7 +1,8 @@
+#include "core/interpreter.hpp"
 #include "core/memory.hpp"
+#include "core/opcode.hpp"
 #include "core/utility.hpp"
-#include "module/interpreter.hpp"
-#include "module/opcode.hpp"
+#include "module/builtin.hpp"
 
 // TODO:
 // handle warning of exception, overflow, etc
@@ -293,7 +294,12 @@ namespace interpreter {
 
     if (false) {}
 
-    // command
+    // builtin
+    else if (builtin::exist(token)) {
+     bytecode_append(op::call, builtin::get_index(token));
+    }
+
+    // opcode
     else if (opcode::exist(token.c_str())) {
      bytecode_append(opcode::get(token.c_str()), op::nop);
     }
@@ -555,10 +561,10 @@ static void debug_opcode(u8 opcode, elem operand, addr ticker) {
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
  bool has_operand = (
-  name == "pop"    || name == "push" ||
+  name == "pop" || name == "push" ||
   name == "takefrom" || name == "storeto" ||
-  name == "jump"   || name == "jumz" || name == "junz" ||
-  name == "subgo"
+  name == "jump" || name == "jumz" || name == "junz" ||
+  name == "subgo" || name == "call"
  );
  string value = "";
  if (has_operand) {
@@ -579,6 +585,9 @@ static void debug_opcode(u8 opcode, elem operand, addr ticker) {
       break;
      }
     }
+   }
+   if (name == "call") {
+    value += " (" + builtin::get_name(operand) + ")";
    }
   }
  }

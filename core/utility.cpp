@@ -1,5 +1,7 @@
 #include "core/memory.hpp"
+#include "core/opcode.hpp"
 #include "core/utility.hpp"
+#include "module/builtin.hpp"
 
 namespace utility {
  bool is_number(const string& text) {
@@ -95,8 +97,45 @@ namespace utility {
  }
 
  string string_pick(addr address) {
- string out;
- for (s32 i = 0; i < fpu::unpack(memory[address]); i++) {out += cast(char, fpu::unpack(memory[address + 1 + i]));}
- return out;
-}
+  string out;
+  for (s32 i = 0; i < fpu::unpack(memory[address]); i++) {out += cast(char, fpu::unpack(memory[address + 1 + i]));}
+  return out;
+ }
+
+ namespace wrap {
+  addr see(elem value) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   elem literal_value = opfunc::pop(0);
+   float decimal_value = fpu::unscale(literal_value);
+
+   // format hex
+   ostringstream hex_out;
+   hex_out.setf(ios::uppercase);
+   hex_out << hex;
+   hex_out << setw(8);
+   hex_out << setfill('0');
+   hex_out << literal_value;
+   string hex_string = hex_out.str();
+
+   int dot_position = SYSTEM::FIXED_POINT_WIDTH / 4;
+   string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
+
+   // format float
+   string decimal_string = utility::string_no_trailing(decimal_value);
+
+   cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
+   return SENTINEL;
+  }
+
+  addr wait(elem value) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   sleeper = fpu::unpack(opfunc::pop(0));
+   return SENTINEL;
+  }
+ }
+
+ void builtin_register() {
+  builtin::add("see", wrap::see);
+  builtin::add("wait", wrap::wait);
+ }
 }

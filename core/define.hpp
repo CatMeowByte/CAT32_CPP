@@ -27,6 +27,7 @@ using s64 = int64_t;
 
 using addr = u32;
 using elem = s32;
+using fnp = addr(*)(elem); // function pointer
 
 using str = const char*;
 

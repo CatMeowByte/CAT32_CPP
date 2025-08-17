@@ -1,3 +1,6 @@
+#include "core/memory.hpp"
+#include "core/opcode.hpp"
+#include "module/builtin.hpp"
 #include "module/font.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
@@ -156,5 +159,45 @@ namespace video {
 
  void flip() {
   sdl::flip(buffer);
+ }
+
+ namespace wrap {
+  addr clear(elem) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   elem color = fpu::unpack(memory[stacker++]);
+   video::clear(color);
+   return SENTINEL;
+  }
+
+  addr pixel(elem) {
+   BAIL_UNLESS_STACK_ATLEAST(3)
+   elem color = fpu::unpack(memory[stacker++]);
+   elem y = fpu::unpack(memory[stacker++]);
+   elem x = fpu::unpack(memory[stacker++]);
+   video::pixel(x, y, color);
+   return SENTINEL;
+  }
+
+  addr text(elem) {
+   BAIL_UNLESS_STACK_ATLEAST(4)
+   elem color = fpu::unpack(memory[stacker++]);
+   elem address = fpu::unpack(memory[stacker++]);
+   elem y = fpu::unpack(memory[stacker++]);
+   elem x = fpu::unpack(memory[stacker++]);
+   video::text(x, y, utility::string_pick(address).c_str(), color, 0);
+   return SENTINEL;
+  }
+
+  addr flip(elem) {
+   video::flip();
+   return SENTINEL;
+  }
+ }
+
+ void builtin_register() {
+  builtin::add("clear", wrap::clear);
+  builtin::add("pixel", wrap::pixel);
+  builtin::add("text", wrap::text);
+  builtin::add("flip", wrap::flip);
  }
 }

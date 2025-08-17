@@ -1,11 +1,6 @@
 #include "core/constant.hpp"
-#include "core/define.hpp"
 #include "core/memory.hpp"
-#include "module/opcode.hpp"
-#include "module/video.hpp"
-
-#define BAIL_IF_STACK_OVERFLOW if (!(stacker > 0)) {return SENTINEL;}
-#define BAIL_UNLESS_STACK_ATLEAST(N) if (!(stacker <= SYSTEM::MEMORY - (N))) {return SENTINEL;}
+#include "core/opcode.hpp"
 
 namespace opfunc {
  /* stack */
@@ -235,69 +230,12 @@ namespace opfunc {
   return SENTINEL;
  }
 
- /* video */
- addr clear(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
-  elem color = fpu::unpack(pop(0));
-  video::clear(color);
-  return SENTINEL;
+ /* builtin */
+ addr call(elem value) {
+  return builtin::table[value].function(value);
  }
 
- addr pixel(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(3)
-  elem color = fpu::unpack(pop(0));
-  elem y = fpu::unpack(pop(0));
-  elem x = fpu::unpack(pop(0));
-  video::pixel(x, y, color);
-  return SENTINEL;
- }
-
- addr text(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(3)
-  elem color = fpu::unpack(pop(0));
-  elem address = fpu::unpack(pop(0));
-  elem y = fpu::unpack(pop(0));
-  elem x = fpu::unpack(pop(0));
-  video::text(x, y, utility::string_pick(address).c_str(), color, 0); // TODO: fixed character set
-  return SENTINEL;
- }
-
- addr flip(elem value) {
-  video::flip();
-  return SENTINEL;
- }
-
- /* misc */
- addr see(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
-  elem literal_value = pop(0);
-  float decimal_value = fpu::unscale(literal_value);
-
-  // format hex
-  ostringstream hex_out;
-  hex_out.setf(ios::uppercase);
-  hex_out << hex;
-  hex_out << setw(8);
-  hex_out << setfill('0');
-  hex_out << literal_value;
-  string hex_string = hex_out.str();
-
-  int dot_position = SYSTEM::FIXED_POINT_WIDTH / 4;
-  string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
-
-  // format float
-  string decimal_string = utility::string_no_trailing(decimal_value);
-
-  cout << "[SEE] [" << literal_value << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
-  return SENTINEL;
- }
-
- addr wait(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
-  sleeper = fpu::unpack(pop(0));
-  return SENTINEL;
- }
-
+ /* nop */
  addr nop(elem value) {
   return SENTINEL;
  }

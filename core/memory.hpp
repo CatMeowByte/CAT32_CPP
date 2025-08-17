@@ -1,19 +1,28 @@
 #pragma once
 
 #include "core/constant.hpp"
-#include "module/interpreter.hpp"
+#include "core/define.hpp"
+#include "core/interpreter.hpp"
 
 // memory
 extern elem memory[SYSTEM::MEMORY];
 extern u32 slotter;
 extern addr stacker;
 
-//b bytecode
+// bytecode
 extern elem bytecode[SYSTEM::CODESIZE];
 extern addr writer;
 extern vector<addr> framer;
 
-// interpreter
+// global
+namespace builtin {
+ struct Builtin {
+  string name;
+  fnp function;
+ };
+
+ extern vector<Builtin> table;
+}
 
 // symbol data are presistent in memory eventhough only used in compile time because of per line compile and console
 // remember to clear the table before compiling app
