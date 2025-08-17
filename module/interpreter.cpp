@@ -187,7 +187,7 @@ namespace interpreter {
     const scope::Frame& frame = scope::stack.back();
 
     symbol::table.resize(frame.symbol_start);
-    stacker = frame.stack_start;
+    stacker = frame.stack_start; // FIXME: need proper runtime update. move stacker as adressable memory
 
     if (frame.type == scope::Type::While) {
      bytecode_append(op::jump, frame.header_start); // next opcode
@@ -338,8 +338,8 @@ namespace interpreter {
     // number
     // hardest part to document
     // all detail of rounding, casting, data type is important
-    else if ((utility::is_number(token) || utility::is_hex(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
-     double value = utility::is_hex(token) ? utility::hex_to_number(token) : stod(token);
+    else if ((utility::is_number(token) || utility::is_hex(token) || utility::is_bin(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
+     double value = utility::is_hex(token) ? utility::hex_to_number(token) : (utility::is_bin(token) ? utility::bin_to_number(token) : stod(token));
      bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value))))); // rounded fixed point
     }
 
@@ -608,20 +608,28 @@ static vector<string> breakdown(const string& expression) {
   }
   if (in_quote) {token += c; continue;}
 
-  // hex
-  if (c == '0' && (i + 1 < expression.size()) && (expression[i+1] == 'x' || expression[i+1] == 'X')) {
-   string hexnum = "0x";
-   i += 2;
-   bool has_dot = false;
-   while (i < expression.size() && (isxdigit(expression[i]) || (!has_dot && expression[i] == '.'))) {
-    if (expression[i] == '.') {
-     has_dot = true;
+  // hex and bin
+  if (c == '0' && (i + 1 < expression.size())) {
+   char p = expression[i + 1];
+   bool is_hex = (p == 'x' || p == 'X');
+   bool is_bin = (p == 'b' || p == 'B');
+   if (is_hex || is_bin) {
+    string num = is_hex ? "0x" : "0b";
+    i += 2;
+    bool has_dot = false;
+    bool has_digit = false;
+    while (i < expression.size()) {
+     char d = expression[i];
+     bool digit_ok = is_hex ? isxdigit(d) : (d == '0' || d == '1');
+     if (digit_ok) {has_digit = true; num += d; i++; continue;}
+     if (d == '.' && !has_dot) {has_dot = true; num += d; i++; continue;}
+     break;
     }
-    hexnum += expression[i++];
+    if (has_digit) {tokens.push_back(num);}
+    else {tokens.push_back("0"); cout << "error: incomplete " << (is_hex ? "hex" : "bin") << " literal" << endl;}
+    i--; // adjust for loop increment
+    continue;
    }
-   tokens.push_back(hexnum);
-   i--; // adjust for loop increment
-   continue;
   }
 
   // operators

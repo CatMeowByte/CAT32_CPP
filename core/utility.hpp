@@ -18,6 +18,10 @@ namespace utility {
 
  double hex_to_number(const string& text);
 
+ bool is_bin(const string& text);
+
+ double bin_to_number(const string& text);
+
  string string_no_trailing(double value);
 
  string string_pick(addr address);

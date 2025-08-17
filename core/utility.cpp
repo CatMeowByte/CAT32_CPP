@@ -58,6 +58,35 @@ namespace utility {
   return value / double(1ULL << 32);
  }
 
+ bool is_bin(const string& text) {
+  if (text.size() < 3) {return false;}
+  if (!(text[0] == '0' && (text[1] == 'b' || text[1] == 'B'))) {return false;}
+  bool has_dot = false, has_digit = false;
+  for (u32 i = 2; i < text.size(); i++) {
+   char c = text[i];
+   if (c == '.') {if (has_dot) {return false;} has_dot = true; continue;}
+   if (c == '0' || c == '1') {has_digit = true; continue;}
+   return false;
+  }
+  return has_digit;
+ }
+
+ double bin_to_number(const string& text) {
+  u64 dot = text.find('.');
+  string bin = "";
+  if (dot == string::npos) {
+   bin += string(32 - bin.length(), '0'); // fractional pad
+   bin = text.substr(2) + bin;
+  } else {
+   bin += text.substr(dot + 1);
+   bin += string(32 - bin.length(), '0');
+   bin = text.substr(2, dot - 2) + bin;
+  }
+  bin = string(64 - bin.length(), '0') + bin;
+  u64 value = bin.empty() ? 0ULL : stoull(bin, nullptr, 2);
+  return value / double(1ULL << 32);
+ }
+
  string string_no_trailing(double value) {
   string s = to_string(value);
   s.erase(s.find_last_not_of('0') + 1, string::npos); // remove trailing zeros
