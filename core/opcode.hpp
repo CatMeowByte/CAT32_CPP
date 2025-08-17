@@ -39,14 +39,9 @@
  OP(0x4C, bnot) \
  OP(0x4D, bshl) \
  OP(0x4E, bshr) \
- /* video */ \
- OP(0xA0, clear) \
- OP(0xA1, pixel) \
- OP(0xA2, text) \
- OP(0xAF, flip) \
- /* misc */ \
- OP(0xFA, see) \
- OP(0xFF, wait) \
+ /* builtin */ \
+ OP(0xFF, call) \
+  /* nop */ \
  OP(0x00, nop)
 
 namespace op {
@@ -83,3 +78,7 @@ namespace opcode {
    "UNKNOWN";
  }
 }
+
+// boundary check
+#define BAIL_IF_STACK_OVERFLOW if (!(stacker > 0)) {return SENTINEL;}
+#define BAIL_UNLESS_STACK_ATLEAST(N) if (!(stacker <= SYSTEM::MEMORY - (N))) {return SENTINEL;}

@@ -10,6 +10,11 @@ elem bytecode[SYSTEM::CODESIZE];
 addr writer = 0;
 vector<addr> framer;
 
+// global
+namespace builtin {
+ vector<Builtin> table;
+}
+
 // executor
 addr counter = 0;
 u32 sleeper = 0;

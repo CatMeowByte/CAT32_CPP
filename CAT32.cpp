@@ -1,8 +1,9 @@
-#include "module/interpreter.hpp"
+#include "core/constant.hpp"
+#include "core/interpreter.hpp"
+#include "core/memory.hpp"
+#include "core/utility.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
-#include "core/constant.hpp"
-#include "core/memory.hpp"
 
 void fps();
 
@@ -10,6 +11,9 @@ void init() {
  memory_management::memory_reset();
  memory_management::bytecode_reset();
  memory_management::executor_reset();
+
+ video::builtin_register();
+ utility::builtin_register();
 
  ifstream file("/media/storage/share/cpp/CAT32/example/19.app");
  if (!file) {

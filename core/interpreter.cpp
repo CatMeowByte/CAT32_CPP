@@ -1,7 +1,8 @@
+#include "core/interpreter.hpp"
 #include "core/memory.hpp"
+#include "core/opcode.hpp"
 #include "core/utility.hpp"
-#include "module/interpreter.hpp"
-#include "module/opcode.hpp"
+#include "module/builtin.hpp"
 
 // TODO:
 // handle warning of exception, overflow, etc
@@ -293,7 +294,12 @@ namespace interpreter {
 
     if (false) {}
 
-    // command
+    // builtin
+    else if (builtin::exist(token)) {
+     bytecode_append(op::call, builtin::get_index(token));
+    }
+
+    // opcode
     else if (opcode::exist(token.c_str())) {
      bytecode_append(opcode::get(token.c_str()), op::nop);
     }
@@ -555,10 +561,10 @@ static void debug_opcode(u8 opcode, elem operand, addr ticker) {
  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
  bool has_operand = (
-  name == "pop"    || name == "push" ||
+  name == "pop" || name == "push" ||
   name == "takefrom" || name == "storeto" ||
-  name == "jump"   || name == "jumz" || name == "junz" ||
-  name == "subgo"
+  name == "jump" || name == "jumz" || name == "junz" ||
+  name == "subgo" || name == "call"
  );
  string value = "";
  if (has_operand) {
@@ -579,6 +585,9 @@ static void debug_opcode(u8 opcode, elem operand, addr ticker) {
       break;
      }
     }
+   }
+   if (name == "call") {
+    value += " (" + builtin::get_name(operand) + ")";
    }
   }
  }
@@ -717,7 +726,8 @@ static vector<string> postfix(const vector<string>& tokens) {
   // function
   bool is_opcode = opcode::exist(token.c_str());
   bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
-  if (is_opcode || is_function) {
+  bool is_builtin = builtin::exist(token);
+  if (is_opcode || is_function || is_builtin) {
    operator_stack.push_back(token);
    continue;
   }
@@ -757,7 +767,8 @@ static vector<string> postfix(const vector<string>& tokens) {
    if (!operator_stack.empty()) {
     is_opcode = opcode::exist(operator_stack.back().c_str());
     is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
-    if (is_opcode || is_function) {
+    is_builtin = builtin::exist(operator_stack.back());
+    if (is_opcode || is_function || is_builtin) {
      output.push_back(operator_stack.back());
      operator_stack.pop_back();
     }
