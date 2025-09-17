@@ -32,5 +32,7 @@ using fnp = addr(*)(elem); // function pointer
 using str = const char*;
 
 #define cast(type, value) static_cast<type>(value)
+#define reinterpret(type, value) reinterpret_cast<type>(value)
+
 #define hash_map unordered_map
 #define hash_set unordered_set

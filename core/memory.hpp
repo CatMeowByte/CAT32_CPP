@@ -36,8 +36,8 @@ namespace symbol {
 
  struct Data {
   string name;
-  addr address = SENTINEL;
-  Type type = Type::Number;
+  addr address; // = SENTINEL;
+  Type type; // = Type::Number;
  };
 
  extern vector<Data> table;

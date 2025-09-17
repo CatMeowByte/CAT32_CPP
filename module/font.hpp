@@ -125,23 +125,3 @@ constexpr u32 CHARACTER(u32 ordinal) {
  (ordinal == 126) ? 0b00000000000000110110000000000000 : // " ~ "
  0b11111111110111111011100111111111; // " � "
 }
-
-constexpr u32 utf8_ordinal(str& s) {
- u8 c = *s++;
- if (c < 0x80) {
-  return c;
- } else if ((c & 0xE0) == 0xC0) {
-  u8 c2 = *s++;
-  return ((c & 0x1F) << 6) | (c2 & 0x3F);
- } else if ((c & 0xF0) == 0xE0) {
-  u8 c2 = *s++;
-  u8 c3 = *s++;
-  return ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
- } else if ((c & 0xF8) == 0xF0) {
-  u8 c2 = *s++;
-  u8 c3 = *s++;
-  u8 c4 = *s++;
-  return ((c & 0x07) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
- }
- return 65533;
-}

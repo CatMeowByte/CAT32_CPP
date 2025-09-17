@@ -2,6 +2,31 @@
 #include "core/memory.hpp"
 #include "core/opcode.hpp"
 
+namespace opcode {
+ static const hash_map<string, u8> opcode_table = {
+  #define OP(hex, name) {#name, op::name},
+  OPCODES
+  #undef OP
+ };
+
+ u8 get(string cmd) {
+  return opcode_table.count(cmd) ? opcode_table.at(cmd) : op::nop;
+ }
+
+ bool exist(string cmd) {
+  return opcode_table.count(cmd);
+ }
+
+ string name(u8 value) {
+  switch (value) {
+   #define OP(hex, name) case hex: return #name;
+   OPCODES
+   #undef OP
+  }
+  return "UNKNOWN";
+ }
+}
+
 namespace opfunc {
  /* stack */
  addr push(elem value) {

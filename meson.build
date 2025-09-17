@@ -1,8 +1,12 @@
-project('test_sdl', 'cpp')
+project('CAT-32', 'cpp',
+ default_options: [
+  'cpp_std=c++11'
+ ]
+)
 
 sources = run_command('find', '.', '-name', '*.cpp', '!', '-path', './build/*', check: true).stdout().strip().split('\n')
 
-executable('CAT32', sources,
-  include_directories: include_directories('.'),
-  dependencies: dependency('sdl3')
+executable('CAT-32', sources,
+ include_directories: include_directories('.'),
+ dependencies: dependency('sdl3')
 )

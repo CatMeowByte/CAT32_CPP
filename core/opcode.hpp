@@ -57,26 +57,9 @@ namespace opfunc {
 }
 
 namespace opcode {
- constexpr u8 get(str cmd) {
-  switch (utility::hash(cmd)) {
-   #define OP(hex, name) case utility::hash(#name): {return op::name;}
-   OPCODES
-   #undef OP
-  default: return op::nop;
-  }
- }
-
- constexpr bool exist (str name) {
-  return get(name) != op::nop;
- }
-
- constexpr str name(u8 value) {
-  return
-   #define OP(hex, name) value == hex ? #name :
-   OPCODES
-   #undef OP
-   "UNKNOWN";
- }
+ u8 get(string cmd);
+ bool exist(string cmd);
+ string name(u8 value);
 }
 
 // boundary check

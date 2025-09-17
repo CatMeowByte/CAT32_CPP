@@ -3,7 +3,7 @@
 #include "core/constant.hpp" // IWYU pragma: keep
 
 struct TokenLine {
- u8 indent = 0;
+ u8 indent; // = 0;
  vector<string> tokens;
 };
 

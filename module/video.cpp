@@ -109,16 +109,30 @@ namespace video {
   }
  }
 
- void text(s32 x, s32 y, str text, u8 color, u8 background) {
+ void text(s32 x, s32 y, string text, u8 color, u8 background) {
   x -= cam_x;
   y -= cam_y;
 
   s32 current_x = x;
   s32 current_y = y;
 
-  str s = text;
-  while (*s) {
-   u32 ordinal = utf8_ordinal(s);
+  for (u32 i = 0; i < text.length();) {
+   u8* ch = reinterpret(u8*, &text[i]);
+   u32 ordinal = ch[0];
+   s32 chlen = 1;
+
+   if ((ch[0] & 0xE0) == 0xC0 && (i + 1) < text.length()) {
+     ordinal = ((ch[0] & 0x1F) << 6) | (ch[1] & 0x3F);
+     chlen = 2;
+   } else if ((ch[0] & 0xF0) == 0xE0 && (i + 2) < text.length()) {
+     ordinal = ((ch[0] & 0x0F) << 12) | ((ch[1] & 0x3F) << 6) | (ch[2] & 0x3F);
+     chlen = 3;
+   } else if ((ch[0] & 0xF8) == 0xF0 && (i + 3) < text.length()) {
+     ordinal = ((ch[0] & 0x07) << 18) | ((ch[1] & 0x3F) << 12) | ((ch[2] & 0x3F) << 6) | (ch[3] & 0x3F);
+     chlen = 4;
+   }
+
+   i += chlen;
 
    if (ordinal == '\n') {
     current_x = x;
