@@ -40,6 +40,10 @@ namespace sdl {
   SDL_SetPaletteColors(palette, colors, 0, 16);
   SDL_SetSurfacePalette(surface_back, palette);
 
+  // wayland expects something is drawn to show a window
+  SDL_ClearSurface(surface_front, 0, 0, 0, 1);
+  SDL_UpdateWindowSurface(window);
+
   return true;
  }
 
