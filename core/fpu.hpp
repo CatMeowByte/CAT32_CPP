@@ -8,7 +8,9 @@ struct fpu {
  int32_t value;
 
  fpu() = default;
+ fpu(bool x) : value(x ? (1 << DECIMAL_WIDTH) : 0) {}
  fpu(double x) {value = static_cast<int32_t>(x * (1 << DECIMAL_WIDTH));}
+
  fpu(int32_t raw, bool) : value(raw) {}
 
  fpu& operator++() {value += (1 << DECIMAL_WIDTH); return *this;}
@@ -33,6 +35,12 @@ struct fpu {
  bool operator<=(const fpu& other) const {return value <= other.value;}
  bool operator>(const fpu& other) const {return value > other.value;}
  bool operator>=(const fpu& other) const {return value >= other.value;}
+
+ fpu operator&(const fpu& other) const {return fpu(value & other.value, true);}
+ fpu operator|(const fpu& other) const {return fpu(value | other.value, true);}
+ fpu operator~() const {return fpu(~value, true);}
+ fpu operator<<(int shift) const {return fpu(value << shift, true);}
+ fpu operator>>(int shift) const {return fpu(value >> shift, true);}
 
  #define FPU_INTEGER_CONVERSIONS \
   X(int8_t) X(uint8_t) \

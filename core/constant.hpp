@@ -7,7 +7,6 @@ namespace SYSTEM {
  constexpr str CODENAME = "CAT32";
  constexpr u16 MEMORY = 1024 * 8; // 8 KiB
  constexpr u16 CODESIZE = 1024 * 4; // 4 KiB
- constexpr u8 FIXED_POINT_WIDTH = 16; // 16.16
 }
 
 namespace VIDEO {

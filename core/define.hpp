@@ -14,6 +14,8 @@
 #include <string> // IWYU pragma: export
 #include <vector> // IWYU pragma: export
 
+#include "core/fpu.hpp" // IWYU pragma: export
+
 using namespace std;
 
 using u8 = uint8_t;
@@ -27,7 +29,7 @@ using s64 = int64_t;
 
 using addr = u32;
 using elem = s32;
-using fnp = addr(*)(elem); // function pointer
+using fnp = addr(*)(fpu); // function pointer
 
 using str = const char*;
 

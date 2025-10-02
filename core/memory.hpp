@@ -5,7 +5,7 @@
 #include "core/interpreter.hpp"
 
 // memory
-extern elem memory[SYSTEM::MEMORY];
+extern fpu memory[SYSTEM::MEMORY];
 extern u32 slotter;
 extern addr stacker;
 
@@ -83,17 +83,6 @@ namespace memory_management {
  void memory_reset();
  void bytecode_reset();
  void executor_reset();
-}
-
-namespace fpu {
- inline s32 pack(s32 number) {return number << SYSTEM::FIXED_POINT_WIDTH;}
- inline s32 unpack(s32 fixed_point) {return fixed_point >> SYSTEM::FIXED_POINT_WIDTH;}
-
- inline s64 pack_wide(s64 number) {return number << SYSTEM::FIXED_POINT_WIDTH;}
- inline s64 unpack_wide(s64 fixed_point) {return fixed_point >> SYSTEM::FIXED_POINT_WIDTH;}
-
- inline double scale(double number) {return number * (1 << SYSTEM::FIXED_POINT_WIDTH);}
- inline double unscale(s32 fixed_point) {return cast(double, fixed_point) / (1 << SYSTEM::FIXED_POINT_WIDTH);}
 }
 
 // TODO:

@@ -176,33 +176,33 @@ namespace video {
  }
 
  namespace wrap {
-  addr clear(elem) {
+  addr clear(fpu) {
    BAIL_UNLESS_STACK_ATLEAST(1)
-   elem color = fpu::unpack(memory[stacker++]);
+   s32 color = cast(s32, memory[stacker++]);
    video::clear(color);
    return SENTINEL;
   }
 
-  addr pixel(elem) {
+  addr pixel(fpu) {
    BAIL_UNLESS_STACK_ATLEAST(3)
-   elem color = fpu::unpack(memory[stacker++]);
-   elem y = fpu::unpack(memory[stacker++]);
-   elem x = fpu::unpack(memory[stacker++]);
+   s32 color = cast(s32, memory[stacker++]);
+   s32 y = cast(s32, memory[stacker++]);
+   s32 x = cast(s32, memory[stacker++]);
    video::pixel(x, y, color);
    return SENTINEL;
   }
 
-  addr text(elem) {
+  addr text(fpu) {
    BAIL_UNLESS_STACK_ATLEAST(4)
-   elem color = fpu::unpack(memory[stacker++]);
-   elem address = fpu::unpack(memory[stacker++]);
-   elem y = fpu::unpack(memory[stacker++]);
-   elem x = fpu::unpack(memory[stacker++]);
+   s32 color = cast(s32, memory[stacker++]);
+   s32 address = cast(s32, memory[stacker++]);
+   s32 y = cast(s32, memory[stacker++]);
+   s32 x = cast(s32, memory[stacker++]);
    video::text(x, y, utility::string_pick(address).c_str(), color, 0);
    return SENTINEL;
   }
 
-  addr flip(elem) {
+  addr flip(fpu) {
    video::flip();
    return SENTINEL;
   }

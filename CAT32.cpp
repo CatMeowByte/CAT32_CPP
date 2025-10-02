@@ -15,7 +15,7 @@ void init() {
  video::builtin_register();
  utility::builtin_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/19.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/fruit.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }

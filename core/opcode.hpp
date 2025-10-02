@@ -9,8 +9,8 @@
  /* memory */ \
  OP(0x13, takefrom) \
  OP(0x14, storeto) \
- OP(0x15, peek) \
- OP(0x16, poke) \
+ /* OP(0x15, peek) */ \
+ /* OP(0x16, poke) */ \
  /* counter */ \
  OP(0x2A, subgo) \
  OP(0x2B, subret) \

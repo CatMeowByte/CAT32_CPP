@@ -1,7 +1,7 @@
 #include "core/memory.hpp"
 
 // memory
-elem memory[SYSTEM::MEMORY];
+fpu memory[SYSTEM::MEMORY];
 u32 slotter = 0;
 addr stacker = SYSTEM::MEMORY;
 

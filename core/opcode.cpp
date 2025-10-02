@@ -29,6 +29,7 @@ namespace opcode {
 
 namespace opfunc {
  /* stack */
+ // FIXME: likely need to be a special internal function to manage memory since the return type is ??
  addr push(elem value) {
   BAIL_IF_STACK_OVERFLOW
   memory[--stacker] = value;
@@ -53,20 +54,21 @@ namespace opfunc {
   return SENTINEL;
  }
 
- addr peek(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
-  addr address = fpu::unpack(pop(0));
-  push(memory[address]);
-  return SENTINEL;
- }
+ // TODO: when adding region system make these works with bytes not fpu elem
+ // addr peek(elem value) {
+ //  BAIL_UNLESS_STACK_ATLEAST(1)
+ //  addr address = fpu::unpack(pop(0));
+ //  push(memory[address]);
+ //  return SENTINEL;
+ // }
 
- addr poke(elem value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
-  elem a = pop(0);
-  addr address = fpu::unpack(pop(0));
-  memory[address] = a;
-  return SENTINEL;
- }
+ // addr poke(elem value) {
+ //  BAIL_UNLESS_STACK_ATLEAST(2)
+ //  elem a = pop(0);
+ //  addr address = fpu::unpack(pop(0));
+ //  memory[address] = a;
+ //  return SENTINEL;
+ // }
 
  /* counter */
  addr subgo(elem value) {
@@ -85,183 +87,183 @@ namespace opfunc {
   return value;
  }
 
- addr jumz(elem value) {
+ addr jumz(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
-  elem check = pop(0);
-  if (check == 0) {return value;}
+  fpu check = pop(0);
+  if (!check) {return value;}
   return SENTINEL;
  }
 
- addr junz(elem value) {
+ addr junz(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
-  elem check = pop(0);
-  if (check != 0) {return value;}
+  fpu check = pop(0);
+  if (check) {return value;}
   return SENTINEL;
  }
 
  /* math */
- addr add(elem value) {
+ addr add(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
+  fpu b = pop(0);
+  fpu a = pop(0);
   push(a + b);
   return SENTINEL;
  }
 
- addr sub(elem value) {
+ addr sub(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
+  fpu b = pop(0);
+  fpu a = pop(0);
   push(a - b);
   return SENTINEL;
  }
 
- addr mul(elem value) {
+ addr mul(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  s64 b = cast(s32, pop(0));
-  s64 a = cast(s32, pop(0));
-  push(cast(elem, fpu::unpack_wide(a * b)));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(a * b);
   return SENTINEL;
  }
 
- addr div(elem value) {
+ addr div(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  s64 b = cast(s32, pop(0));
-  s64 a = cast(s32, pop(0));
-  if (b == 0) {
-   push(SENTINEL);
+  fpu b = pop(0);
+  fpu a = pop(0);
+  if (!b) {
+   push(fpu(0));
    return SENTINEL;
   }
-  push(cast(elem, fpu::pack_wide(a) / b));
+  push(a / b);
   return SENTINEL;
  }
 
- addr neg(elem value) {
+ addr neg(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
-  elem a = pop(0);
+  fpu a = pop(0);
   push(-a);
   return SENTINEL;
  }
 
  /* logic */
- addr eq(elem value) {
+ addr eq(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a == b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a == b));
   return SENTINEL;
  }
 
- addr neq(elem value) {
+ addr neq(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a != b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a != b));
   return SENTINEL;
  }
 
- addr gt(elem value) {
+ addr gt(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a > b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a > b));
   return SENTINEL;
  }
 
- addr lt(elem value) {
+ addr lt(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a < b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a < b));
   return SENTINEL;
  }
 
- addr geq(elem value) {
+ addr geq(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a >= b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a >= b));
   return SENTINEL;
  }
 
- addr leq(elem value) {
+ addr leq(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(a <= b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(a <= b));
   return SENTINEL;
  }
 
- addr land(elem value) {
+ addr land(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(cast(bool, a) && cast(bool, b)));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(cast(bool, a) && cast(bool, b)));
   return SENTINEL;
  }
 
- addr lor(elem value) {
+ addr lor(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(fpu::pack(cast(bool, a) || cast(bool, b)));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(fpu(cast(bool, a) || cast(bool, b)));
   return SENTINEL;
  }
 
- addr lnot(elem value) {
+ addr lnot(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
-  elem a = pop(0);
-  push(fpu::pack(!cast(bool, a)));
+  fpu a = pop(0);
+  push(fpu(!cast(bool, a)));
   return SENTINEL;
  }
 
  /* bit */
- addr band(elem value) {
+ addr band(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
+  fpu b = pop(0);
+  fpu a = pop(0);
   push(a & b);
   return SENTINEL;
  }
 
- addr bor(elem value) {
+ addr bor(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
+  fpu b = pop(0);
+  fpu a = pop(0);
   push(a | b);
   return SENTINEL;
  }
 
- addr bnot(elem value) {
+ addr bnot(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
-  elem a = pop(0);
+  fpu a = pop(0);
   push(~a);
   return SENTINEL;
  }
 
- addr bshl(elem value) {
+ addr bshl(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(a << fpu::unpack(b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(a << cast(s32, b));
   return SENTINEL;
  }
 
- addr bshr(elem value) {
+ addr bshr(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(2)
-  elem b = pop(0);
-  elem a = pop(0);
-  push(a >> fpu::unpack(b));
+  fpu b = pop(0);
+  fpu a = pop(0);
+  push(a >> cast(s32, b));
   return SENTINEL;
  }
 
  /* builtin */
- addr call(elem value) {
-  return builtin::table[value].function(value);
+ addr call(fpu value) {
+  return builtin::table[cast(s32, value)].function(value);
  }
 
  /* nop */
- addr nop(elem value) {
+ addr nop(fpu value) {
   return SENTINEL;
  }
 }
