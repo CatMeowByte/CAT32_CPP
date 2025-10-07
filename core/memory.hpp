@@ -1,89 +1,110 @@
 #pragma once
 
 #include "core/constant.hpp"
-#include "core/define.hpp"
-#include "core/interpreter.hpp"
 
-// memory
-extern fpu memory[SYSTEM::MEMORY];
-extern u32 slotter;
-extern addr stacker;
+namespace memory {
+ extern octo raw[SYSTEM::MEMORY];
 
-// bytecode
-extern elem bytecode[SYSTEM::CODESIZE];
-extern addr writer;
-extern vector<addr> framer;
+ // memory tree table generator
+ // only for development convenience
 
-// global
-namespace builtin {
- struct Builtin {
-  string name;
-  fnp function;
- };
+ #define region(region_name,region_address,region_size,...) \
+  static constexpr addr region_name##_address = region_address; \
+  static constexpr u32 region_name##_size = region_size; \
+  static constexpr addr region_name##_next = region_name##_address+region_name##_size; \
+  namespace region_name { \
+   __VA_ARGS__ \
+  }
 
- extern vector<Builtin> table;
+ #define iocto(item_name,item_address) static constexpr addr item_name##_address = item_address; \
+  static constexpr u32 item_name##_length = 1; \
+  static constexpr u32 item_name##_size = sizeof(octo); \
+  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static octo& item_name = *cast(octo*, memory::raw+item_name##_address);
+
+ #define ifpu(item_name,item_address) static constexpr addr item_name##_address = item_address; \
+  static constexpr u32 item_name##_length = 1; \
+  static constexpr u32 item_name##_size = sizeof(fpu); \
+  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static fpu& item_name = *cast(fpu*, cast(void*, memory::raw+item_name##_address));
+
+ #define bocto(item_name,item_address,item_length) static constexpr addr item_name##_address = item_address; \
+  static constexpr u32 item_name##_length = item_length; \
+  static constexpr u32 item_name##_size = sizeof(octo)*item_length; \
+  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static octo& item_name = *cast(octo*, memory::raw+item_name##_address);
+
+ #define bfpu(item_name,item_address,item_length) static constexpr addr item_name##_address = item_address; \
+  static constexpr u32 item_name##_length = item_length; \
+  static constexpr u32 item_name##_size = sizeof(fpu)*item_length; \
+  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static fpu& item_name = *cast(fpu*, cast(void*, memory::raw+item_name##_address));
+
+ #define check(region_name,item_name) static_assert(item_name##_next <= region_name##_next, "region overflow");
+
+ region(vm, 0, SYSTEM::MEMORY,
+  region(ram_global, vm_address, 32768,
+   region(constant, ram_global_address, 32,
+    ifpu(zero, constant_address)
+    ifpu(sentinel, zero_next)
+    ifpu(pi, sentinel_next)
+    ifpu(tau, pi_next)
+    ifpu(euler, tau_next)
+   )
+   check(constant, constant::euler)
+
+   bocto(framebuffer, constant_next, 9600)
+
+   region(hardware_io, framebuffer_next, 128,
+    ifpu(up, hardware_io_address)
+    ifpu(down, up_next)
+    ifpu(left, down_next)
+    ifpu(right, left_next)
+    ifpu(ok, right_next)
+    ifpu(cancel, ok_next)
+    ifpu(shoulder_left, cancel_next)
+    ifpu(shoulder_right, shoulder_left_next)
+    ifpu(acceleration_x, shoulder_right_next)
+    ifpu(acceleration_y, acceleration_x_next)
+    ifpu(acceleration_z, acceleration_y_next)
+    ifpu(gyroscope_x, acceleration_z_next)
+    ifpu(gyroscope_y, gyroscope_x_next)
+    ifpu(gyroscope_z, gyroscope_y_next)
+    ifpu(magnetometer_x, gyroscope_z_next)
+    ifpu(magnetometer_y, magnetometer_x_next)
+    ifpu(magnetometer_z, magnetometer_y_next)
+   )
+   check(hardware_io, hardware_io::magnetometer_z)
+  )
+  check(ram_global, ram_global::hardware_io::magnetometer_z)
+
+  region(process, ram_global_next, 65536,
+   region(app, process_address, 65536,
+
+    bocto(bytecode, app_address, 32768)
+
+    region(ram_local, bytecode_next, 32768,
+     ifpu(stacker, ram_local_address)
+     ifpu(slotter, stacker_next)
+     ifpu(writer, slotter_next)
+     ifpu(counter, writer_next)
+     ifpu(sleeper, counter_next)
+     bfpu(framer, sleeper_next, 59)
+     bocto(sprite, framer_next, 8192)
+     bocto(field, sprite_next, 6080)
+    )
+    check(ram_local, ram_local::field)
+   )
+   check(app, app::ram_local::field)
+  )
+  check(process, process::app::ram_local::field)
+ )
+ check(vm, vm::process::app::ram_local::field)
+
+ #undef region
+ #undef iocto
+ #undef ifpu
+ #undef bocto
+ #undef bfpu
+ #undef check
 }
-
-// symbol data are presistent in memory eventhough only used in compile time because of per line compile and console
-// remember to clear the table before compiling app
-namespace symbol {
- enum class Type : u8 {
-  Number,
-  String,
-  Stripe,
-  Function,
- };
-
- struct Data {
-  string name;
-  addr address; // = SENTINEL;
-  Type type; // = Type::Number;
- };
-
- extern vector<Data> table;
-
- s32 get_index_reverse(const string& name);
- bool exist(const string& name);
- Data& get(const string& name);
-}
-
-extern hash_map<string, Redirect> redirect;
-
-namespace scope {
- enum class Type : u8 {
-  Generic,
-  If,
-  Else,
-  While,
-  Function,
- };
-
- struct Frame {
-  addr jump_operand = SENTINEL;
-  addr header_start = SENTINEL;
-  Type type = Type::Generic;
-
-  u32 symbol_start = 0;
-  addr stack_start = SYSTEM::MEMORY;
- };
-
- extern vector<Frame> stack;
- extern u8 previous;
-
- extern addr last_jump_operand;
- extern addr last_line_start; // for while loop
- extern Type last_line_scope_set;
-}
-
-// executor
-extern addr counter;
-extern u32 sleeper;
-
-namespace memory_management {
- void memory_reset();
- void bytecode_reset();
- void executor_reset();
-}
-
-// TODO:
-// separate pointer, counter, and stacker for each app
