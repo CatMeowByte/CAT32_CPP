@@ -15,13 +15,13 @@ namespace interpreter {
  void step();
 }
 
-namespace builtin {
- struct Builtin {
+namespace module {
+ struct Module {
   string name;
   fnp function;
  };
 
- extern vector<Builtin> table;
+ extern vector<Module> table;
 }
 
 // symbol data are presistent in memory eventhough only used in compile time because of per line compile and console

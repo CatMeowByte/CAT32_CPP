@@ -9,8 +9,8 @@
  /* memory */ \
  OP(0x13, takefrom) \
  OP(0x14, storeto) \
- /* OP(0x15, peek) */ \
- /* OP(0x16, poke) */ \
+ OP(0x15, peek) \
+ OP(0x16, poke) \
  /* counter */ \
  OP(0x2A, subgo) \
  OP(0x2B, subret) \
@@ -39,7 +39,7 @@
  OP(0x4C, bnot) \
  OP(0x4D, bshl) \
  OP(0x4E, bshr) \
- /* builtin */ \
+ /* module */ \
  OP(0xFF, call) \
   /* nop */ \
  OP(0x00, nop)
@@ -63,5 +63,5 @@ namespace opcode {
 }
 
 // boundary check
-#define BAIL_IF_STACK_OVERFLOW if (!(stacker > 0)) {return SENTINEL;}
-#define BAIL_UNLESS_STACK_ATLEAST(N) if (!(stacker <= SYSTEM::MEMORY - (N))) {return SENTINEL;}
+#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= field_address) {return SENTINEL;}}
+#define BAIL_UNLESS_STACK_ATLEAST(N) {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) >= field_address + field_length - (N)) {return SENTINEL;}}

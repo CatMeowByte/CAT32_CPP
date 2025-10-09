@@ -42,6 +42,8 @@ struct fpu {
  fpu operator<<(int shift) const {return fpu(value << shift, true);}
  fpu operator>>(int shift) const {return fpu(value >> shift, true);}
 
+ fpu operator-() const {return fpu(-value, true);}
+
  #define FPU_INTEGER_CONVERSIONS \
   X(int8_t) X(uint8_t) \
   X(int16_t) X(uint16_t) \

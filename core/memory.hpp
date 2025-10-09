@@ -12,6 +12,8 @@ namespace memory {
   static constexpr addr region_name##_address = region_address; \
   static constexpr u32 region_name##_size = region_size; \
   static constexpr addr region_name##_next = region_name##_address+region_name##_size; \
+  static octo* region_name##_octo = cast(octo*, memory::raw+region_name##_address); \
+  static fpu* region_name##_fpu = cast(fpu*, cast(void*, memory::raw+region_name##_address)); \
   namespace region_name { \
    __VA_ARGS__ \
   }
@@ -32,13 +34,13 @@ namespace memory {
   static constexpr u32 item_name##_length = item_length; \
   static constexpr u32 item_name##_size = sizeof(octo)*item_length; \
   static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
-  static octo& item_name = *cast(octo*, memory::raw+item_name##_address);
+  static octo* item_name = cast(octo*, memory::raw+item_name##_address);
 
  #define bfpu(item_name,item_address,item_length) static constexpr addr item_name##_address = item_address; \
   static constexpr u32 item_name##_length = item_length; \
   static constexpr u32 item_name##_size = sizeof(fpu)*item_length; \
   static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
-  static fpu& item_name = *cast(fpu*, cast(void*, memory::raw+item_name##_address));
+  static fpu* item_name = cast(fpu*, cast(void*, memory::raw+item_name##_address));
 
  #define check(region_name,item_name) static_assert(item_name##_next <= region_name##_next, "region overflow");
 
@@ -91,7 +93,7 @@ namespace memory {
      ifpu(sleeper, counter_next)
      bfpu(framer, sleeper_next, 59)
      bocto(sprite, framer_next, 8192)
-     bocto(field, sprite_next, 6080)
+     bfpu(field, sprite_next, 6080)
     )
     check(ram_local, ram_local::field)
    )
@@ -107,4 +109,7 @@ namespace memory {
  #undef bocto
  #undef bfpu
  #undef check
+
+ // internal
+ inline fpu pop() {using namespace vm::process::app::ram_local; return field[stacker++];}
 }

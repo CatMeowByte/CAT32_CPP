@@ -1,16 +1,5 @@
 #include "core/memory.hpp"
 
-// memory
-
-// global
-namespace builtin {
- vector<Builtin> table;
-}
-
-// executor
-addr counter = 0;
-u32 sleeper = 0;
-
 // TODO:
 // possibly move the variable definition to the appropriate module/file that control it
 // or not, why dont keep things organized by just clump it in one predictable searchable place
