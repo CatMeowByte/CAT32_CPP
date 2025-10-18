@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/utility.hpp" // IWYU pragma: keep
+#include "core/constant.hpp" // IWYU pragma: keep
 
 #define OPCODES \
  /* stack */ \

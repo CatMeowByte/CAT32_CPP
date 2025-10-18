@@ -1,4 +1,4 @@
-#include "core/constant.hpp"
+#include "core/module.hpp"
 #include "core/memory.hpp"
 #include "core/opcode.hpp"
 
@@ -75,17 +75,17 @@ namespace opfunc {
  }
 
  /* counter */
- // FIXME: subroutine is not indent scope!
- // must implement new thing
- addr subgo(elem value) {
-  framer.push_back(counter);
+ addr subgo(fpu value) {
+  using namespace memory::vm::process::app::ram_local;
+  if (framer >= fpu(frames_length, true)) {return SENTINEL;}
+  frames[framer++] = counter;
   return value;
  }
 
- addr subret(elem value) {
-  if (framer.empty()) {return SENTINEL;}
-  addr address = framer.back();
-  framer.pop_back();
+ addr subret(fpu value) {
+  using namespace memory::vm::process::app::ram_local;
+  if (framer == fpu(0, true)) {return SENTINEL;}
+  addr address = frames[--framer];
   return address + 2;
  }
 

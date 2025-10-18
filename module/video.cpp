@@ -1,5 +1,6 @@
 #include "core/memory.hpp"
 #include "core/opcode.hpp"
+#include "core/utility.hpp"
 #include "module/builtin.hpp"
 #include "module/font.hpp"
 #include "module/video.hpp"

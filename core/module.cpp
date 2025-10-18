@@ -1,7 +1,6 @@
-#include "core/memory.hpp"
-#include "module/builtin.hpp"
+#include "core/module.hpp"
 
-namespace builtin {
+namespace module {
  void add(const string& name, fnp function) {
   for (u32 i = 0; i < table.size(); i++) {
    if (table[i].name == name) {table[i].function = function; return;}
