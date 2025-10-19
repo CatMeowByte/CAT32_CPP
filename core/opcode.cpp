@@ -33,7 +33,7 @@ namespace opfunc {
   BAIL_IF_STACK_OVERFLOW
   using namespace memory::vm::process::app::ram_local;
   field[--stacker] = value;
-  return SENTINEL;
+  OPDONE;
  }
 
  addr pop(fpu value) {
@@ -47,14 +47,14 @@ namespace opfunc {
   BAIL_IF_STACK_OVERFLOW
   using namespace memory::vm::process::app;
   ram_local::field[--ram_local::stacker] = ram_local_fpu[value];
-  return SENTINEL;
+  OPDONE;
  }
 
  addr storeto(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   using namespace memory::vm::process::app;
   ram_local_fpu[value] = ram_local::field[ram_local::stacker++];
-  return SENTINEL;
+  OPDONE;
  }
 
  addr peek(fpu value) {
@@ -62,7 +62,7 @@ namespace opfunc {
   using namespace memory::vm::process::app;
   addr address = memory::pop();
   push(fpu(cast(double, ram_local_octo[address])));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr poke(fpu value) {
@@ -71,20 +71,20 @@ namespace opfunc {
   fpu a = memory::pop();
   addr address = memory::pop();
   ram_local_octo[address] = cast(octo, a);
-  return SENTINEL;
+  OPDONE;
  }
 
  /* counter */
  addr subgo(fpu value) {
   using namespace memory::vm::process::app::ram_local;
-  if (framer >= fpu(frames_length, true)) {return SENTINEL;}
+  if (framer >= fpu(frames_length, true)) {OPDONE;}
   frames[framer++] = counter;
   return value;
  }
 
  addr subret(fpu value) {
   using namespace memory::vm::process::app::ram_local;
-  if (framer == fpu(0, true)) {return SENTINEL;}
+  if (framer == fpu(0, true)) {OPDONE;}
   addr address = frames[--framer];
   return address + 2;
  }
@@ -97,14 +97,14 @@ namespace opfunc {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu check = memory::pop();
   if (!check) {return value;}
-  return SENTINEL;
+  OPDONE;
  }
 
  addr junz(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu check = memory::pop();
   if (check) {return value;}
-  return SENTINEL;
+  OPDONE;
  }
 
  /* math */
@@ -113,7 +113,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a + b);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr sub(fpu value) {
@@ -121,7 +121,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a - b);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr mul(fpu value) {
@@ -129,7 +129,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a * b);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr div(fpu value) {
@@ -137,14 +137,14 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(b ? a / b : fpu(0, true));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr neg(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu a = memory::pop();
   push(-a);
-  return SENTINEL;
+  OPDONE;
  }
 
  /* logic */
@@ -153,7 +153,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a == b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr neq(fpu value) {
@@ -161,7 +161,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a != b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr gt(fpu value) {
@@ -169,7 +169,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a > b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr lt(fpu value) {
@@ -177,7 +177,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a < b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr geq(fpu value) {
@@ -185,7 +185,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a >= b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr leq(fpu value) {
@@ -193,7 +193,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(a <= b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr land(fpu value) {
@@ -201,7 +201,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(cast(bool, a) && cast(bool, b)));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr lor(fpu value) {
@@ -209,14 +209,14 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(fpu(cast(bool, a) || cast(bool, b)));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr lnot(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu a = memory::pop();
   push(fpu(!cast(bool, a)));
-  return SENTINEL;
+  OPDONE;
  }
 
  /* bit */
@@ -225,7 +225,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a & b);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr bor(fpu value) {
@@ -233,14 +233,14 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a | b);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr bnot(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu a = memory::pop();
   push(~a);
-  return SENTINEL;
+  OPDONE;
  }
 
  addr bshl(fpu value) {
@@ -248,7 +248,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a << cast(s32, b));
-  return SENTINEL;
+  OPDONE;
  }
 
  addr bshr(fpu value) {
@@ -256,7 +256,7 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a >> cast(s32, b));
-  return SENTINEL;
+  OPDONE;
  }
 
  /* module */
@@ -266,6 +266,6 @@ namespace opfunc {
 
  /* nop */
  addr nop(fpu value) {
-  return SENTINEL;
+  OPDONE;
  }
 }

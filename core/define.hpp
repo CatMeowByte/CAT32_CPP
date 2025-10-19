@@ -29,7 +29,6 @@ using s64 = int64_t;
 
 using octo = u8;
 using addr = u32;
-using elem = s32;
 using fnp = addr(*)(fpu); // function pointer
 
 using str = const char*;

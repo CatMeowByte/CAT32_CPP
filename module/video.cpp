@@ -181,7 +181,7 @@ namespace video {
    BAIL_UNLESS_STACK_ATLEAST(1)
    s32 color = cast(s32, memory[stacker++]);
    video::clear(color);
-   return SENTINEL;
+   OPDONE;
   }
 
   addr pixel(fpu) {
@@ -190,7 +190,7 @@ namespace video {
    s32 y = cast(s32, memory[stacker++]);
    s32 x = cast(s32, memory[stacker++]);
    video::pixel(x, y, color);
-   return SENTINEL;
+   OPDONE;
   }
 
   addr text(fpu) {
@@ -200,12 +200,12 @@ namespace video {
    s32 y = cast(s32, memory[stacker++]);
    s32 x = cast(s32, memory[stacker++]);
    video::text(x, y, utility::string_pick(address).c_str(), color, 0);
-   return SENTINEL;
+   OPDONE;
   }
 
   addr flip(fpu) {
    video::flip();
-   return SENTINEL;
+   OPDONE;
   }
  }
 

@@ -124,13 +124,13 @@ namespace utility {
    string decimal_string = utility::string_no_trailing(decimal_value);
 
    cout << "[SEE] [" << cast(s32, literal_value) << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
-   return SENTINEL;
+   OPDONE;
   }
 
   addr wait(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
    sleeper = cast(s32, opfunc::pop(0));
-   return SENTINEL;
+   OPDONE;
   }
  }
 

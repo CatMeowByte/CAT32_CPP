@@ -19,7 +19,7 @@ namespace module {
   return get_index(name) >= 0;
  }
 
- const string& get_name(elem id) {
+ const string& get_name(fpu id) {
   return table[id].name;
  }
 }

@@ -20,4 +20,4 @@ namespace TICK {
  constexpr u8 DRAW = 30;
 }
 
-constexpr elem SENTINEL = 0x80000000; // minimum negative
+constexpr fpu SENTINEL = fpu(0x80000000, true); // minimum negative

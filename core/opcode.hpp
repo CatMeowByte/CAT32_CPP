@@ -51,7 +51,7 @@ namespace op {
 };
 
 namespace opfunc {
- #define OP(hex, name) addr name(elem value);
+ #define OP(hex, name) addr name(fpu value);
  OPCODES
  #undef OP
 }
@@ -62,6 +62,9 @@ namespace opcode {
  string name(u8 value);
 }
 
+// return
+#define OPDONE return SENTINEL
+
 // boundary check
-#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= field_address) {return SENTINEL;}}
-#define BAIL_UNLESS_STACK_ATLEAST(N) {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) >= field_address + field_length - (N)) {return SENTINEL;}}
+#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= field_address) {OPDONE;}}
+#define BAIL_UNLESS_STACK_ATLEAST(N) {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) >= field_address + field_length - (N)) {OPDONE;}}

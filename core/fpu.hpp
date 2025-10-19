@@ -11,7 +11,7 @@ struct fpu {
  fpu(bool x) : value(x ? (1 << DECIMAL_WIDTH) : 0) {}
  fpu(double x) {value = static_cast<int32_t>(x * (1 << DECIMAL_WIDTH));}
 
- fpu(int32_t raw, bool) : value(raw) {}
+ constexpr fpu(int32_t raw, bool) : value(raw) {}
 
  fpu& operator++() {value += (1 << DECIMAL_WIDTH); return *this;}
  fpu operator++(int) {fpu temp = *this; value += (1 << DECIMAL_WIDTH); return temp;}

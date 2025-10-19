@@ -2,12 +2,13 @@
 
 #include "core/constant.hpp" // IWYU pragma: keep
 
-struct TokenLine {
- u8 indent;
- vector<string> tokens;
-};
 
 namespace interpreter {
+ struct TokenLine {
+  u8 indent;
+  vector<string> tokens;
+ };
+
  TokenLine tokenize(const string& text);
  void compile(const TokenLine& tokens);
  void step();
@@ -58,7 +59,3 @@ namespace scope {
  extern addr last_line_start; // for while loop
  extern Type last_line_scope_set;
 }
-
-struct Redirect {addr address = SENTINEL; vector<addr> pending;}; // TODO: delete goto jump likely incompatible with scope
-
-extern hash_map<string, Redirect> redirect;
