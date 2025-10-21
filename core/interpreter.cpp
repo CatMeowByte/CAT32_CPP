@@ -79,7 +79,8 @@ namespace interpreter {
   );
   string value = "";
   if (has_operand) {
-   if (operand == SENTINEL) {value = "???";}
+   if (operand == SENTINEL) {value = "!UNPATCHED!";}
+   else if (operand == SIGNATURE) {value = "(unused)";}
    else {
     value = to_string(operand.value);
     if (name == "pop" || name == "push") {
@@ -587,7 +588,7 @@ namespace interpreter {
 
     // "#"
     else if (token == OPERATOR_OFFSET) {
-     bytecode_append(op::add, op::nop);
+     bytecode_append(op::add, SIGNATURE);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
      bytecode_append(op::peek, SIGNATURE);
     }
@@ -748,10 +749,10 @@ namespace interpreter {
   if (counter >= writer) {return;}
 
   octo opcode = bytecode[counter];
-  fpu operand = memory::unaligned_32_read(bytecode + counter + 1);
+  fpu operand = fpu(memory::unaligned_32_read(bytecode + counter + 1), true);
   addr result = SENTINEL;
 
-  // debug_opcode(opcode, operand, counter);
+  debug_opcode(opcode, operand, counter);
 
   switch (opcode) {
    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;

@@ -111,6 +111,9 @@ namespace memory {
  #undef bfpu
  #undef check
 
+ // reset
+ void reset();
+
  // internal
  inline fpu pop() {using namespace vm::process::app::ram_local; return field[stacker++];}
 

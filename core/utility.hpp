@@ -21,5 +21,5 @@ namespace utility {
 
  string string_pick(addr address);
 
- void builtin_register();
+ void module_register();
 }

@@ -1,6 +1,8 @@
 #include "core/module.hpp"
 
 namespace module {
+ vector<Module> table;
+
  void add(const string& name, fnp function) {
   for (u32 i = 0; i < table.size(); i++) {
    if (table[i].name == name) {table[i].function = function; return;}

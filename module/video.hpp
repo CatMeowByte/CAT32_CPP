@@ -12,5 +12,5 @@ namespace video {
  void clear(u8 color);
  void flip();
 
- void builtin_register();
+ void module_register();
 }

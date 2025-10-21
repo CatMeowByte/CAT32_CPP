@@ -8,12 +8,10 @@
 void fps();
 
 void init() {
- memory_management::memory_reset();
- memory_management::bytecode_reset();
- memory_management::executor_reset();
+ memory::reset();
 
- video::builtin_register();
- utility::builtin_register();
+ video::module_register();
+ utility::module_register();
 
  ifstream file("/media/storage/share/cpp/CAT32/example/fruit.app");
  if (!file) {
@@ -21,7 +19,7 @@ void init() {
  }
 
  string line;
- TokenLine tokenline = {};
+ interpreter::TokenLine tokenline = {};
  // per line
  while (getline(file, line)) {
   tokenline = interpreter::tokenize(line);
@@ -32,15 +30,16 @@ void init() {
  }
 
  // dedent
- tokenline = interpreter::tokenize("quit:");
+ tokenline = interpreter::tokenize("wait(1)");
  interpreter::compile(tokenline);
 
- // cout << "\nBEGIN ===============================\n" << endl;
+ cout << "\nBEGIN ===============================\n" << endl;
 }
 
 void update() {
+ using namespace memory::vm::process::app::ram_local;
  if (sleeper) {sleeper--;}
- while (counter < writer && sleeper == 0) {interpreter::step();}
+ while (counter < writer && sleeper == fpu(0)) {interpreter::step();}
 }
 
 void draw() {

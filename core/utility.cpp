@@ -1,7 +1,7 @@
 #include "core/memory.hpp"
+#include "core/module.hpp"
 #include "core/opcode.hpp"
 #include "core/utility.hpp"
-#include "module/builtin.hpp"
 
 namespace utility {
  bool is_number(const string& text) {
@@ -97,16 +97,19 @@ namespace utility {
  }
 
  string string_pick(addr address) {
+  using namespace memory::vm::process::app;
   string out;
-  for (s32 i = 0; i < cast(s32, memory[address]); i++) {out += cast(char, cast(u8, memory[address + 1 + i]));}
+  for (s32 i = 0; i < cast(s32, ram_local_octo[address]); i++) {
+   out += cast(char, cast(u8, ram_local_octo[address + 1 + i]));
+  }
   return out;
  }
 
  namespace wrap {
   addr see(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
-   fpu literal_value = opfunc::pop(0);
-   float decimal_value = cast(float, literal_value);
+   fpu literal_value = memory::pop();
+   float decimal_value = literal_value;
 
    // format hex
    ostringstream hex_out;
@@ -128,14 +131,15 @@ namespace utility {
   }
 
   addr wait(fpu value) {
+   using namespace memory::vm::process::app::ram_local;
    BAIL_UNLESS_STACK_ATLEAST(1)
-   sleeper = cast(s32, opfunc::pop(0));
+   sleeper = memory::pop();
    OPDONE;
   }
  }
 
- void builtin_register() {
-  builtin::add("see", wrap::see);
-  builtin::add("wait", wrap::wait);
+ void module_register() {
+  module::add("see", wrap::see);
+  module::add("wait", wrap::wait);
  }
 }

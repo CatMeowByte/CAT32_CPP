@@ -1,7 +1,7 @@
 #include "core/memory.hpp"
+#include "core/module.hpp"
 #include "core/opcode.hpp"
 #include "core/utility.hpp"
-#include "module/builtin.hpp"
 #include "module/font.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
@@ -178,27 +178,30 @@ namespace video {
 
  namespace wrap {
   addr clear(fpu) {
+   using namespace memory::vm::process::app::ram_local;
    BAIL_UNLESS_STACK_ATLEAST(1)
-   s32 color = cast(s32, memory[stacker++]);
+   s32 color = field[stacker++];
    video::clear(color);
    OPDONE;
   }
 
   addr pixel(fpu) {
+   using namespace memory::vm::process::app::ram_local;
    BAIL_UNLESS_STACK_ATLEAST(3)
-   s32 color = cast(s32, memory[stacker++]);
-   s32 y = cast(s32, memory[stacker++]);
-   s32 x = cast(s32, memory[stacker++]);
+   s32 color = field[stacker++];
+   s32 y = field[stacker++];
+   s32 x = field[stacker++];
    video::pixel(x, y, color);
    OPDONE;
   }
 
   addr text(fpu) {
+   using namespace memory::vm::process::app::ram_local;
    BAIL_UNLESS_STACK_ATLEAST(4)
-   s32 color = cast(s32, memory[stacker++]);
-   s32 address = cast(s32, memory[stacker++]);
-   s32 y = cast(s32, memory[stacker++]);
-   s32 x = cast(s32, memory[stacker++]);
+   s32 color = field[stacker++];
+   s32 address = field[stacker++];
+   s32 y = field[stacker++];
+   s32 x = field[stacker++];
    video::text(x, y, utility::string_pick(address).c_str(), color, 0);
    OPDONE;
   }
@@ -209,10 +212,10 @@ namespace video {
   }
  }
 
- void builtin_register() {
-  builtin::add("clear", wrap::clear);
-  builtin::add("pixel", wrap::pixel);
-  builtin::add("text", wrap::text);
-  builtin::add("flip", wrap::flip);
+ void module_register() {
+  module::add("clear", wrap::clear);
+  module::add("pixel", wrap::pixel);
+  module::add("text", wrap::text);
+  module::add("flip", wrap::flip);
  }
 }
