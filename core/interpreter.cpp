@@ -1,4 +1,5 @@
 #include "core/interpreter.hpp"
+#include "core/constant.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -66,7 +67,7 @@ namespace interpreter {
   ")",
  };
 
- static void debug_opcode(u8 opcode, fpu operand, addr ticker) {
+ static void debug_opcode(octo opcode, fpu operand, addr ticker) {
   string name = opcode::name(opcode);
   if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
@@ -82,22 +83,21 @@ namespace interpreter {
    else {
     value = to_string(operand.value);
     if (name == "pop" || name == "push") {
-     value += " (" + utility::string_no_trailing(cast(double, operand)) + ")";
-     s32 operand_int = cast(s32, operand);
-     if (operand_int >= 32 && operand_int <= 126) { // printable ASCII
-      value += " \"" + string(1, cast(char, operand_int)) + "\"";
+     value += " (" + utility::string_no_trailing(operand) + ")";
+     if (operand >= fpu(32) && operand <= fpu(126)) { // printable ASCII
+      value += " \"" + string(1, cast(u8, operand)) + "\"";
      }
     }
     if (name == "takefrom" || name == "storeto") {
      for (u32 i = 0; i < symbol::table.size(); i++) {
-      if (cast(elem, symbol::table[i].address) == operand) {
+      if (symbol::table[i].address == cast(addr, operand)) {
        value += " (" + symbol::table[i].name + ")";
        break;
       }
      }
     }
     if (name == "call") {
-     value += " (" + builtin::get_name(operand) + ")";
+     value += " (" + module::get_name(operand) + ")";
     }
    }
   }
@@ -105,10 +105,13 @@ namespace interpreter {
   cout << "[" << ticker << "] " << name << "\t[" << ticker + 1 << "] " << value << endl;
  }
 
- void bytecode_append(u8 opcode, elem operand) {
+ void bytecode_append(octo opcode, fpu operand) {
+  using namespace memory::vm::process::app;
+  using namespace ram_local;
   debug_opcode(opcode, operand, writer);
-  bytecode[writer++] = opcode;
-  bytecode[writer++] = operand;
+  bytecode[writer] = opcode;
+  memory::unaligned_32_write(bytecode + writer + 1, operand.value);
+  writer += 5;
  }
 
  static vector<string> breakdown(const string& expression) {
@@ -242,8 +245,8 @@ namespace interpreter {
    // function
    bool is_opcode = opcode::exist(token.c_str());
    bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
-   bool is_builtin = builtin::exist(token);
-   if (is_opcode || is_function || is_builtin) {
+   bool is_module = module::exist(token);
+   if (is_opcode || is_function || is_module) {
     operator_stack.push_back(token);
     continue;
    }
@@ -283,8 +286,8 @@ namespace interpreter {
     if (!operator_stack.empty()) {
      is_opcode = opcode::exist(operator_stack.back().c_str());
      is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
-     is_builtin = builtin::exist(operator_stack.back());
-     if (is_opcode || is_function || is_builtin) {
+     is_module = module::exist(operator_stack.back());
+     if (is_opcode || is_function || is_module) {
       output.push_back(operator_stack.back());
       operator_stack.pop_back();
      }
@@ -353,6 +356,9 @@ namespace interpreter {
  }
 
  void compile(const TokenLine& line) {
+  using namespace memory::vm::process::app;
+  using namespace ram_local;
+
   const u8& indent = line.indent;
   const vector<string>& tokens = line.tokens;
 
@@ -383,7 +389,7 @@ namespace interpreter {
     cout << ">>>>" << endl;
 
     if (scope::last_line_scope_set != scope::Type::Function) { // if, while, and else
-     const elem last_opcode = bytecode[writer - 2];
+     const octo last_opcode = bytecode[writer - fpu(5)];
      if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
       cout << "caution: last opcode before indent is not jump/jumz/junz" << endl;
      }
@@ -413,21 +419,21 @@ namespace interpreter {
      header_type = HeaderType::Else;
 
      bytecode_append(op::jump, SENTINEL);
-     scope::last_jump_operand = writer - 1;
+     scope::last_jump_operand = writer - fpu(4);
      scope::last_line_scope_set = scope::Type::Else;
     }
 
     const scope::Frame& frame = scope::stack.back();
 
     symbol::table.resize(frame.symbol_start);
-    stacker = frame.stack_start; // FIXME: need proper runtime update. move stacker as adressable memory
+    stacker = frame.stack_start;
 
     if (frame.type == scope::Type::While) {
      bytecode_append(op::jump, frame.header_start); // next opcode
     }
 
-    bytecode[frame.jump_operand] = writer;
-    cout << "patching jump operand at " << frame.jump_operand << " to address " << writer << endl;
+    memory::unaligned_32_write(bytecode + frame.jump_operand, writer.value);
+    cout << "patching jump operand at " << frame.jump_operand << " to address " << cast(addr, writer) << endl;
 
     scope::stack.pop_back();
    }
@@ -491,14 +497,14 @@ namespace interpreter {
 
     if (false) {}
 
-    // builtin
-    else if (builtin::exist(token)) {
-     bytecode_append(op::call, builtin::get_index(token));
+    // module
+    else if (module::exist(token)) {
+     bytecode_append(op::call, module::get_index(token));
     }
 
     // opcode
     else if (opcode::exist(token.c_str())) {
-     bytecode_append(opcode::get(token.c_str()), op::nop);
+     bytecode_append(opcode::get(token.c_str()), SIGNATURE);
     }
 
     // string
@@ -512,14 +518,14 @@ namespace interpreter {
 
      addr address = slotter;
      u32 length = content.size();
-     addr slot_after = slotter + length + 1;
+     addr slot_after = cast(addr, slotter) + length + 1;
      if (set_style == SetStyle::String) {
       address = symbol::get(tokens[0]).address;
       slot_after = slotter;
      }
-     bytecode_append(op::push, fpu::pack(length));
+     bytecode_append(op::push, length);
      for (u32 j = 0; j < length; j++) {
-      bytecode_append(op::push, fpu::pack(content[j]));
+      bytecode_append(op::push, fpu(content[j]));
      }
 
      for (s32 i = length; i >= 0; i--) {
@@ -530,20 +536,26 @@ namespace interpreter {
 
      if (declare_style == DeclareStyle::StringFull || set_style == SetStyle::String) {continue;}
      // hidden declare
-     symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
+     symbol::table.push_back({name, cast(addr, slotter) - (length + 1), symbol::Type::String});
 
      cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
 
      // also push to stack for other use
-     bytecode_append(op::push, fpu::pack(symbol::get(name).address));
+     bytecode_append(op::push, symbol::get(name).address);
     }
 
     // number
     // hardest part to document
     // all detail of rounding, casting, data type is important
+    // WARNING:
+    // this utilize the fpu constructor narrowing
+    // `constexpr fpu(double x) : value(static_cast<int64_t>(x * (1 << DECIMAL_WIDTH))) {}`
+    // to skip the old nested cast
+    // `bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value)))));`
+    // in case things goes wrong in rounding precision
     else if ((utility::is_number(token) || utility::is_hex(token) || utility::is_bin(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : (utility::is_bin(token) ? utility::bin_to_number(token) : stod(token));
-     bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value))))); // rounded fixed point
+     bytecode_append(op::push, fpu(round(value))); // rounded fixed point
     }
 
     // symbol
@@ -558,11 +570,11 @@ namespace interpreter {
       }
       case symbol::Type::String: {
        if (assign_type == AssignType::Set && set_style == SetStyle::String && !is_expression && token == tokens[0]) {break;}
-       bytecode_append(op::push, fpu::pack(symbol.address));
+       bytecode_append(op::push, symbol.address);
        break;
       }
       case symbol::Type::Stripe: {
-       bytecode_append(op::push, fpu::pack(symbol.address));
+       bytecode_append(op::push, symbol.address);
        break;
       }
       case symbol::Type::Function: {
@@ -577,32 +589,32 @@ namespace interpreter {
     else if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, op::nop);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
-     bytecode_append(op::peek, op::nop);
+     bytecode_append(op::peek, SIGNATURE);
     }
 
     // math operations
     else if (math_opcodes.count(token)) {
-     bytecode_append(math_opcodes.at(token), op::nop);
+     bytecode_append(math_opcodes.at(token), SIGNATURE);
     }
 
     // function
     // this is oneshot, inside breakdown for function name extraction
     else if (header_type == HeaderType::Function && i == 1 && j == 0) {
-     scope::last_jump_operand = writer + 1;
+     scope::last_jump_operand = cast(addr, writer) + 1;
      bytecode_append(op::jump, SENTINEL);
      scope::last_line_scope_set = scope::Type::Function;
 
      string name = token;
-     addr address = writer;
+     addr address = cast(addr, writer);
 
      // name
      symbol::table.push_back({name, address, symbol::Type::Function});
      cout << name << " function is written at bytecode [" << address << "]" << endl;
 
      // arguments
-     address = slotter;
+     address = cast(addr, slotter);
      u8 length = expression_ordered.size() - 2;
-     addr slot_after = slotter + length + 1;
+     addr slot_after = cast(addr, slotter) + length + 1;
      for (s32 i = length; i >= 0; i--) {
       name = expression_ordered[i + 1];
       symbol::table.push_back({name, address + i, symbol::Type::Number});
@@ -610,11 +622,14 @@ namespace interpreter {
       cout << name << " is stored in " << address + i << endl;
      }
 
-     slotter = slot_after;
+     slotter = fpu(slot_after);
     }
 
     // invalid
-    else if ( // FIXME: terrible code, need proper non-keyword check
+    // terrible code, need proper non-keyword check
+    // unfortunately, it seems like this is important and had to be this way
+    // please reconsider
+    else if (
      token != "var" &&
      token != "string" &&
      token != "stripe" &&
@@ -622,7 +637,6 @@ namespace interpreter {
      token != "while" &&
      token != "else" &&
      token != "func" &&
-     token != "goto" &&
      token != "return" &&
      !(assign_type == AssignType::Declare && i == 1)
     )
@@ -633,19 +647,19 @@ namespace interpreter {
   }
 
   // return
-  if (is_return) {bytecode_append(op::subret, 0);}
+  if (is_return) {bytecode_append(op::subret, SIGNATURE);}
 
   // if
   if (header_type == HeaderType::If) {
    bytecode_append(op::jumz, SENTINEL);
-   scope::last_jump_operand = writer - 1;
+   scope::last_jump_operand = cast(addr, writer) - 4;
    scope::last_line_scope_set = scope::Type::If;
   }
 
   // while
   if (header_type == HeaderType::While) {
    bytecode_append(op::jumz, SENTINEL);
-   scope::last_jump_operand = writer - 1;
+   scope::last_jump_operand = cast(addr, writer) - 4;
    scope::last_line_scope_set = scope::Type::While;
   }
 
@@ -656,7 +670,7 @@ namespace interpreter {
 
    switch (declare_style) {
     case DeclareStyle::Variable: {
-     address = slotter++;
+     address = cast(addr, slotter++);
      symbol::table.push_back({name, address, symbol::Type::Number});
      bytecode_append(op::storeto, address);
      cout << name << " is stored in " << address << endl;
@@ -664,27 +678,27 @@ namespace interpreter {
     }
     case DeclareStyle::StringFull: {
      u32 length = tokens[3].size() - 2; // exclude quotes
-     symbol::table.push_back({name, slotter - (length + 1), symbol::Type::String});
+     symbol::table.push_back({name, cast(addr, slotter) - (length + 1), symbol::Type::String});
 
      cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
     }
     case DeclareStyle::StringSize: {
-     address = slotter;
+     address = cast(addr, slotter);
      s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::String});
 
-     slotter += length;
+     slotter += fpu(length);
 
      cout << name << " empty string is stored in " << address << " with length " << length << endl;
      break;
     }
     case DeclareStyle::StripeFull: {
-     address = slotter;
+     address = cast(addr, slotter);
      s32 count = tokens.size() - 3;
      symbol::table.push_back({name, address, symbol::Type::Stripe});
 
-     slotter += count;
+     slotter += fpu(count);
 
      for (s32 i = count - 1; i >= 0; i--) {
       bytecode_append(op::storeto, address + i);
@@ -694,11 +708,11 @@ namespace interpreter {
      break;
     }
     case DeclareStyle::StripeSize: {
-     address = slotter;
+     address = cast(addr, slotter);
      s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::Stripe});
 
-     slotter += count;
+     slotter += fpu(count);
 
      cout << name << " empty stripe is stored in " << address << " with size " << count << endl;
      break;
@@ -717,7 +731,7 @@ namespace interpreter {
      break;
     }
     case SetStyle::Stripe: {
-     bytecode_append(op::poke, op::nop);
+     bytecode_append(op::poke, SIGNATURE);
      break;
     }
     default: {break;}
@@ -728,10 +742,13 @@ namespace interpreter {
  }
 
  void step() {
+  using namespace memory::vm::process::app;
+  using namespace ram_local;
+
   if (counter >= writer) {return;}
 
-  elem opcode = bytecode[counter];
-  elem operand = bytecode[counter + 1];
+  octo opcode = bytecode[counter];
+  fpu operand = memory::unaligned_32_read(bytecode + counter + 1);
   addr result = SENTINEL;
 
   // debug_opcode(opcode, operand, counter);
@@ -742,7 +759,7 @@ namespace interpreter {
    #undef OP
   }
 
-  if (result == cast(u32, SENTINEL)) {counter += 2;}
+  if (result == cast(addr, SENTINEL)) {counter += 5;}
   else {counter = result;}
  }
 }

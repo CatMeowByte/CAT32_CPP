@@ -3,21 +3,21 @@
 #include <cstdint>
 
 struct fpu {
- static constexpr int DECIMAL_WIDTH = 16;
+ static constexpr int32_t DECIMAL_WIDTH = 16;
 
  int32_t value;
 
  fpu() = default;
- fpu(bool x) : value(x ? (1 << DECIMAL_WIDTH) : 0) {}
- fpu(double x) {value = static_cast<int32_t>(x * (1 << DECIMAL_WIDTH));}
+
+ constexpr fpu(double x) : value(static_cast<int64_t>(x * (1 << DECIMAL_WIDTH))) {}
 
  constexpr fpu(int32_t raw, bool) : value(raw) {}
 
  fpu& operator++() {value += (1 << DECIMAL_WIDTH); return *this;}
- fpu operator++(int) {fpu temp = *this; value += (1 << DECIMAL_WIDTH); return temp;}
+ fpu operator++(int32_t) {fpu temp = *this; value += (1 << DECIMAL_WIDTH); return temp;}
 
  fpu& operator--() {value -= (1 << DECIMAL_WIDTH); return *this;}
- fpu operator--(int) {fpu temp = *this; value -= (1 << DECIMAL_WIDTH); return temp;}
+ fpu operator--(int32_t) {fpu temp = *this; value -= (1 << DECIMAL_WIDTH); return temp;}
 
  fpu operator+(const fpu& other) const {return fpu(value + other.value, true);}
  fpu operator-(const fpu& other) const {return fpu(value - other.value, true);}
@@ -39,8 +39,8 @@ struct fpu {
  fpu operator&(const fpu& other) const {return fpu(value & other.value, true);}
  fpu operator|(const fpu& other) const {return fpu(value | other.value, true);}
  fpu operator~() const {return fpu(~value, true);}
- fpu operator<<(int shift) const {return fpu(value << shift, true);}
- fpu operator>>(int shift) const {return fpu(value >> shift, true);}
+ fpu operator<<(int32_t shift) const {return fpu(value << shift, true);}
+ fpu operator>>(int32_t shift) const {return fpu(value >> shift, true);}
 
  fpu operator-() const {return fpu(-value, true);}
 

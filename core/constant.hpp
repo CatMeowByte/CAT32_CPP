@@ -20,4 +20,5 @@ namespace TICK {
  constexpr u8 DRAW = 30;
 }
 
-constexpr fpu SENTINEL = fpu(0x80000000, true); // minimum negative
+constexpr fpu SENTINEL = fpu(-2147483648.0); // minimum negative
+constexpr fpu SIGNATURE = fpu(0xFACADE32); // placeholder byte data

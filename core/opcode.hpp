@@ -45,7 +45,7 @@
  OP(0x00, nop)
 
 namespace op {
- #define OP(hex, name) constexpr u8 name = hex;
+ #define OP(hex, name) constexpr octo name = hex;
  OPCODES
  #undef OP
 };
