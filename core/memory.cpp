@@ -12,5 +12,10 @@ namespace memory {
   pi = fpu(3.14159265358979323846);
   tau = fpu(6.28318530717958647692);
   euler = fpu(2.71828182845904523536);
+
+  using namespace vm::process::app;
+  using namespace ram_local;
+  stacker = fpu(field_length);
+  slotter = fpu(cast(s32, (field_address - ram_local_address) / sizeof(fpu)));
  }
 }

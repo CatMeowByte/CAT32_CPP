@@ -88,7 +88,7 @@ namespace opfunc {
   using namespace memory::vm::process::app::ram_local;
   if (framer == fpu(0)) {OPDONE;}
   addr address = frames[--framer];
-  return address + 2;
+  return address + 5;
  }
 
  addr jump(fpu value) {

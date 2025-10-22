@@ -752,7 +752,7 @@ namespace interpreter {
   fpu operand = fpu(memory::unaligned_32_read(bytecode + counter + 1), true);
   addr result = SENTINEL;
 
-  debug_opcode(opcode, operand, counter);
+  // debug_opcode(opcode, operand, counter);
 
   switch (opcode) {
    #define OP(hex, name) case op::name: result = opfunc::name(operand); break;

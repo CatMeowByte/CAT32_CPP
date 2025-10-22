@@ -66,5 +66,5 @@ namespace opcode {
 #define OPDONE return SENTINEL
 
 // boundary check
-#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= field_address) {OPDONE;}}
+#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= 0) {OPDONE;}}
 #define BAIL_UNLESS_STACK_ATLEAST(N) {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) >= field_address + field_length - (N)) {OPDONE;}}

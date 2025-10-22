@@ -99,8 +99,8 @@ namespace utility {
  string string_pick(addr address) {
   using namespace memory::vm::process::app;
   string out;
-  for (s32 i = 0; i < cast(s32, ram_local_octo[address]); i++) {
-   out += cast(char, cast(u8, ram_local_octo[address + 1 + i]));
+  for (s32 i = 0; i < cast(s32, ram_local_fpu[address]); i++) {
+   out += cast(char, cast(s32, ram_local_fpu[address + 1 + i]));
   }
   return out;
  }
