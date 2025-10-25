@@ -11,8 +11,8 @@
 
 namespace interpreter {
  constexpr str SYMBOL_STRING_PREFIX = "&:";
- constexpr str OPERATOR_OFFSET = "#";
- constexpr u8 OPERATOR_COMMENT = '$';
+ constexpr str OPERATOR_OFFSET = "@";
+ constexpr u8 OPERATOR_COMMENT = '#';
 
  enum class Precedence : u8 {
   Base = 0,
@@ -55,16 +55,16 @@ namespace interpreter {
  #define OP(sym, code, prec) sym,
   SORTED_OPERATORS
  #undef OP
-  OPERATOR_OFFSET,
  };
 
  static const hash_set<string> math_list_operations_bracket = {
  #define OP(sym, code, prec) sym,
   SORTED_OPERATORS
  #undef OP
-  OPERATOR_OFFSET,
   "(",
   ")",
+  "[",
+  "]",
  };
 
  static void debug_opcode(octo opcode, fpu operand, addr ticker) {
@@ -270,28 +270,37 @@ namespace interpreter {
     operator_stack.push_back(token);
    }
 
-   else if (token == "(") {
+   else if (token == "(" || token == "[") {
     operator_stack.push_back(token);
    }
 
-   else if (token == ")") {
-    while (!operator_stack.empty() && operator_stack.back() != "(") {
+   else if (token == ")" || token == "]") {
+    string pair = (token == ")") ? "(" : "[";
+
+    while (!operator_stack.empty() && operator_stack.back() != pair) {
      output.push_back(operator_stack.back());
      operator_stack.pop_back();
     }
-    if (!operator_stack.empty() && operator_stack.back() == "(") {
+    if (!operator_stack.empty() && operator_stack.back() == pair) {
      operator_stack.pop_back();
     }
 
     // emit function after its arguments
-    if (!operator_stack.empty()) {
-     is_opcode = opcode::exist(operator_stack.back().c_str());
-     is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
-     is_module = module::exist(operator_stack.back());
-     if (is_opcode || is_function || is_module) {
-      output.push_back(operator_stack.back());
-      operator_stack.pop_back();
+    if (token == ")") {
+     if (!operator_stack.empty()) {
+      is_opcode = opcode::exist(operator_stack.back().c_str());
+      is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
+      is_module = module::exist(operator_stack.back());
+      if (is_opcode || is_function || is_module) {
+       output.push_back(operator_stack.back());
+       operator_stack.pop_back();
+      }
      }
+    }
+
+    // emit offset operator after close bracket
+    if (token == "]") {
+     output.push_back(OPERATOR_OFFSET);
     }
    }
 

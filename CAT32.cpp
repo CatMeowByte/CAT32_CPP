@@ -13,7 +13,7 @@ void init() {
  video::module_register();
  utility::module_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/fruit.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/bracket.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }

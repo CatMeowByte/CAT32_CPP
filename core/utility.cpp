@@ -109,7 +109,6 @@ namespace utility {
   addr see(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
    fpu literal_value = memory::pop();
-   float decimal_value = literal_value;
 
    // format hex
    ostringstream hex_out;
@@ -117,16 +116,17 @@ namespace utility {
    hex_out << hex;
    hex_out << setw(8);
    hex_out << setfill('0');
-   hex_out << cast(s32, literal_value);
+   hex_out << cast(s32, literal_value.value);
    string hex_string = hex_out.str();
 
    int dot_position = fpu::DECIMAL_WIDTH / 4;
    string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
 
    // format float
-   string decimal_string = utility::string_no_trailing(decimal_value);
+   string decimal_string = utility::string_no_trailing(float(literal_value));
 
-   cout << "[SEE] [" << cast(s32, literal_value) << "] [" << fixed_hex << "] [" << decimal_string << "]" << endl;
+   // FIXME: the hex is incorrect too. it is supposed to be after the decimal right?
+   cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << cast(s32, literal_value.value) << "" << endl;
    OPDONE;
   }
 
