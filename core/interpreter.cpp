@@ -463,6 +463,21 @@ namespace interpreter {
   // already handled earlier in dedent
   if (header_type == HeaderType::Else) {return;}
 
+  // continue
+  if (tokens[0] == "continue") {
+   bool has_continue = false;
+   for (s32 i = scope::stack.size() - 1; i >= 0; i--) {
+    if (scope::stack[i].type == scope::Type::While) {
+     bytecode_append(op::jump, scope::stack[i].header_start);
+     cout << "continue jump to while header at " << scope::stack[i].header_start << endl;
+     has_continue = true;
+     break;
+    }
+   }
+   if (!has_continue) {cout << "error: continue outside of while loop" << endl;}
+   return;
+  }
+
   // set type
   if (tokens[0] == "var" && tokens[2] == "=" && tokens.size() == 4) {
    assign_type = AssignType::Declare;
