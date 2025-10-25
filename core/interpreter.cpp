@@ -440,6 +440,12 @@ namespace interpreter {
 
     if (frame.type == scope::Type::While) {
      bytecode_append(op::jump, frame.header_start); // next opcode
+
+     // patch break
+     for (addr patch_addr : frame.break_unpatched) {
+      memory::unaligned_32_write(bytecode + patch_addr, writer.value);
+      cout << "patching break at " << patch_addr << " to " << cast(addr, writer) << endl;
+     }
     }
 
     memory::unaligned_32_write(bytecode + frame.jump_operand, writer.value);
@@ -463,18 +469,24 @@ namespace interpreter {
   // already handled earlier in dedent
   if (header_type == HeaderType::Else) {return;}
 
-  // continue
-  if (tokens[0] == "continue") {
-   bool has_continue = false;
+  if (tokens[0] == "break" || tokens[0] == "continue") {
    for (s32 i = scope::stack.size() - 1; i >= 0; i--) {
-    if (scope::stack[i].type == scope::Type::While) {
-     bytecode_append(op::jump, scope::stack[i].header_start);
-     cout << "continue jump to while header at " << scope::stack[i].header_start << endl;
-     has_continue = true;
-     break;
+    if (scope::stack[i].type != scope::Type::While) {continue;}
+
+    if (tokens[0] == "break") {
+     bytecode_append(op::jump, SENTINEL);
+     addr patch_addr = cast(addr, writer) - 4;
+     scope::stack[i].break_unpatched.push_back(patch_addr);
+     cout << "break stores unpatched jump at " << patch_addr << endl;
     }
+    else { // continue
+     bytecode_append(op::jump, scope::stack[i].header_start);
+     cout << "continue jumps to while header at " << scope::stack[i].header_start << endl;
+    }
+
+    return;
    }
-   if (!has_continue) {cout << "error: continue outside of while loop" << endl;}
+   cout << "error: " << tokens[0] << " outside of while loop" << endl;
    return;
   }
 

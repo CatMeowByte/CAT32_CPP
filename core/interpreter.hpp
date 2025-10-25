@@ -50,6 +50,7 @@ namespace scope {
   addr header_start;
   addr stack_start;
   u32 symbol_start;
+  vector<addr> break_unpatched;
  };
 
  extern vector<Frame> stack;
