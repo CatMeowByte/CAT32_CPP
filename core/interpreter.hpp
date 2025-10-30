@@ -26,6 +26,8 @@ namespace symbol {
   string name;
   addr address;
   Type type;
+  u8 args_count;
+  vector<fpu> args_default;
  };
 
  extern vector<Data> table;

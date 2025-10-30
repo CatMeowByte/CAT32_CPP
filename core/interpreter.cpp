@@ -13,6 +13,7 @@ namespace interpreter {
  constexpr str SYMBOL_STRING_PREFIX = "&:";
  constexpr str OPERATOR_OFFSET = "@";
  constexpr u8 OPERATOR_COMMENT = '#';
+ constexpr u8 ARGUMENT_OPTIONAL = ':';
 
  enum class Precedence : u8 {
   Base = 0,
@@ -89,7 +90,7 @@ namespace interpreter {
       value += " \"" + string(1, cast(u8, operand)) + "\"";
      }
     }
-    if (name == "takefrom" || name == "storeto") {
+    else if (name == "takefrom" || name == "storeto") {
      for (u32 i = 0; i < symbol::table.size(); i++) {
       if (symbol::table[i].address == cast(addr, operand)) {
        value += " (" + symbol::table[i].name + ")";
@@ -97,8 +98,16 @@ namespace interpreter {
       }
      }
     }
-    if (name == "call") {
+    else if (name == "call") {
      value += " (" + module::get_name(operand) + ")";
+    }
+    else if (name == "subgo") {
+     for (s32 i = symbol::table.size() - 1; i >= 0; i--) {
+      if (symbol::table[i].type == symbol::Type::Function && symbol::table[i].address == cast(addr, operand)) {
+       value += " (" + symbol::table[i].name + ")";
+       break;
+      }
+     }
     }
    }
   }
@@ -194,8 +203,10 @@ namespace interpreter {
     continue;
    }
 
-   // variable (alphabet or _)
-   if (isalpha(c) || c == '_') {
+   // variable (alphabet, _, or =)
+   // WARNING: this is not the elegant way to handle argument assignment symbol
+   // for now it is a hacky way to make optional argument compilable
+   if (isalpha(c) || c == '_' || c == ARGUMENT_OPTIONAL) {
     token += c;
     continue;
    }
@@ -219,6 +230,7 @@ namespace interpreter {
  static vector<string> postfix(const vector<string>& tokens) {
   vector<string> output;
   vector<string> operator_stack;
+  vector<u8> paren_args_count;
 
   for (u32 i = 0; i < tokens.size(); i++) {
    string token = tokens[i];
@@ -229,6 +241,7 @@ namespace interpreter {
      output.push_back(operator_stack.back());
      operator_stack.pop_back();
     }
+    if (!paren_args_count.empty()) {paren_args_count.back()++;}
     continue;
    }
 
@@ -272,6 +285,7 @@ namespace interpreter {
 
    else if (token == "(" || token == "[") {
     operator_stack.push_back(token);
+    if (token == "(") {paren_args_count.push_back(0);}
    }
 
    else if (token == ")" || token == "]") {
@@ -287,14 +301,49 @@ namespace interpreter {
 
     // emit function after its arguments
     if (token == ")") {
+     u8 args_count = 0;
+     if (!paren_args_count.empty()) {
+      args_count = paren_args_count.back();
+      paren_args_count.pop_back();
+     }
+
      if (!operator_stack.empty()) {
       is_opcode = opcode::exist(operator_stack.back().c_str());
       is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
       is_module = module::exist(operator_stack.back());
+
+      if (is_function || is_module) {
+       u8 fn_args_count = 0;
+       string fn_name;
+       const vector<fpu>* fn_args_default = nullptr;
+
+       if (is_function) {
+        const symbol::Data& function_symbol = symbol::get(operator_stack.back());
+        fn_args_count = function_symbol.args_count;
+        fn_args_default = &function_symbol.args_default;
+        fn_name = function_symbol.name;
+       }
+       else if (is_module) {
+        const module::Module& registered_module = module::table[module::get_index(operator_stack.back())];
+        fn_args_count = registered_module.args_count;
+        fn_args_default = &registered_module.args_default;
+        fn_name = registered_module.name;
+       }
+
+       const u8 fn_args_required = fn_args_count - fn_args_default->size();
+
+       if (args_count < fn_args_required) {cout << "error: too few arguments for " << fn_name << " (expected at least " << cast(u32, fn_args_required) << ", got " << cast(u32, args_count) << ")" << endl;}
+       if (args_count > fn_args_count) {cout << "error: too many arguments for " << fn_name << " (expected at most " << cast(u32, fn_args_count) << ", got " << cast(u32, args_count) << ")" << endl;}
+
+       for (u8 i = args_count; i < fn_args_count; i++) {output.push_back(to_string(cast(double, (*fn_args_default)[i - fn_args_required])));}
+      }
+
       if (is_opcode || is_function || is_module) {
        output.push_back(operator_stack.back());
        operator_stack.pop_back();
       }
+
+      if (!paren_args_count.empty() && paren_args_count.back() == 0) {paren_args_count.back() = 1;}
      }
     }
 
@@ -305,7 +354,10 @@ namespace interpreter {
    }
 
    // number or variable
-   else {output.push_back(token);}
+   else {
+    output.push_back(token);
+    if (!paren_args_count.empty() && paren_args_count.back() == 0) {paren_args_count.back() = 1;}
+   }
   }
 
   // pop any remaining ops
@@ -644,22 +696,54 @@ namespace interpreter {
      string name = token;
      addr address = cast(addr, writer);
 
-     // name
+     // symbol
      symbol::table.push_back({name, address, symbol::Type::Function});
      cout << name << " function is written at bytecode [" << address << "]" << endl;
+     u32 function_symbol_index = symbol::table.size() - 1;
 
      // arguments
      address = cast(addr, slotter);
-     u8 length = expression_ordered.size() - 2;
-     addr slot_after = cast(addr, slotter) + length + 1;
-     for (s32 i = length; i >= 0; i--) {
-      name = expression_ordered[i + 1];
-      symbol::table.push_back({name, address + i, symbol::Type::Number});
-      bytecode_append(op::storeto, address + i);
-      cout << name << " is stored in " << address + i << endl;
+     u8 args_count = expression_ordered.size() - 1;
+     addr slot_after = cast(addr, slotter) + args_count;
+     bool in_required = false;
+     for (s32 i = args_count; i > 0; i--) {
+      name = expression_ordered[i];
+
+      // TODO:
+      // the grace way to handle default value assignment is probably by making the argument assignment symbol a separate token
+      // and then if encounter it then set the symbol of [token previous] with the value of [token next]
+      u64 separator_pos = name.find(ARGUMENT_OPTIONAL);
+      if (separator_pos != string::npos) { // args is optional
+       string args_value_str = name.substr(separator_pos + 1);
+       name = name.substr(0, separator_pos);
+       if (name.empty()) {continue;}
+
+       if (in_required) {
+        cout << "error: required " << expression_ordered[i + 1] << " after optional " << name << " is not allowed" << endl;
+        return;
+       }
+
+       if (!utility::is_number(args_value_str)) {
+        cout << "error: default value for " << name << " must be numeric literal" << endl;
+        continue;
+       }
+
+       symbol::table[function_symbol_index].args_default.insert(symbol::table[function_symbol_index].args_default.begin(), stod(args_value_str)); // insert in reverse order // WARNING: not expression!
+       symbol::table[function_symbol_index].args_count++;
+      }
+      else { // args is required
+       in_required = true;
+       symbol::table[function_symbol_index].args_count++;
+      }
+
+      const addr args_slot = address + (i - 1);
+      symbol::table.push_back({name, args_slot, symbol::Type::Number});
+      bytecode_append(op::storeto, args_slot);
+      cout << name << " is stored in " << args_slot << endl;
      }
 
      slotter = fpu(slot_after);
+     break; // ensure no further token in line is processed
     }
 
     // invalid

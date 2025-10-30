@@ -139,7 +139,7 @@ namespace utility {
  }
 
  void module_register() {
-  module::add("see", wrap::see);
-  module::add("wait", wrap::wait);
+  module::add("see", wrap::see, 1);
+  module::add("wait", wrap::wait, 1);
  }
 }

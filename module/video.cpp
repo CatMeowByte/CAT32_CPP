@@ -195,14 +195,40 @@ namespace video {
    OPDONE;
   }
 
+  addr line(fpu) {
+   using namespace memory::vm::process::app::ram_local;
+   BAIL_UNLESS_STACK_ATLEAST(5)
+   s32 color = field[stacker++];
+   s32 by = field[stacker++];
+   s32 bx = field[stacker++];
+   s32 ay = field[stacker++];
+   s32 ax = field[stacker++];
+   video::line(ax, ay, bx, by, color);
+   OPDONE;
+  }
+
+  addr rect(fpu) {
+   using namespace memory::vm::process::app::ram_local;
+   BAIL_UNLESS_STACK_ATLEAST(5)
+   s32 fill = field[stacker++];
+   s32 color = field[stacker++];
+   s32 height = field[stacker++];
+   s32 width = field[stacker++];
+   s32 y = field[stacker++];
+   s32 x = field[stacker++];
+   video::rect(x, y, width, height, color, fill);
+   OPDONE;
+  }
+
   addr text(fpu) {
    using namespace memory::vm::process::app::ram_local;
    BAIL_UNLESS_STACK_ATLEAST(4)
+   s32 background = field[stacker++];
    s32 color = field[stacker++];
    s32 address = field[stacker++];
    s32 y = field[stacker++];
    s32 x = field[stacker++];
-   video::text(x, y, utility::string_pick(address).c_str(), color, 0);
+   video::text(x, y, utility::string_pick(address).c_str(), color, background);
    OPDONE;
   }
 
@@ -213,9 +239,11 @@ namespace video {
  }
 
  void module_register() {
-  module::add("clear", wrap::clear);
-  module::add("pixel", wrap::pixel);
-  module::add("text", wrap::text);
-  module::add("flip", wrap::flip);
+  module::add("clear", wrap::clear, 1);
+  module::add("pixel", wrap::pixel, 3);
+  module::add("line", wrap::line, 5);
+  module::add("rect", wrap::rect, 6, {1});
+  module::add("text", wrap::text, 5, {0});
+  module::add("flip", wrap::flip, 0);
  }
 }
