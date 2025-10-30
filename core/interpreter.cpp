@@ -13,7 +13,7 @@ namespace interpreter {
  constexpr str SYMBOL_STRING_PREFIX = "&:";
  constexpr str OPERATOR_OFFSET = "@";
  constexpr u8 OPERATOR_COMMENT = '#';
- constexpr u8 ARGUMENT_OPTIONAL = ':';
+ constexpr u8 ARGUMENT_OPTIONAL = '=';
 
  enum class Precedence : u8 {
   Base = 0,

@@ -31,7 +31,7 @@ func summary(a,b):
  return a+b
 
 # Test 8: Define function with optional parameter
-func multiply(x,y,z:10):
+func multiply(x,y,z=10):
  return x*y*z
 
 # Test 9: Define function with zero arguments
@@ -61,3 +61,11 @@ see(getvalue())
 # Test 15: Nested calls with modules
 line(10,10,20,20,15)
 # Expected: push 10,10,20,20,15, call line - valid
+
+# Test 16: Check the safety of argument optional symbol in regular context
+var apple = 5
+var banana = 3*8
+if banana>apple:
+ text(64,64,"OK",1,12)
+
+flip()
