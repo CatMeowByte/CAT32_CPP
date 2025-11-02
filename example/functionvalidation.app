@@ -68,6 +68,26 @@ var banana = 3*8
 if banana>apple:
  text(64,64,"OK",1,12)
 
+# Test 18: Callable opcode with two arguments
+see(add(10,7))
+# Expected: push 10,7, add, call see - valid, result 17
+
+# Test 19: Callable opcode comparison
+see(eq(3,3))
+# Expected: push 3,3, eq, call see - valid, result 1 (true)
+
+# Test 20: Callable opcode with too few arguments (error)
+# see(add(5))
+# Expected: error - add needs 2, got 1
+
+# Test 21: Callable opcode with too many arguments (error)
+# see(neg(1,2))
+# Expected: error - neg needs 1, got 2
+
+# Test 22: Internal opcode cannot be called (error)
+# jump(100)
+# Expected: error - jump not found in callable table
+
 # all these unused symbols should not produce any token at all
 $ ^ ; : ?
 

@@ -3,14 +3,21 @@
 #include "core/opcode.hpp"
 
 namespace opcode {
- static const hash_map<string, u8> opcode_table = {
-  #define OP(hex, name) {#name, op::name},
+ struct OpcodeInfo {u8 id; u8 args;};
+ static const hash_map<string, OpcodeInfo> opcode_table = {
+  #define OPI(hex, name)
+  #define OPC(hex, name, args) {#name, {op::name, args}},
   OPCODES
-  #undef OP
+  #undef OPI
+  #undef OPC
  };
 
  u8 get(string cmd) {
-  return opcode_table.count(cmd) ? opcode_table.at(cmd) : op::nop;
+  return opcode_table.count(cmd) ? opcode_table.at(cmd).id : op::nop;
+ }
+
+ u8 args_count(string cmd) {
+  return opcode_table.count(cmd) ? opcode_table.at(cmd).args : 0;
  }
 
  bool exist(string cmd) {
@@ -19,9 +26,11 @@ namespace opcode {
 
  string name(u8 value) {
   switch (value) {
-   #define OP(hex, name) case hex: return #name;
+   #define OPI(hex, name) case hex: return #name;
+   #define OPC(hex, name, args) case hex: return #name;
    OPCODES
-   #undef OP
+   #undef OPI
+   #undef OPC
   }
   return "UNKNOWN";
  }

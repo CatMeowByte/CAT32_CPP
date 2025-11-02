@@ -4,60 +4,65 @@
 
 #define OPCODES \
  /* stack */ \
- OP(0x11, push) \
- OP(0x12, pop) \
+ OPI(0x11, push) \
+ OPI(0x12, pop) \
  /* memory */ \
- OP(0x13, takefrom) \
- OP(0x14, storeto) \
- OP(0x15, peek) \
- OP(0x16, poke) \
+ OPI(0x13, takefrom) \
+ OPI(0x14, storeto) \
+ OPC(0x15, peek, 1) \
+ OPC(0x16, poke, 2) \
  /* counter */ \
- OP(0x2A, subgo) \
- OP(0x2B, subret) \
- OP(0x2D, jump) \
- OP(0x2E, jumz) \
- OP(0x2F, junz) \
+ OPI(0x2A, subgo) \
+ OPI(0x2B, subret) \
+ OPI(0x2D, jump) \
+ OPI(0x2E, jumz) \
+ OPC(0x2F, junz, 1) \
  /* math */ \
- OP(0x31, add) \
- OP(0x32, sub) \
- OP(0x33, mul) \
- OP(0x34, div) \
- OP(0x35, neg) \
+ OPC(0x31, add, 2) \
+ OPC(0x32, sub, 2) \
+ OPC(0x33, mul, 2) \
+ OPC(0x34, div, 2) \
+ OPC(0x35, neg, 1) \
  /* logic */ \
- OP(0x41, eq) \
- OP(0x42, neq) \
- OP(0x43, gt) \
- OP(0x44, lt) \
- OP(0x45, geq) \
- OP(0x46, leq) \
- OP(0x47, land) \
- OP(0x48, lor) \
- OP(0x49, lnot) \
+ OPC(0x41, eq, 2) \
+ OPC(0x42, neq, 2) \
+ OPC(0x43, gt, 2) \
+ OPC(0x44, lt, 2) \
+ OPC(0x45, geq, 2) \
+ OPC(0x46, leq, 2) \
+ OPC(0x47, land, 2) \
+ OPC(0x48, lor, 2) \
+ OPC(0x49, lnot, 1) \
  /* bit */ \
- OP(0x4A, band) \
- OP(0x4B, bor) \
- OP(0x4C, bnot) \
- OP(0x4D, bshl) \
- OP(0x4E, bshr) \
+ OPC(0x4A, band, 2) \
+ OPC(0x4B, bor, 2) \
+ OPC(0x4C, bnot, 1) \
+ OPC(0x4D, bshl, 2) \
+ OPC(0x4E, bshr, 2) \
  /* module */ \
- OP(0xFF, call) \
-  /* nop */ \
- OP(0x00, nop)
+ OPI(0xFF, call) \
+ /* nop */ \
+ OPI(0x00, nop)
 
 namespace op {
- #define OP(hex, name) constexpr octo name = hex;
+ #define OPI(hex, name) constexpr octo name = hex;
+ #define OPC(hex, name, args) constexpr octo name = hex;
  OPCODES
- #undef OP
-};
+ #undef OPI
+ #undef OPC
+}
 
 namespace opfunc {
- #define OP(hex, name) addr name(fpu value);
+ #define OPI(hex, name) addr name(fpu value);
+ #define OPC(hex, name, args) addr name(fpu value);
  OPCODES
- #undef OP
+ #undef OPI
+ #undef OPC
 }
 
 namespace opcode {
  u8 get(string cmd);
+ u8 args_count(string cmd);
  bool exist(string cmd);
  string name(u8 value);
 }

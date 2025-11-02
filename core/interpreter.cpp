@@ -581,10 +581,8 @@ namespace interpreter {
       fn_args_default = &function_symbol.args_default;
      }
      else if (is_opcode) {
-      // TODO: proper opcode argument metadata system
-      args_count = 0; // override
+      fn_args_count = opcode::args_count(name);
       static const vector<fpu> opcode_no_defaults = {};
-      fn_args_count = 0;
       fn_args_default = &opcode_no_defaults;
      }
 
@@ -879,9 +877,11 @@ namespace interpreter {
   // debug_opcode(opcode, operand, counter);
 
   switch (opcode) {
-   #define OP(hex, name) case op::name: result = opfunc::name(operand); break;
+   #define OPI(hex, name) case op::name: result = opfunc::name(operand); break;
+   #define OPC(hex, name, args) case op::name: result = opfunc::name(operand); break;
    OPCODES
-   #undef OP
+   #undef OPI
+   #undef OPC
   }
 
   if (result == cast(addr, SENTINEL)) {counter += 5;}
