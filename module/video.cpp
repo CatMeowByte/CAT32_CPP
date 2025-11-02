@@ -228,7 +228,7 @@ namespace video {
    s32 address = field[stacker++];
    s32 y = field[stacker++];
    s32 x = field[stacker++];
-   video::text(x, y, utility::string_pick(address).c_str(), color, background);
+   video::text(x, y, utility::string_pick(address), color, background);
    OPDONE;
   }
 

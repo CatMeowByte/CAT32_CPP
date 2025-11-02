@@ -68,4 +68,7 @@ var banana = 3*8
 if banana>apple:
  text(64,64,"OK",1,12)
 
+# all these unused symbols should not produce any token at all
+$ ^ ; : ?
+
 flip()

@@ -10,10 +10,11 @@
 
 
 namespace interpreter {
- constexpr str SYMBOL_STRING_PREFIX = "&:";
+ constexpr str TOKEN_TAG = "$";
+ constexpr str SYMBOL_STRING_PREFIX = "str:";
  constexpr str OPERATOR_OFFSET = "@";
  constexpr u8 OPERATOR_COMMENT = '#';
- constexpr u8 ARGUMENT_OPTIONAL = '=';
+ constexpr u8 ARGUMENT_OPTIONAL = '='; // cannot cnage to colon `:` because it would bugs header end symbol which supposed to be unused symbol aaarrrggghhh!!!
 
  enum class Precedence : u8 {
   Base = 0,
@@ -203,7 +204,7 @@ namespace interpreter {
     continue;
    }
 
-   // variable (alphabet, _, or =)
+   // variable (alphabet, _, or optional argument assignment)
    // WARNING: this is not the elegant way to handle argument assignment symbol
    // for now it is a hacky way to make optional argument compilable
    if (isalpha(c) || c == '_' || c == ARGUMENT_OPTIONAL) {
@@ -223,6 +224,7 @@ namespace interpreter {
  #define OP(sym, code, prec) if (op == sym) {return prec;}
   SORTED_OPERATORS
  #undef OP
+ // offset is internal and doesnt produce any opcode
   if (op == OPERATOR_OFFSET) {return Precedence::Offset;}
   return Precedence::Base;
  }
@@ -257,7 +259,7 @@ namespace interpreter {
    }
 
    // function
-   bool is_opcode = opcode::exist(token.c_str());
+   bool is_opcode = opcode::exist(token);
    bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
    bool is_module = module::exist(token);
    if (is_opcode || is_function || is_module) {
@@ -299,56 +301,25 @@ namespace interpreter {
      operator_stack.pop_back();
     }
 
-    // emit function after its arguments
-    if (token == ")") {
-     u8 args_count = 0;
-     if (!paren_args_count.empty()) {
-      args_count = paren_args_count.back();
-      paren_args_count.pop_back();
+    // tag function token with the amount of provided argument
+    if (token == ")" && !operator_stack.empty()) {
+     is_opcode = opcode::exist(operator_stack.back());
+     is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
+     is_module = module::exist(operator_stack.back());
+
+     if (is_opcode || is_function || is_module) {
+      if (!paren_args_count.empty()) {
+       output.push_back(operator_stack.back() + TOKEN_TAG + to_string(cast(u32, paren_args_count.back())));
+       paren_args_count.pop_back();
+      }
+      operator_stack.pop_back();
      }
 
-     if (!operator_stack.empty()) {
-      is_opcode = opcode::exist(operator_stack.back().c_str());
-      is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
-      is_module = module::exist(operator_stack.back());
-
-      if (is_function || is_module) {
-       u8 fn_args_count = 0;
-       string fn_name;
-       const vector<fpu>* fn_args_default = nullptr;
-
-       if (is_function) {
-        const symbol::Data& function_symbol = symbol::get(operator_stack.back());
-        fn_args_count = function_symbol.args_count;
-        fn_args_default = &function_symbol.args_default;
-        fn_name = function_symbol.name;
-       }
-       else if (is_module) {
-        const module::Module& registered_module = module::table[module::get_index(operator_stack.back())];
-        fn_args_count = registered_module.args_count;
-        fn_args_default = &registered_module.args_default;
-        fn_name = registered_module.name;
-       }
-
-       const u8 fn_args_required = fn_args_count - fn_args_default->size();
-
-       if (args_count < fn_args_required) {cout << "error: too few arguments for " << fn_name << " (expected at least " << cast(u32, fn_args_required) << ", got " << cast(u32, args_count) << ")" << endl;}
-       if (args_count > fn_args_count) {cout << "error: too many arguments for " << fn_name << " (expected at most " << cast(u32, fn_args_count) << ", got " << cast(u32, args_count) << ")" << endl;}
-
-       for (u8 i = args_count; i < fn_args_count; i++) {output.push_back(to_string(cast(double, (*fn_args_default)[i - fn_args_required])));}
-      }
-
-      if (is_opcode || is_function || is_module) {
-       output.push_back(operator_stack.back());
-       operator_stack.pop_back();
-      }
-
-      if (!paren_args_count.empty() && paren_args_count.back() == 0) {paren_args_count.back() = 1;}
-     }
+     if (!paren_args_count.empty() && paren_args_count.back() == 0) {paren_args_count.back() = 1;}
     }
 
     // emit offset operator after close bracket
-    if (token == "]") {
+    else if (token == "]") {
      output.push_back(OPERATOR_OFFSET);
     }
    }
@@ -583,17 +554,52 @@ namespace interpreter {
    // cout << "SORT: "; for (const string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
    for (u32 j = 0; j < expression_ordered.size(); j++) {
     const string& token = expression_ordered[j];
+    const u64 tag_pos = token.find(TOKEN_TAG);
 
     if (false) {}
 
-    // module
-    else if (module::exist(token)) {
-     bytecode_append(op::call, module::get_index(token));
-    }
+    // tagged callable: module, function, or opcode
+    else if (tag_pos != string::npos) {
+     string name = token.substr(0, tag_pos);
+     u8 args_count = stoi(token.substr(tag_pos + 1));
 
-    // opcode
-    else if (opcode::exist(token.c_str())) {
-     bytecode_append(opcode::get(token.c_str()), SIGNATURE);
+     bool is_module = module::exist(name);
+     bool is_function = symbol::exist(name) && symbol::get(name).type == symbol::Type::Function;
+     bool is_opcode = opcode::exist(name);
+
+     u8 fn_args_count = 0;
+     const vector<fpu>* fn_args_default = nullptr;
+
+     if (is_module) {
+      const module::Module& registered_module = module::table[module::get_index(name)];
+      fn_args_count = registered_module.args_count;
+      fn_args_default = &registered_module.args_default;
+     }
+     else if (is_function) {
+      const symbol::Data& function_symbol = symbol::get(name);
+      fn_args_count = function_symbol.args_count;
+      fn_args_default = &function_symbol.args_default;
+     }
+     else if (is_opcode) {
+      // TODO: proper opcode argument metadata system
+      args_count = 0; // override
+      static const vector<fpu> opcode_no_defaults = {};
+      fn_args_count = 0;
+      fn_args_default = &opcode_no_defaults;
+     }
+
+     const u8 fn_args_required = fn_args_count - fn_args_default->size();
+
+     if (args_count < fn_args_required) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, fn_args_required) << ", got " << cast(u32, args_count) << ")" << endl;}
+     if (args_count > fn_args_count) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, fn_args_count) << ", got " << cast(u32, args_count) << ")" << endl;}
+
+     for (u8 i = args_count; i < fn_args_count; i++) {
+      bytecode_append(op::push, (*fn_args_default)[i - fn_args_required]);
+     }
+
+     if (is_module) {bytecode_append(op::call, module::get_index(name));}
+     else if (is_function) {bytecode_append(op::subgo, symbol::get(name).address);}
+     else if (is_opcode) {bytecode_append(opcode::get(name), SIGNATURE);}
     }
 
     // string
@@ -666,15 +672,12 @@ namespace interpreter {
        bytecode_append(op::push, symbol.address);
        break;
       }
-      case symbol::Type::Function: {
-       bytecode_append(op::subgo, symbol.address);
-       break;
-      }
+      case symbol::Type::Function: {break;} // handled by tagged callable
       default: {break;}
      }
     }
 
-    // "#"
+    // stripe offset
     else if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, SIGNATURE);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
@@ -712,6 +715,7 @@ namespace interpreter {
       // TODO:
       // the grace way to handle default value assignment is probably by making the argument assignment symbol a separate token
       // and then if encounter it then set the symbol of [token previous] with the value of [token next]
+      // though it require space unaware token separation which means entirely more complex interpreter system
       u64 separator_pos = name.find(ARGUMENT_OPTIONAL);
       if (separator_pos != string::npos) { // args is optional
        string args_value_str = name.substr(separator_pos + 1);
