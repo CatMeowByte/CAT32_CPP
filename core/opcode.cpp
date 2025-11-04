@@ -68,7 +68,7 @@ namespace opfunc {
   OPDONE;
  }
 
- addr peek(fpu value) {
+ addr get(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   using namespace memory::vm::process::app;
   addr address = memory::pop();
@@ -76,14 +76,49 @@ namespace opfunc {
   OPDONE;
  }
 
- addr poke(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
-  using namespace memory::vm::process::app;
-  fpu a = memory::pop();
-  addr address = memory::pop();
-  ram_local_octo[address] = cast(octo, a);
-  OPDONE;
- }
+  addr set(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(2)
+   using namespace memory::vm::process::app;
+   fpu a = memory::pop();
+   addr address = memory::pop();
+   ram_local_fpu[address] = a;
+   OPDONE;
+  }
+
+  addr peek8(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   using namespace memory::vm::process::app;
+   addr address = memory::pop();
+   push(fpu(ram_local_octo[address]));
+   OPDONE;
+  }
+
+  addr poke8(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(2)
+   using namespace memory::vm::process::app;
+   fpu a = memory::pop();
+   addr address = memory::pop();
+   ram_local_octo[address] = cast(octo, a);
+   OPDONE;
+  }
+
+  addr peek32(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   using namespace memory::vm::process::app;
+   addr address = memory::pop();
+   s32 raw = memory::unaligned_32_read(ram_local_octo + address);
+   push(fpu(raw, true));
+   OPDONE;
+  }
+
+  addr poke32(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(2)
+   using namespace memory::vm::process::app;
+   fpu a = memory::pop();
+   addr address = memory::pop();
+   memory::unaligned_32_write(ram_local_octo + address, a.value);
+   OPDONE;
+  }
 
  /* counter */
  addr subgo(fpu value) {

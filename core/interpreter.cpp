@@ -679,7 +679,7 @@ namespace interpreter {
     else if (token == OPERATOR_OFFSET) {
      bytecode_append(op::add, SIGNATURE);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
-     bytecode_append(op::peek, SIGNATURE);
+     bytecode_append(op::get, SIGNATURE);
     }
 
     // math operations
@@ -854,7 +854,7 @@ namespace interpreter {
      break;
     }
     case SetStyle::Stripe: {
-     bytecode_append(op::poke, SIGNATURE);
+     bytecode_append(op::set, SIGNATURE);
      break;
     }
     default: {break;}

@@ -9,8 +9,12 @@
  /* memory */ \
  OPI(0x13, takefrom) \
  OPI(0x14, storeto) \
- OPC(0x15, peek, 1) \
- OPC(0x16, poke, 2) \
+ OPI(0x1A, get) \
+ OPI(0x1B, set) \
+ OPC(0x1C, peek8, 1) \
+ OPC(0x1D, poke8, 2) \
+ OPC(0x1E, peek32, 1) \
+ OPC(0x1F, poke32, 2) \
  /* counter */ \
  OPI(0x2A, subgo) \
  OPI(0x2B, subret) \
