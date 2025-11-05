@@ -87,36 +87,44 @@ namespace opfunc {
 
   addr peek8(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
-   using namespace memory::vm::process::app;
-   addr address = memory::pop();
-   push(fpu(ram_local_octo[address]));
+   s32 address_signed = memory::pop();
+   bool is_global = address_signed < 0;
+   addr address = is_global ? -address_signed : address_signed;
+   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
+   push(fpu(region[address]));
    OPDONE;
   }
 
   addr poke8(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(2)
-   using namespace memory::vm::process::app;
-   fpu a = memory::pop();
-   addr address = memory::pop();
-   ram_local_octo[address] = cast(octo, a);
+   fpu val = memory::pop();
+   s32 address_signed = memory::pop();
+   bool is_global = address_signed < 0;
+   addr address = is_global ? -address_signed : address_signed;
+   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
+   region[address] = cast(octo, val);
    OPDONE;
   }
 
   addr peek32(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
-   using namespace memory::vm::process::app;
-   addr address = memory::pop();
-   s32 raw = memory::unaligned_32_read(ram_local_octo + address);
+   s32 address_signed = memory::pop();
+   bool is_global = address_signed < 0;
+   addr address = is_global ? -address_signed : address_signed;
+   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
+   s32 raw = memory::unaligned_32_read(region + address);
    push(fpu(raw, true));
    OPDONE;
   }
 
   addr poke32(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(2)
-   using namespace memory::vm::process::app;
-   fpu a = memory::pop();
-   addr address = memory::pop();
-   memory::unaligned_32_write(ram_local_octo + address, a.value);
+   fpu val = memory::pop();
+   s32 address_signed = memory::pop();
+   bool is_global = address_signed < 0;
+   addr address = is_global ? -address_signed : address_signed;
+   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
+   memory::unaligned_32_write(region + address, val.value);
    OPDONE;
   }
 

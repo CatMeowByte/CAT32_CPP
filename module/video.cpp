@@ -239,7 +239,7 @@ namespace video {
  }
 
  void module_register() {
-  module::add("clear", wrap::clear, 1);
+  module::add("clear", wrap::clear, 1, {0});
   module::add("pixel", wrap::pixel, 3);
   module::add("line", wrap::line, 5);
   module::add("rect", wrap::rect, 6, {1});

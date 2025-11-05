@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_timer.h>
 
@@ -16,6 +17,7 @@ static SDL_Surface* surface_front = nullptr; // what shows on screen
 static SDL_Surface* surface_back = nullptr;   // 4bpp framebuffer as SDL surface
 static SDL_Palette* palette = nullptr;
 static bool running = true;
+static bool key_state[SDL_SCANCODE_COUNT] = {};
 
 namespace sdl {
  bool init() {
@@ -61,16 +63,24 @@ namespace sdl {
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
    if (e.type == SDL_EVENT_QUIT) {running = false;}
+   if (e.type == SDL_EVENT_KEY_DOWN) {key_state[e.key.scancode] = true;}
+   if (e.type == SDL_EVENT_KEY_UP) {key_state[e.key.scancode] = false;}
   }
   return running;
  }
 
- void delay(u32 ms) {
+ void delay(const u32 ms) {
   SDL_Delay(ms);
  }
 
  u32 get_ticks() {
   return SDL_GetTicks();
+ }
+
+ bool is_key_pressed(const str key_name) {
+  SDL_Scancode scancode = SDL_GetScancodeFromName(key_name);
+  if (scancode == SDL_SCANCODE_UNKNOWN) {return false;}
+  return key_state[scancode];
  }
 
  void flip(const u8* data) {

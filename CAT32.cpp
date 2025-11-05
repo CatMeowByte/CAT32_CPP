@@ -2,6 +2,7 @@
 #include "core/interpreter.hpp"
 #include "core/memory.hpp"
 #include "core/utility.hpp"
+#include "module/button.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
 
@@ -13,7 +14,7 @@ void init() {
  video::module_register();
  utility::module_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/functionvalidation.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/buttons.app");
  if (!file) {
   cerr << "Failed to open file." << endl;
  }
@@ -37,6 +38,7 @@ void init() {
 }
 
 void update() {
+ button::update();
  using namespace memory::vm::process::app::ram_local;
  if (sleeper) {sleeper--;}
  while (counter < writer && sleeper == fpu(0)) {interpreter::step();}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL3/SDL_scancode.h>
+
 #include "core/constant.hpp" // IWYU pragma: keep
 
 namespace sdl {
@@ -7,8 +9,10 @@ namespace sdl {
  void shutdown();
  bool poll();
 
- void delay(u32 ms);
+ void delay(const u32 ms);
  u32 get_ticks();
+
+ bool is_key_pressed(const str key_name);
 
  void flip(const u8* data);
 }
