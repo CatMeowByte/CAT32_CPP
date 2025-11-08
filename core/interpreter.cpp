@@ -457,14 +457,25 @@ namespace interpreter {
     symbol::table.resize(frame.symbol_start);
     stacker = frame.stack_start;
 
-    if (frame.type == scope::Type::While) {
-     bytecode_append(op::jump, frame.header_start); // next opcode
+    switch (frame.type) {
+     case scope::Type::While: {
+      bytecode_append(op::jump, frame.header_start); // next opcode
 
-     // patch break
-     for (addr patch_addr : frame.break_unpatched) {
-      memory::unaligned_32_write(bytecode + patch_addr, writer.value);
-      cout << "patching break at " << patch_addr << " to " << cast(addr, writer) << endl;
+      // patch break
+      for (addr patch_addr : frame.break_unpatched) {
+       memory::unaligned_32_write(bytecode + patch_addr, writer.value);
+       cout << "patching break at " << patch_addr << " to " << cast(addr, writer) << endl;
+      }
+      break;
      }
+     case scope::Type::Function: {
+      if (bytecode[writer - fpu(5)] != op::subret) { // last opcode
+       cout << "implicit return emitted at " << cast(addr, writer) << endl;
+       bytecode_append(op::subret, SIGNATURE);
+      }
+      break;
+     }
+     default: {break;}
     }
 
     memory::unaligned_32_write(bytecode + frame.jump_operand, writer.value);
