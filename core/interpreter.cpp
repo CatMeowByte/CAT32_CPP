@@ -10,10 +10,8 @@
 
 
 namespace interpreter {
- constexpr str TOKEN_TAG = "$";
+ constexpr str TOKEN_TAG = "$"; // token tagged with this symbol can only be generated internally
  constexpr str SYMBOL_STRING_PREFIX = "str:";
- constexpr str OPERATOR_OFFSET = "@";
- constexpr u8 OPERATOR_COMMENT = '#';
  constexpr u8 ARGUMENT_OPTIONAL = '='; // cannot cnage to colon `:` because it would bugs header end symbol which supposed to be unused symbol aaarrrggghhh!!!
 
  enum class Precedence : u8 {
@@ -48,21 +46,21 @@ namespace interpreter {
   OP("!", op::lnot, Precedence::Unary)
 
  static const hash_map<string, u8> math_opcodes = {
- #define OP(sym, code, prec) {sym, code},
+  #define OP(sym, code, prec) {sym, code},
   SORTED_OPERATORS
- #undef OP
+  #undef OP
  };
 
  static const hash_set<string> math_list_operations = {
- #define OP(sym, code, prec) sym,
+  #define OP(sym, code, prec) sym,
   SORTED_OPERATORS
- #undef OP
+  #undef OP
  };
 
  static const hash_set<string> math_list_operations_bracket = {
- #define OP(sym, code, prec) sym,
+  #define OP(sym, code, prec) sym,
   SORTED_OPERATORS
- #undef OP
+  #undef OP
   "(",
   ")",
   "[",
@@ -221,11 +219,9 @@ namespace interpreter {
  }
 
  static Precedence precedence(const string& op) {
- #define OP(sym, code, prec) if (op == sym) {return prec;}
+  #define OP(sym, code, prec) if (op == sym) {return prec;}
   SORTED_OPERATORS
- #undef OP
- // offset is internal and doesnt produce any opcode
-  if (op == OPERATOR_OFFSET) {return Precedence::Offset;}
+  #undef OP
   return Precedence::Base;
  }
 
@@ -320,7 +316,7 @@ namespace interpreter {
 
     // emit offset operator after close bracket
     else if (token == "]") {
-     output.push_back(OPERATOR_OFFSET);
+     output.push_back(TOKEN_TAG + string("offset"));
     }
    }
 
@@ -370,7 +366,7 @@ namespace interpreter {
    }
 
    // comment (skip rest of line)
-   if (!in_quote && c == OPERATOR_COMMENT) {break;}
+   if (!in_quote && c == '#') {break;}
 
    // boundary on space or end string
    if (c == ' ' || character == text.size()) {
@@ -676,7 +672,7 @@ namespace interpreter {
     }
 
     // stripe offset
-    else if (token == OPERATOR_OFFSET) {
+    else if (token == TOKEN_TAG + string("offset")) {
      bytecode_append(op::add, SIGNATURE);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
      bytecode_append(op::get, SIGNATURE);
