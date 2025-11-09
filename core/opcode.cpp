@@ -45,12 +45,6 @@ namespace opfunc {
   OPDONE;
  }
 
- addr pop(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
-  using namespace memory::vm::process::app::ram_local;
-  return field[stacker++];
- }
-
  /* memory */
  addr takefrom(fpu value) {
   BAIL_IF_STACK_OVERFLOW
@@ -63,8 +57,7 @@ namespace opfunc {
  addr storeto(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   using namespace memory::vm::process::app;
-  using namespace ram_local;
-  ram_local_fpu[value] = field[stacker++];
+  ram_local_fpu[value] = memory::pop();
   OPDONE;
  }
 

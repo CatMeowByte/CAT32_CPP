@@ -177,62 +177,57 @@ namespace video {
  }
 
  namespace wrap {
-  addr clear(fpu) {
-   using namespace memory::vm::process::app::ram_local;
+  addr clear(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
-   s32 color = field[stacker++];
+   fpu color = memory::pop();
    video::clear(color);
    OPDONE;
   }
 
-  addr pixel(fpu) {
-   using namespace memory::vm::process::app::ram_local;
+  addr pixel(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(3)
-   s32 color = field[stacker++];
-   s32 y = field[stacker++];
-   s32 x = field[stacker++];
+   fpu color = memory::pop();
+   fpu y = memory::pop();
+   fpu x = memory::pop();
    video::pixel(x, y, color);
    OPDONE;
   }
 
-  addr line(fpu) {
-   using namespace memory::vm::process::app::ram_local;
+  addr line(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(5)
-   s32 color = field[stacker++];
-   s32 by = field[stacker++];
-   s32 bx = field[stacker++];
-   s32 ay = field[stacker++];
-   s32 ax = field[stacker++];
+   fpu color = memory::pop();
+   fpu by = memory::pop();
+   fpu bx = memory::pop();
+   fpu ay = memory::pop();
+   fpu ax = memory::pop();
    video::line(ax, ay, bx, by, color);
    OPDONE;
   }
 
-  addr rect(fpu) {
-   using namespace memory::vm::process::app::ram_local;
-   BAIL_UNLESS_STACK_ATLEAST(5)
-   s32 fill = field[stacker++];
-   s32 color = field[stacker++];
-   s32 height = field[stacker++];
-   s32 width = field[stacker++];
-   s32 y = field[stacker++];
-   s32 x = field[stacker++];
+  addr rect(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(6)
+   fpu fill = memory::pop();
+   fpu color = memory::pop();
+   fpu height = memory::pop();
+   fpu width = memory::pop();
+   fpu y = memory::pop();
+   fpu x = memory::pop();
    video::rect(x, y, width, height, color, fill);
    OPDONE;
   }
 
-  addr text(fpu) {
-   using namespace memory::vm::process::app::ram_local;
-   BAIL_UNLESS_STACK_ATLEAST(4)
-   s32 background = field[stacker++];
-   s32 color = field[stacker++];
-   s32 address = field[stacker++];
-   s32 y = field[stacker++];
-   s32 x = field[stacker++];
+  addr text(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(5)
+   fpu background = memory::pop();
+   fpu color = memory::pop();
+   fpu address = memory::pop();
+   fpu y = memory::pop();
+   fpu x = memory::pop();
    video::text(x, y, utility::string_pick(address), color, background);
    OPDONE;
   }
 
-  addr flip(fpu) {
+  addr flip(fpu value) {
    video::flip();
    OPDONE;
   }

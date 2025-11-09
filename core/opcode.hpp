@@ -5,7 +5,6 @@
 #define OPCODES \
  /* stack */ \
  OPI(0x11, push) \
- OPI(0x12, pop) \
  /* memory */ \
  OPI(0x13, takefrom) \
  OPI(0x14, storeto) \
