@@ -566,7 +566,7 @@ namespace interpreter {
     if (false) {}
 
     // tagged callable: module, function, or opcode
-    else if (tag_pos != string::npos) {
+    else if (tag_pos && tag_pos != string::npos) { // ensure the tag is not prefix
      string name = token.substr(0, tag_pos);
      u8 args_count = stoi(token.substr(tag_pos + 1));
 
@@ -703,6 +703,11 @@ namespace interpreter {
 
      string name = token;
      addr address = cast(addr, writer);
+
+     // event loop
+     if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).value); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
+     else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).value); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
+     else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).value); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
 
      // symbol
      symbol::table.push_back({name, address, symbol::Type::Function});

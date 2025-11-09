@@ -1,4 +1,5 @@
 #include "core/memory.hpp"
+#include "core/opcode.hpp"
 
 namespace memory {
  octo raw[SYSTEM::MEMORY];
@@ -16,6 +17,12 @@ namespace memory {
   using namespace vm::process::app;
   using namespace ram_local;
   stacker = fpu(field_length);
-  slotter = fpu(cast(s32, (field_address - ram_local_address) / sizeof(fpu)));
+  slotter = fpu(cast(s32, (field_address - ram_local_address) / sizeof(fpu))); // get the fpu index of the field in the whole ram_local
+  writer = fpu(15); // skip 3*5 for event loop jump
+
+  // event loop jump
+  bytecode[0] = op::jump; memory::unaligned_32_write(bytecode + 1, sentinel.value);
+  bytecode[5] = op::jump; memory::unaligned_32_write(bytecode + 6, sentinel.value);
+  bytecode[10] = op::jump; memory::unaligned_32_write(bytecode + 11, sentinel.value);
  }
 }

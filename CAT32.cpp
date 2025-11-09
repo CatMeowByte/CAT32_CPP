@@ -6,18 +6,28 @@
 #include "module/video.hpp"
 #include "library/sdl.hpp"
 
-void fps();
+enum class Event : u8 {Load = 15, Init = 0, Step = 5, Draw = 10};
 
-void init() {
+void event_run(Event handler) {
+ using namespace memory::vm;
+ using namespace ram_global::constant;
+ using namespace process::app::ram_local;
+ counter = fpu(cast(u8, handler));
+ while (counter < writer && sleeper == zero) {interpreter::step();}
+}
+
+int main() {
+ if (!sdl::init()) {return 1;}
+ sdl::delay(1); // wait until ready
+
+ // init
  memory::reset();
 
  video::module_register();
  utility::module_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/buttons.app");
- if (!file) {
-  cerr << "Failed to open file." << endl;
- }
+ ifstream file("/media/storage/share/cpp/CAT32/example/evloop.app");
+ if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;
  interpreter::TokenLine tokenline = {};
@@ -31,30 +41,16 @@ void init() {
  }
 
  // dedent
- tokenline = interpreter::tokenize("wait(1)");
+ tokenline = interpreter::tokenize("wait(0)"); // TODO: probably need a better take on this
  interpreter::compile(tokenline);
 
  cout << "\nBEGIN ===============================\n" << endl;
-}
 
-void update() {
- button::update();
- using namespace memory::vm::process::app::ram_local;
- if (sleeper) {sleeper--;}
- while (counter < writer && sleeper == fpu(0)) {interpreter::step();}
-}
+ event_run(Event::Load);
+ event_run(Event::Init);
 
-void draw() {
-}
-
-int main() {
- if (!sdl::init()) {return 1;}
- sdl::delay(1); // wait until ready
-
- init();
-
- constexpr float update_interval = 1000.0f / TICK::UPDATE; // ~66.666 ms
- constexpr float frame_interval = 1000.0f / TICK::DRAW; // ~8.333 ms
+ constexpr float update_interval = 1000.0f / TICK::UPDATE;
+ constexpr float frame_interval = 1000.0f / TICK::DRAW;
 
  u32 tick_prev = sdl::get_ticks();
  float update_time = 0.0f;
@@ -69,12 +65,15 @@ int main() {
   draw_time += tick_delta;
 
   while (update_time >= update_interval) {
-   update();
+   using namespace memory::vm::process::app::ram_local;
+   if (sleeper) {sleeper--;}
+   button::update();
+   event_run(Event::Step);
    update_time -= update_interval;
   }
 
   if (draw_time >= frame_interval) {
-   draw();
+   event_run(Event::Draw);
    draw_time = 0.0f;
   }
 

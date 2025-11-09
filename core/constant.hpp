@@ -16,8 +16,8 @@ namespace VIDEO {
 }
 
 namespace TICK {
- constexpr u8 UPDATE = 15;
- constexpr u8 DRAW = 30;
+ constexpr u8 UPDATE = 30;
+ constexpr u8 DRAW = 15;
 }
 
 constexpr fpu SENTINEL = fpu(-2147483648, true); // minimum negative
