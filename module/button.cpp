@@ -1,5 +1,7 @@
 #include "core/constant.hpp"  // IWYU pragma: keep
 #include "core/memory.hpp"  // IWYU pragma: keep
+#include "core/module.hpp"
+#include "core/opcode.hpp"
 #include "library/sdl.hpp"  // IWYU pragma: keep
 #include "module/button.hpp"
 
@@ -27,5 +29,18 @@ namespace button {
    else if (keymap[i].memory > fpu(0)) {keymap[i].memory = -1;}
    else if (keymap[i].memory == fpu(-1)) {keymap[i].memory = 0;}
   }
+ }
+
+ namespace wrap {
+  addr button(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(1)
+   fpu index = memory::pop();
+   opfunc::push(keymap[cast(u8, index) % KEY_COUNT].memory);
+   OPDONE;
+  }
+ }
+
+ void module_register() {
+  module::add("button", wrap::button, 1);
  }
 }

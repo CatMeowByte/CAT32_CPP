@@ -20,21 +20,15 @@ func init()
  cursor_y = 160/2
 
 func step()
- # read button states from hardware io
- var up_state = peek32(addr_up)
- var down_state = peek32(addr_down)
- var left_state = peek32(addr_left)
- var right_state = peek32(addr_right)
-
  # update cursor position based on button states
  # positive state means button pressed
- if up_state>0:
+ if button(0)>0:
   cursor_y = cursor_y-speed
- if down_state>0:
+ if button(1)>0:
   cursor_y = cursor_y+speed
- if left_state>0:
+ if button(2)>0:
   cursor_x = cursor_x-speed
- if right_state>0:
+ if button(3)>0:
   cursor_x = cursor_x+speed
 
 func draw()

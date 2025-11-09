@@ -23,6 +23,7 @@ int main() {
  // init
  memory::reset();
 
+ button::module_register();
  video::module_register();
  utility::module_register();
 
