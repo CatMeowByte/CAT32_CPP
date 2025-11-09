@@ -27,7 +27,7 @@ int main() {
  video::module_register();
  utility::module_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/evloop.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/bouncetext.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;
@@ -75,6 +75,7 @@ int main() {
 
   if (draw_time >= frame_interval) {
    event_run(Event::Draw);
+   video::flip();
    draw_time = 0.0f;
   }
 
