@@ -187,6 +187,14 @@ namespace opfunc {
   OPDONE;
  }
 
+ addr mod(fpu value) {
+  BAIL_UNLESS_STACK_ATLEAST(2)
+  fpu b = memory::pop();
+  fpu a = memory::pop();
+  push(b ? a - fpu(floor(cast(double, a / b))) * b : fpu(0));
+  OPDONE;
+ }
+
  addr neg(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   fpu a = memory::pop();

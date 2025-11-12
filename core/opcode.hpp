@@ -25,7 +25,8 @@
  OPC(0x32, sub, 2) \
  OPC(0x33, mul, 2) \
  OPC(0x34, div, 2) \
- OPC(0x35, neg, 1) \
+ OPC(0x35, mod, 2) \
+ OPC(0x36, neg, 1) \
  /* logic */ \
  OPC(0x41, eq, 2) \
  OPC(0x42, neq, 2) \

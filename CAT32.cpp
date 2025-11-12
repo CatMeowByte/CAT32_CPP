@@ -27,7 +27,7 @@ int main() {
  video::module_register();
  utility::module_register();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/bouncetext.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/modulo.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;

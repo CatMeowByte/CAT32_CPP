@@ -39,6 +39,7 @@ namespace interpreter {
   OP("-", op::sub, Precedence::Add) \
   OP("*", op::mul, Precedence::Multiply) \
   OP("/", op::div, Precedence::Multiply) \
+  OP("%", op::mod, Precedence::Multiply) \
   OP("<", op::lt, Precedence::Compare) \
   OP(">", op::gt, Precedence::Compare) \
   OP("&", op::land, Precedence::Logic) \
@@ -246,12 +247,8 @@ namespace interpreter {
    // unary "-"
    if (token == "-" && (i == 0 || math_list_operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
     // merge with number
-    if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {
-     output.push_back("-" + tokens[++i]); // skip next token
-     continue;
-    }
-    // convert to "neg"
-    token = "neg";
+    if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {token = "-" + tokens[++i];}
+    else {token = "neg";}
    }
 
    // function
@@ -645,17 +642,9 @@ namespace interpreter {
     }
 
     // number
-    // hardest part to document
-    // all detail of rounding, casting, data type is important
-    // WARNING:
-    // this utilize the fpu constructor narrowing
-    // `constexpr fpu(double x) : value(static_cast<int64_t>(x * (1 << DECIMAL_WIDTH))) {}`
-    // to skip the old nested cast
-    // `bytecode_append(op::push, cast(elem, cast(s64, round(fpu::scale(value)))));`
-    // in case things goes wrong in rounding precision
     else if ((utility::is_number(token) || utility::is_hex(token) || utility::is_bin(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : (utility::is_bin(token) ? utility::bin_to_number(token) : stod(token));
-     bytecode_append(op::push, fpu(round(value))); // rounded fixed point
+     bytecode_append(op::push, fpu(value));
     }
 
     // symbol
