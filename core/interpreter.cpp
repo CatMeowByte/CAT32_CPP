@@ -642,9 +642,10 @@ namespace interpreter {
     }
 
     // number
+    // must be documented that the stored value is the rounded representation from the scaled value
     else if ((utility::is_number(token) || utility::is_hex(token) || utility::is_bin(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
      double value = utility::is_hex(token) ? utility::hex_to_number(token) : (utility::is_bin(token) ? utility::bin_to_number(token) : stod(token));
-     bytecode_append(op::push, fpu(value));
+     bytecode_append(op::push, fpu(round(value * (1 << fpu::DECIMAL_WIDTH)), true));
     }
 
     // symbol
