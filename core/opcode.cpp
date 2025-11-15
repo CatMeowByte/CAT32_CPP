@@ -131,7 +131,7 @@ namespace opfunc {
 
  addr subret(fpu value) {
   using namespace memory::vm::process::app::ram_local;
-  if (framer == fpu(0)) {OPDONE;}
+  if (framer == fpu(0)) {return writer;} // end kernel event loop
   addr address = frames[--framer];
   return address + 5;
  }
