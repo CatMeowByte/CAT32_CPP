@@ -100,7 +100,7 @@ namespace utility {
   using namespace memory::vm::process::app;
   string out;
   for (s32 i = 0; i < cast(s32, ram_local_fpu[address]); i++) {
-   out += cast(char, cast(s32, ram_local_fpu[address + 1 + i]));
+   out += cast(char, (ram_local_fpu[address + 1 + i / 4].value >> ((i % 4) * 8)) & 0xFF);
   }
   return out;
  }

@@ -1,8 +1,0 @@
-VAR X = 1
-X = 2
-X = 1+2
-X = 7+3*(9-2)/(8-5)-6
-
-CLEAR 0
-PIXEL X 2 7
-FLIP

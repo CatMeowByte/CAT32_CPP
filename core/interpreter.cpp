@@ -84,11 +84,13 @@ namespace interpreter {
    else if (operand == SIGNATURE) {value = "(unused)";}
    else {
     value = to_string(operand.value);
-    if (name == "pop" || name == "push") {
+    if (name == "push") {
      value += " (" + utility::string_no_trailing(operand) + ")";
-     if (operand >= fpu(32) && operand <= fpu(126)) { // printable ASCII
-      value += " \"" + string(1, cast(u8, operand)) + "\"";
-     }
+
+     // printable ASCII
+     value += " \"";
+     for (u8 i = 0; i < 4; i++) {value += cast(char, (operand.value >> (i * 8)) & 0xFF);}
+     value += "\"";
     }
     else if (name == "takefrom" || name == "storeto") {
      for (u32 i = 0; i < symbol::table.size(); i++) {
@@ -615,17 +617,24 @@ namespace interpreter {
 
      addr address = slotter;
      u32 length = content.size();
-     addr slot_after = cast(addr, slotter) + length + 1;
+     u32 word_count = (length + 3) / 4;  // ceiling division of 4 character per fpu
+     addr slot_after = cast(addr, slotter) + word_count + 1;
      if (set_style == SetStyle::String) {
       address = symbol::get(tokens[0]).address;
       slot_after = slotter;
      }
      bytecode_append(op::push, length);
-     for (u32 j = 0; j < length; j++) {
-      bytecode_append(op::push, fpu(content[j]));
+
+     for (u32 word = 0; word < word_count; word++) {
+      s32 packed_word = 0;
+      for (u32 character = 0; character < 4; character++) {
+       u32 char_index = word * 4 + character;
+       if (char_index < length) {packed_word |= cast(s32, content[char_index]) << (character * 8);}
+      }
+      bytecode_append(op::push, fpu(packed_word, true));
      }
 
-     for (s32 i = length; i >= 0; i--) {
+     for (s32 i = word_count; i >= 0; i--) {
       bytecode_append(op::storeto, address + i);
      }
 
@@ -803,7 +812,7 @@ namespace interpreter {
     }
     case DeclareStyle::StringFull: {
      u32 length = tokens[3].size() - 2; // exclude quotes
-     symbol::table.push_back({name, cast(addr, slotter) - (length + 1), symbol::Type::String});
+     symbol::table.push_back({name, cast(addr, slotter) - (((length + 3) / 4) + 1), symbol::Type::String}); // packed string size
 
      cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
@@ -813,7 +822,7 @@ namespace interpreter {
      s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::String});
 
-     slotter += fpu(length);
+     slotter += fpu(cast(s32, ((length + 3) / 4) + 1)); // packed string size
 
      cout << name << " empty string is stored in " << address << " with length " << length << endl;
      break;
