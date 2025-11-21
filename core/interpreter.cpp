@@ -772,7 +772,7 @@ namespace interpreter {
      token != "else" &&
      token != "func" &&
      token != "return" &&
-     !(assign_type == AssignType::Declare && i == 1)
+     !(assign_type == AssignType::Declare && (i == 1 || (i == 2 && (declare_style == DeclareStyle::StringSize || declare_style == DeclareStyle::StripeSize))))
     )
     {
      cout << "error: invalid identifier \"" << token << "\"" << endl;
@@ -818,6 +818,10 @@ namespace interpreter {
      break;
     }
     case DeclareStyle::StringSize: {
+     if (!utility::is_number(tokens[2])) {
+      cout << "error: size for " << name << " must be numeric literal" << endl;
+      break;
+     }
      address = cast(addr, slotter);
      s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::String});
@@ -842,6 +846,10 @@ namespace interpreter {
      break;
     }
     case DeclareStyle::StripeSize: {
+     if (!utility::is_number(tokens[2])) {
+      cout << "error: size for " << name << " must be numeric literal" << endl;
+      break;
+     }
      address = cast(addr, slotter);
      s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
      symbol::table.push_back({name, address, symbol::Type::Stripe});
