@@ -12,7 +12,8 @@
 namespace interpreter {
  constexpr str TOKEN_TAG = "$"; // token tagged with this symbol can only be generated internally
  constexpr str SYMBOL_STRING_PREFIX = "str:";
- constexpr u8 ARGUMENT_OPTIONAL = '='; // cannot cnage to colon `:` because it would bugs header end symbol which supposed to be unused symbol aaarrrggghhh!!!
+ constexpr str ADDRESS_OF = "@";
+ constexpr str ARGUMENT_OPTIONAL = "="; // cannot cnage to colon `:` because it would bugs header end symbol which supposed to be unused symbol aaarrrggghhh!!!
 
  enum class Precedence : u8 {
   Base = 0,
@@ -172,6 +173,12 @@ namespace interpreter {
     }
    }
 
+   // addressof
+   if (c == ADDRESS_OF[0] && token.empty()) {
+    token += c;
+    continue;
+   }
+
    // operators
    bool operator_matched = false;
    for (u8 len : {2, 1}) {
@@ -208,7 +215,7 @@ namespace interpreter {
    // variable (alphabet, _, or optional argument assignment)
    // WARNING: this is not the elegant way to handle argument assignment symbol
    // for now it is a hacky way to make optional argument compilable
-   if (isalpha(c) || c == '_' || c == ARGUMENT_OPTIONAL) {
+   if (isalpha(c) || c == '_' || c == ARGUMENT_OPTIONAL[0]) {
     token += c;
     continue;
    }
@@ -316,6 +323,7 @@ namespace interpreter {
     // emit offset operator after close bracket
     else if (token == "]") {
      output.push_back(TOKEN_TAG + string("offset"));
+     for (const string& t : output) {if (t[0] == ADDRESS_OF[0]) {output.back() += ADDRESS_OF; break;}}
     }
    }
 
@@ -544,8 +552,6 @@ namespace interpreter {
    assign_type = AssignType::Set;
    set_style = SetStyle::Variable;
 
-   u64 has_hash = tokens[0].find('#');
-   if (has_hash != string::npos && symbol::exist(tokens[0].substr(0, has_hash))) {set_style = SetStyle::Stripe;}
    if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::String;}
   }
 
@@ -657,6 +663,16 @@ namespace interpreter {
      bytecode_append(op::push, fpu(round(value * (1 << fpu::DECIMAL_WIDTH)), true));
     }
 
+    // addressof
+    else if (token[0] == ADDRESS_OF[0]) {
+     string symbol_name = token.substr(1);
+     if (!symbol::exist(symbol_name)) {
+      cout << "error: symbol \"" << symbol_name << "\" not found" << endl;
+      continue;
+     }
+     bytecode_append(op::push, symbol::get(symbol_name).address);
+    }
+
     // symbol
     else if (symbol::exist(token)) {
      if (header_type == HeaderType::Function) {continue;}
@@ -682,9 +698,10 @@ namespace interpreter {
     }
 
     // stripe offset
-    else if (token == TOKEN_TAG + string("offset")) {
+    else if (token.find(TOKEN_TAG + string("offset")) == 0) {
      bytecode_append(op::add, SIGNATURE);
-     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;}
+     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;} // stripe assignment handles storage internally
+     if (token.back() == ADDRESS_OF[0]) {continue;} // address semantics require raw address
      bytecode_append(op::get, SIGNATURE);
     }
 

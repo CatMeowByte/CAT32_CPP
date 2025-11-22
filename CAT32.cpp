@@ -27,6 +27,8 @@ int main() {
  video::module_register();
  utility::module_register();
 
+ cout << "\nLOAD ===============================\n" << endl;
+
  ifstream file("/media/storage/share/cpp/CAT32/example/packedstring.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
@@ -45,7 +47,7 @@ int main() {
  tokenline = interpreter::tokenize("wait(0)"); // TODO: probably need a better take on this
  interpreter::compile(tokenline);
 
- cout << "\nBEGIN ===============================\n" << endl;
+ cout << "\nRUN ===============================\n" << endl;
 
  event_run(Event::Load);
  event_run(Event::Init);

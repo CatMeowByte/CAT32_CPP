@@ -137,6 +137,7 @@ namespace opfunc {
  }
 
  addr jump(fpu value) {
+  if (value == SENTINEL) {return memory::vm::process::app::ram_local::writer;}
   return value;
  }
 
