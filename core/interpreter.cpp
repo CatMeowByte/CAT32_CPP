@@ -564,8 +564,9 @@ namespace interpreter {
    // cout << "BREAK: "; for (const string &token : expression_breaked) {cout << "'" << token << "' ";} cout << endl;
    vector<string> expression_ordered = postfix(expression_breaked);
    // cout << "SORT: "; for (const string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
-   for (u32 j = 0; j < expression_ordered.size(); j++) {
-    const string& token = expression_ordered[j];
+   const vector<string>& expression = expression_ordered;
+   for (u32 j = 0; j < expression.size(); j++) {
+    const string& token = expression[j];
     const u64 tag_pos = token.find(TOKEN_TAG);
 
     if (false) {}
@@ -700,7 +701,7 @@ namespace interpreter {
     // stripe offset
     else if (token.find(TOKEN_TAG + string("offset")) == 0) {
      bytecode_append(op::add, SIGNATURE);
-     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression_ordered.size() - 1) {continue;} // stripe assignment handles storage internally
+     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression.size() - 1) {continue;} // stripe assignment handles storage internally
      if (token.back() == ADDRESS_OF[0]) {continue;} // address semantics require raw address
      bytecode_append(op::get, SIGNATURE);
     }
@@ -732,11 +733,11 @@ namespace interpreter {
 
      // arguments
      address = cast(addr, slotter);
-     u8 args_count = expression_ordered.size() - 1;
+     u8 args_count = expression.size() - 1;
      addr slot_after = cast(addr, slotter) + args_count;
      bool in_required = false;
      for (s32 i = args_count; i > 0; i--) {
-      name = expression_ordered[i];
+      name = expression[i];
 
       // TODO:
       // the grace way to handle default value assignment is probably by making the argument assignment symbol a separate token
@@ -749,7 +750,7 @@ namespace interpreter {
        if (name.empty()) {continue;}
 
        if (in_required) {
-        cout << "error: required " << expression_ordered[i + 1] << " after optional " << name << " is not allowed" << endl;
+        cout << "error: required " << expression[i + 1] << " after optional " << name << " is not allowed" << endl;
         return;
        }
 
