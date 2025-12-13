@@ -81,7 +81,7 @@ namespace interpreter {
   );
   string value = "";
   if (has_operand) {
-   if (operand == SENTINEL) {value = "!UNPATCHED!";}
+   if (operand == memory::vm::ram_global::constant::sentinel) {value = "!UNPATCHED!";}
    else if (operand == SIGNATURE) {value = "(unused)";}
    else {
     value = to_string(operand.value);
@@ -235,9 +235,52 @@ namespace interpreter {
   return Precedence::Base;
  }
 
+ static void fold(vector<string>& output, vector<string>& stash, const string& incoming_token = "", const string& stop_at = "") {
+  while (
+   output.size() >= 2
+   && utility::is_number(output[output.size() - 1])
+   && utility::is_number(output[output.size() - 2])
+   && !stash.empty()
+   && (incoming_token.empty() || precedence(stash.back()) >= precedence(incoming_token))
+   && (stop_at.empty() || stash.back() != stop_at)
+  ) {
+   fpu b = fpu(stod(output.back())); output.pop_back();
+   fpu a = fpu(stod(output.back())); output.pop_back();
+   octo opcode = math_opcodes.at(stash.back()); stash.pop_back();
+
+   fpu result;
+   #define OP(name, expr) case op::name: {result = expr; break;}
+   switch (opcode) {
+    OP(eq, a == b ? 1 : 0)
+    OP(neq, a != b ? 1 : 0)
+    OP(leq, a <= b ? 1 : 0)
+    OP(geq, a >= b ? 1 : 0)
+    OP(band, a & b)
+    OP(bor, a | b)
+    OP(bnot, ~a)
+    OP(bshl, a << cast(s32, b))
+    OP(bshr, a >> cast(s32, b))
+    OP(add, a + b)
+    OP(sub, a - b)
+    OP(mul, a * b)
+    OP(div, b ? a / b : fpu(0))
+    OP(mod, b ? a - fpu(floor(cast(double, a / b))) * b : fpu(0))
+    OP(lt, a < b ? 1 : 0)
+    OP(gt, a > b ? 1 : 0)
+    OP(land, (a && b) ? 1 : 0)
+    OP(lor, (a || b) ? 1 : 0)
+    OP(lnot, !a ? 1 : 0)
+    default: {result = 0; break;}
+   }
+   #undef OP
+
+   output.push_back(utility::string_no_trailing(result));
+  }
+ }
+
  static vector<string> postfix(const vector<string>& tokens) {
   vector<string> output;
-  vector<string> operator_stack;
+  vector<string> stash;
   vector<u8> paren_args_count;
 
   for (u32 i = 0; i < tokens.size(); i++) {
@@ -245,13 +288,17 @@ namespace interpreter {
 
    // flush when comma
    if (token == ",") {
-    while (!operator_stack.empty() && operator_stack.back() != "(") {
-     output.push_back(operator_stack.back());
-     operator_stack.pop_back();
+    while (!stash.empty() && stash.back() != "(") {
+     output.push_back(stash.back());
+     stash.pop_back();
     }
     if (!paren_args_count.empty()) {paren_args_count.back()++;}
     continue;
    }
+
+   // hex/bin to decimal
+   if (utility::is_hex(token)) {token = to_string(utility::hex_to_number(token));}
+   if (utility::is_bin(token)) {token = to_string(utility::bin_to_number(token));}
 
    // unary "-"
    if (token == "-" && (i == 0 || math_list_operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
@@ -265,56 +312,57 @@ namespace interpreter {
    bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
    bool is_module = module::exist(token);
    if (is_opcode || is_function || is_module) {
-    operator_stack.push_back(token);
+    stash.push_back(token);
     continue;
    }
 
    if (math_list_operations.count(token)) {
+    // fold constant
+    fold(output, stash, token);
+
+    // defer operator
     while (
-     !operator_stack.empty()
-     && math_list_operations.count(operator_stack.back())
-     && (
-      (precedence(operator_stack.back()) > precedence(token))
-      || (
-       precedence(operator_stack.back()) == precedence(token)
-       && true // is_left_assoc(token) // all basic ops are left-associative
-      )
-     )
+     !stash.empty()
+     && math_list_operations.count(stash.back())
+     && precedence(stash.back()) > precedence(token)
     ) {
-     output.push_back(operator_stack.back());
-     operator_stack.pop_back();
+     output.push_back(stash.back());
+     stash.pop_back();
     }
-    operator_stack.push_back(token);
+    stash.push_back(token);
    }
 
    else if (token == "(" || token == "[") {
-    operator_stack.push_back(token);
+    stash.push_back(token);
     if (token == "(") {paren_args_count.push_back(0);}
    }
 
    else if (token == ")" || token == "]") {
     string pair = (token == ")") ? "(" : "[";
 
-    while (!operator_stack.empty() && operator_stack.back() != pair) {
-     output.push_back(operator_stack.back());
-     operator_stack.pop_back();
+    while (!stash.empty() && stash.back() != pair) {
+     fold(output, stash, "", pair);
+     if (!stash.empty() && stash.back() != pair) {
+      output.push_back(stash.back());
+      stash.pop_back();
+     }
     }
-    if (!operator_stack.empty() && operator_stack.back() == pair) {
-     operator_stack.pop_back();
+    if (!stash.empty() && stash.back() == pair) {
+     stash.pop_back();
     }
 
     // tag function token with the amount of provided argument
-    if (token == ")" && !operator_stack.empty()) {
-     is_opcode = opcode::exist(operator_stack.back());
-     is_function = symbol::exist(operator_stack.back()) && symbol::get(operator_stack.back()).type == symbol::Type::Function;
-     is_module = module::exist(operator_stack.back());
+    if (token == ")" && !stash.empty()) {
+     is_opcode = opcode::exist(stash.back());
+     is_function = symbol::exist(stash.back()) && symbol::get(stash.back()).type == symbol::Type::Function;
+     is_module = module::exist(stash.back());
 
      if (is_opcode || is_function || is_module) {
       if (!paren_args_count.empty()) {
-       output.push_back(operator_stack.back() + TOKEN_TAG + to_string(cast(u32, paren_args_count.back())));
+       output.push_back(stash.back() + TOKEN_TAG + to_string(cast(u32, paren_args_count.back())));
        paren_args_count.pop_back();
       }
-      operator_stack.pop_back();
+      stash.pop_back();
      }
 
      if (!paren_args_count.empty() && paren_args_count.back() == 0) {paren_args_count.back() = 1;}
@@ -335,9 +383,12 @@ namespace interpreter {
   }
 
   // pop any remaining ops
-  while (!operator_stack.empty()) {
-   output.push_back(operator_stack.back());
-   operator_stack.pop_back();
+  while (!stash.empty()) {
+   fold(output, stash);
+   if (!stash.empty()) {
+    output.push_back(stash.back());
+    stash.pop_back();
+   }
   }
 
   return output;
@@ -454,7 +505,7 @@ namespace interpreter {
     if (tokens[0] == "else") {
      header_type = HeaderType::Else;
 
-     bytecode_append(op::jump, SENTINEL);
+     bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
      scope::last_jump_operand = writer - fpu(4);
      scope::last_line_scope_set = scope::Type::Else;
     }
@@ -511,7 +562,7 @@ namespace interpreter {
     if (scope::stack[i].type != scope::Type::While) {continue;}
 
     if (tokens[0] == "break") {
-     bytecode_append(op::jump, SENTINEL);
+     bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
      addr patch_addr = cast(addr, writer) - 4;
      scope::stack[i].break_unpatched.push_back(patch_addr);
      cout << "break stores unpatched jump at " << patch_addr << endl;
@@ -659,9 +710,8 @@ namespace interpreter {
 
     // number
     // must be documented that the stored value is the rounded representation from the scaled value
-    else if ((utility::is_number(token) || utility::is_hex(token) || utility::is_bin(token)) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
-     double value = utility::is_hex(token) ? utility::hex_to_number(token) : (utility::is_bin(token) ? utility::bin_to_number(token) : stod(token));
-     bytecode_append(op::push, fpu(round(value * (1 << fpu::DECIMAL_WIDTH)), true));
+    else if (utility::is_number(token) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
+     bytecode_append(op::push, fpu(round(stod(token) * (1 << fpu::DECIMAL_WIDTH)), true));
     }
 
     // addressof
@@ -715,7 +765,7 @@ namespace interpreter {
     // this is oneshot, inside breakdown for function name extraction
     else if (header_type == HeaderType::Function && i == 1 && j == 0) {
      scope::last_jump_operand = cast(addr, writer) + 1;
-     bytecode_append(op::jump, SENTINEL);
+     bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
      scope::last_line_scope_set = scope::Type::Function;
 
      string name = token;
@@ -803,14 +853,14 @@ namespace interpreter {
 
   // if
   if (header_type == HeaderType::If) {
-   bytecode_append(op::jumz, SENTINEL);
+   bytecode_append(op::jumz, memory::vm::ram_global::constant::sentinel);
    scope::last_jump_operand = cast(addr, writer) - 4;
    scope::last_line_scope_set = scope::Type::If;
   }
 
   // while
   if (header_type == HeaderType::While) {
-   bytecode_append(op::jumz, SENTINEL);
+   bytecode_append(op::jumz, memory::vm::ram_global::constant::sentinel);
    scope::last_jump_operand = cast(addr, writer) - 4;
    scope::last_line_scope_set = scope::Type::While;
   }
@@ -818,7 +868,7 @@ namespace interpreter {
   // declaration
   if (assign_type == AssignType::Declare) {
    string name = tokens[1];
-   addr address = SENTINEL;
+   addr address = memory::vm::ram_global::constant::sentinel;
 
    switch (declare_style) {
     case DeclareStyle::Variable: {
@@ -909,7 +959,7 @@ namespace interpreter {
 
   octo opcode = bytecode[counter];
   fpu operand = fpu(memory::unaligned_32_read(bytecode + counter + 1), true);
-  addr result = SENTINEL;
+  addr result = memory::vm::ram_global::constant::sentinel;
 
   // debug_opcode(opcode, operand, counter);
 
@@ -921,7 +971,7 @@ namespace interpreter {
    #undef OPC
   }
 
-  if (result == cast(addr, SENTINEL)) {counter += 5;}
+  if (result == cast(addr, memory::vm::ram_global::constant::sentinel)) {counter += 5;}
   else {counter = result;}
  }
 }
@@ -949,7 +999,7 @@ namespace scope {
  vector<Frame> stack;
  u8 previous = 0;
 
- addr last_jump_operand = SENTINEL;
- addr last_line_start = SENTINEL;
+ addr last_jump_operand = memory::vm::ram_global::constant::sentinel;
+ addr last_line_start = memory::vm::ram_global::constant::sentinel;
  Type last_line_scope_set = Type::Generic;
 }

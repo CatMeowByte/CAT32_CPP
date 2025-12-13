@@ -72,7 +72,7 @@ namespace opcode {
 }
 
 // return
-#define OPDONE return SENTINEL
+#define OPDONE return memory::vm::ram_global::constant::sentinel
 
 // boundary check
 #define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= 0) {OPDONE;}}
