@@ -604,6 +604,14 @@ namespace interpreter {
    set_style = SetStyle::Variable;
 
    if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::String;}
+
+   u64 bracket_pos = tokens[0].find('[');
+   if (bracket_pos != string::npos) {
+    string base_name = tokens[0].substr(0, bracket_pos);
+    if (symbol::exist(base_name) && symbol::get(base_name).type == symbol::Type::Stripe) {
+     set_style = SetStyle::Stripe;
+    }
+   }
   }
 
   // token breakdown
