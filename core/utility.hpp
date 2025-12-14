@@ -9,6 +9,8 @@ namespace utility {
 
  bool is_number(const string& text);
 
+ bool is_identifier(const string& text);
+
  bool is_hex(const string& text);
 
  double hex_to_number(const string& text);

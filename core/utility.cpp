@@ -26,6 +26,13 @@ namespace utility {
   return has_digit;
  }
 
+ bool is_identifier(const string& text) {
+  if (text.empty()) {return false;}
+  if (!isalpha(text[0]) && text[0] != '_') {return false;}
+  for (char c : text) {if (!isalnum(c) && c != '_') {return false;}}
+  return true;
+ }
+
  bool is_hex(const string& text) {
   if (text.size() < 3 || text[0] != '0' || (text[1] != 'x' && text[1] != 'X')) {return false;}
   bool has_dot = false;

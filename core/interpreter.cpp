@@ -13,7 +13,7 @@ namespace interpreter {
  constexpr str TOKEN_TAG = "$"; // token tagged with this symbol can only be generated internally
  constexpr str SYMBOL_STRING_PREFIX = "str:";
  constexpr str ADDRESS_OF = "@";
- constexpr str ARGUMENT_OPTIONAL = "="; // cannot cnage to colon `:` because it would bugs header end symbol which supposed to be unused symbol aaarrrggghhh!!!
+ constexpr str ARGUMENT_OPTIONAL = ":";
 
  enum class Precedence : u8 {
   Base = 0,
@@ -206,16 +206,24 @@ namespace interpreter {
     continue;
    }
 
+   // optional argument assignment
+   if (c == ARGUMENT_OPTIONAL[0]) {
+    if (!token.empty()) {
+     tokens.push_back(token);
+     token.clear();
+    }
+    tokens.push_back(ARGUMENT_OPTIONAL);
+    continue;
+   }
+
    // number/decimal (digits or one dot)
    if (isdigit(c) || (c == '.' && !token.empty() && all_of(token.begin(), token.end(), cast(int(*)(int), isdigit)) && token.find('.') == string::npos)) {
     token += c;
     continue;
    }
 
-   // variable (alphabet, _, or optional argument assignment)
-   // WARNING: this is not the elegant way to handle argument assignment symbol
-   // for now it is a hacky way to make optional argument compilable
-   if (isalpha(c) || c == '_' || c == ARGUMENT_OPTIONAL[0]) {
+   // variable (alphabet, _)
+   if (isalpha(c) || c == '_') {
     token += c;
     continue;
    }
@@ -289,8 +297,11 @@ namespace interpreter {
    // flush when comma
    if (token == ",") {
     while (!stash.empty() && stash.back() != "(") {
-     output.push_back(stash.back());
-     stash.pop_back();
+     fold(output, stash, "", "(");
+     if (!stash.empty() && stash.back() != "(") {
+      output.push_back(stash.back());
+      stash.pop_back();
+     }
     }
     if (!paren_args_count.empty()) {paren_args_count.back()++;}
     continue;
@@ -307,11 +318,8 @@ namespace interpreter {
     else {token = "neg";}
    }
 
-   // function
-   bool is_opcode = opcode::exist(token);
-   bool is_function = symbol::exist(token) && symbol::get(token).type == symbol::Type::Function;
-   bool is_module = module::exist(token);
-   if (is_opcode || is_function || is_module) {
+   // callable
+   if (utility::is_identifier(token) && i + 1 < tokens.size() && tokens[i + 1] == "(") {
     stash.push_back(token);
     continue;
    }
@@ -351,13 +359,9 @@ namespace interpreter {
      stash.pop_back();
     }
 
-    // tag function token with the amount of provided argument
+    // tag callable token with the amount of provided argument
     if (token == ")" && !stash.empty()) {
-     is_opcode = opcode::exist(stash.back());
-     is_function = symbol::exist(stash.back()) && symbol::get(stash.back()).type == symbol::Type::Function;
-     is_module = module::exist(stash.back());
-
-     if (is_opcode || is_function || is_module) {
+     if (utility::is_identifier(stash.back())) {
       if (!paren_args_count.empty()) {
        output.push_back(stash.back() + TOKEN_TAG + to_string(cast(u32, paren_args_count.back())));
        paren_args_count.pop_back();
@@ -643,46 +647,124 @@ namespace interpreter {
 
     if (false) {}
 
-    // tagged callable: module, function, or opcode
+    // function
+    // this is oneshot, inside breakdown for function name extraction
+    else if (header_type == HeaderType::Function && i == 1 && j == 0) {
+     scope::last_jump_operand = cast(addr, writer) + 1;
+     bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
+     scope::last_line_scope_set = scope::Type::Function;
+
+     string name_tagged = expression.back();
+     u64 tag_pos = name_tagged.find(TOKEN_TAG);
+     string name = name_tagged.substr(0, tag_pos);
+     addr address = cast(addr, writer);
+
+     // event loop
+     if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).value); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
+     else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).value); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
+     else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).value); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
+
+     // symbol
+     symbol::table.push_back({name, address, symbol::Type::Function});
+     cout << name << " function is written at bytecode [" << address << "]" << endl;
+     const u32 function_symbol_index = symbol::table.size() - 1; // prevent invalidation
+
+     // arguments
+     address = cast(addr, slotter);
+     const u8 args_count = tag_pos == string::npos ? 0 : stoi(name_tagged.substr(tag_pos + 1));
+     s32 slot = args_count - 1;
+     string last_required = "";
+
+     for (s32 i = cast(s32, expression.size()) - 2; i >= 0; i--) {
+      const string& token = expression[i];
+
+      // skip constant, must preceded by separator
+      if (utility::is_number(token)) {
+       if (i - 1 < 0 || expression[i - 1] != ARGUMENT_OPTIONAL) {
+        cout << "error: constant without assignment in argument list" << endl;
+        return;
+       }
+       continue;
+      }
+
+      // skip separator, must preceded by name
+      if (token == ARGUMENT_OPTIONAL) {
+       if (i - 1 < 0 || utility::is_number(expression[i - 1]) || expression[i - 1] == ARGUMENT_OPTIONAL || math_opcodes.count(expression[i - 1])) {
+        cout << "error: assignment without name" << endl;
+        return;
+       }
+       continue;
+      }
+
+      // reject operator
+      if (math_opcodes.count(token)) {cout << "error: invalid expression" << endl; return;}
+
+      // name
+      if (i + 1 < cast(s32, expression.size()) && expression[i + 1] == ARGUMENT_OPTIONAL) {
+       // optional
+       if (i + 2 >= cast(s32, expression.size())) {cout << "error: assignment without default value" << endl; return;}
+       if (!utility::is_number(expression[i + 2])) {cout << "error: default value must be constant expression" << endl; return;}
+       if (!last_required.empty()) {cout << "error: optional " << token << " after required " << last_required << " is not allowed" << endl; return;}
+
+       fpu default_value = stod(expression[i + 2]);
+       symbol::table[function_symbol_index].args_default.insert(symbol::table[function_symbol_index].args_default.begin(), default_value);
+       symbol::table[function_symbol_index].args_count++;
+      }
+      else {
+       // required
+       last_required = token;
+       symbol::table[function_symbol_index].args_count++;
+      }
+
+      const addr args_slot = address + slot;
+      symbol::table.push_back({token, args_slot, symbol::Type::Number});
+      bytecode_append(op::storeto, args_slot);
+      cout << token << " is stored in " << args_slot << endl;
+      slot--;
+     }
+
+     slotter = address + args_count;
+     break; // ensure no further token in line is processed
+    }
+
+    // tagged callable
     else if (tag_pos && tag_pos != string::npos) { // ensure the tag is not prefix
      string name = token.substr(0, tag_pos);
-     u8 args_count = stoi(token.substr(tag_pos + 1));
+     u8 args_provided = stoi(token.substr(tag_pos + 1));
 
-     bool is_module = module::exist(name);
-     bool is_function = symbol::exist(name) && symbol::get(name).type == symbol::Type::Function;
-     bool is_opcode = opcode::exist(name);
+     u8 args_total;
+     const vector<fpu>* args_default;
+     octo emit_opcode;
+     fpu emit_operand;
 
-     u8 fn_args_count = 0;
-     const vector<fpu>* fn_args_default = nullptr;
-
-     if (is_module) {
+     if (module::exist(name)) {
       const module::Module& registered_module = module::table[module::get_index(name)];
-      fn_args_count = registered_module.args_count;
-      fn_args_default = &registered_module.args_default;
+      args_total = registered_module.args_count;
+      args_default = &registered_module.args_default;
+      emit_opcode = op::call;
+      emit_operand = module::get_index(name);
      }
-     else if (is_function) {
+     if (symbol::exist(name) && symbol::get(name).type == symbol::Type::Function) {
       const symbol::Data& function_symbol = symbol::get(name);
-      fn_args_count = function_symbol.args_count;
-      fn_args_default = &function_symbol.args_default;
+      args_total = function_symbol.args_count;
+      args_default = &function_symbol.args_default;
+      emit_opcode = op::subgo;
+      emit_operand = function_symbol.address;
      }
-     else if (is_opcode) {
-      fn_args_count = opcode::args_count(name);
+     if (opcode::exist(name)) {
+      args_total = opcode::args_count(name);
       static const vector<fpu> opcode_no_defaults = {};
-      fn_args_default = &opcode_no_defaults;
+      args_default = &opcode_no_defaults;
+      emit_opcode = opcode::get(name);
+      emit_operand = SIGNATURE;
      }
 
-     const u8 fn_args_required = fn_args_count - fn_args_default->size();
+     if (args_provided < args_total - args_default->size()) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, args_total - args_default->size()) << ", got " << cast(u32, args_provided) << ")" << endl;}
+     if (args_provided > args_total) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, args_total) << ", got " << cast(u32, args_provided) << ")" << endl;}
 
-     if (args_count < fn_args_required) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, fn_args_required) << ", got " << cast(u32, args_count) << ")" << endl;}
-     if (args_count > fn_args_count) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, fn_args_count) << ", got " << cast(u32, args_count) << ")" << endl;}
+     for (u8 i = args_provided; i < args_total; i++) {bytecode_append(op::push, (*args_default)[i - (args_total - args_default->size())]);}
 
-     for (u8 i = args_count; i < fn_args_count; i++) {
-      bytecode_append(op::push, (*fn_args_default)[i - fn_args_required]);
-     }
-
-     if (is_module) {bytecode_append(op::call, module::get_index(name));}
-     else if (is_function) {bytecode_append(op::subgo, symbol::get(name).address);}
-     else if (is_opcode) {bytecode_append(opcode::get(name), SIGNATURE);}
+     bytecode_append(emit_opcode, emit_operand);
     }
 
     // string
@@ -747,7 +829,6 @@ namespace interpreter {
 
     // symbol
     else if (symbol::exist(token)) {
-     if (header_type == HeaderType::Function) {continue;}
      const symbol::Data& symbol = symbol::get(token);
      switch (symbol.type) {
       case symbol::Type::Number: {
@@ -780,72 +861,6 @@ namespace interpreter {
     // math operations
     else if (math_opcodes.count(token)) {
      bytecode_append(math_opcodes.at(token), SIGNATURE);
-    }
-
-    // function
-    // this is oneshot, inside breakdown for function name extraction
-    else if (header_type == HeaderType::Function && i == 1 && j == 0) {
-     scope::last_jump_operand = cast(addr, writer) + 1;
-     bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
-     scope::last_line_scope_set = scope::Type::Function;
-
-     string name = token;
-     addr address = cast(addr, writer);
-
-     // event loop
-     if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).value); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
-     else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).value); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
-     else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).value); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
-
-     // symbol
-     symbol::table.push_back({name, address, symbol::Type::Function});
-     cout << name << " function is written at bytecode [" << address << "]" << endl;
-     u32 function_symbol_index = symbol::table.size() - 1;
-
-     // arguments
-     address = cast(addr, slotter);
-     u8 args_count = expression.size() - 1;
-     addr slot_after = cast(addr, slotter) + args_count;
-     bool in_required = false;
-     for (s32 i = args_count; i > 0; i--) {
-      name = expression[i];
-
-      // TODO:
-      // the grace way to handle default value assignment is probably by making the argument assignment symbol a separate token
-      // and then if encounter it then set the symbol of [token previous] with the value of [token next]
-      // though it require space unaware token separation which means entirely more complex interpreter system
-      u64 separator_pos = name.find(ARGUMENT_OPTIONAL);
-      if (separator_pos != string::npos) { // args is optional
-       string args_value_str = name.substr(separator_pos + 1);
-       name = name.substr(0, separator_pos);
-       if (name.empty()) {continue;}
-
-       if (in_required) {
-        cout << "error: required " << expression[i + 1] << " after optional " << name << " is not allowed" << endl;
-        return;
-       }
-
-       if (!utility::is_number(args_value_str)) {
-        cout << "error: default value for " << name << " must be numeric literal" << endl;
-        continue;
-       }
-
-       symbol::table[function_symbol_index].args_default.insert(symbol::table[function_symbol_index].args_default.begin(), stod(args_value_str)); // insert in reverse order // WARNING: not expression!
-       symbol::table[function_symbol_index].args_count++;
-      }
-      else { // args is required
-       in_required = true;
-       symbol::table[function_symbol_index].args_count++;
-      }
-
-      const addr args_slot = address + (i - 1);
-      symbol::table.push_back({name, args_slot, symbol::Type::Number});
-      bytecode_append(op::storeto, args_slot);
-      cout << name << " is stored in " << args_slot << endl;
-     }
-
-     slotter = fpu(slot_after);
-     break; // ensure no further token in line is processed
     }
 
     // invalid
