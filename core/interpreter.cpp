@@ -447,9 +447,31 @@ namespace interpreter {
   using namespace ram_local;
 
   const u8& indent = line.indent;
-  const vector<string>& tokens = line.tokens;
+
+  // AST-like token
+  vector<vector<string>> tokens;
+  for (const string& token : line.tokens) {
+   vector<string> breaked = breakdown(token);
+   vector<string> postfixed = postfix(breaked);
+   tokens.push_back(postfixed);
+
+   // cout << "/: "; for (const string& t : breaked) {cout << "'" << t << "' ";} cout << endl;
+   // cout << ">: "; for (const string& t : postfixed) {cout << "'" << t << "' ";} cout << endl;
+  }
 
   if (tokens.empty()) {return;}
+
+  // debug print formatted token
+  for (u32 i = 0; i < tokens.size(); i++) {
+   cout << "[";
+   for (u32 j = 0; j < tokens[i].size(); j++) {
+    cout << "'" << tokens[i][j] << "'";
+    if (j < tokens[i].size() - 1) {cout << " ";}
+   }
+   cout << "]";
+   if (i < tokens.size() - 1) {cout << " ";}
+  }
+  cout << endl;
 
   // flag
 
@@ -465,9 +487,12 @@ namespace interpreter {
   enum class SetStyle : u8 {None, Variable, String, Stripe};
   SetStyle set_style = SetStyle::None;
 
-  bool is_expression = (find(tokens.begin(), tokens.end(), "=") == tokens.end());
+  bool is_expression = true;
+  for (const vector<string>& token : tokens) {
+   if (find(token.begin(), token.end(), "=") != token.end()) {is_expression = false; break;}
+  }
 
-  bool is_return = tokens[0] == "return";
+  bool is_return = tokens[0][0] == "return";
 
   // indent
   if (indent > scope::previous) {
@@ -502,7 +527,7 @@ namespace interpreter {
 
     // only handle else because at "else" its a single line dedent with only one keyword
     // so this handled earlier before patching the bytecode jump operand with writer
-    if (tokens[0] == "else") {
+    if (tokens[0][0] == "else") {
      header_type = HeaderType::Else;
 
      bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
@@ -544,24 +569,20 @@ namespace interpreter {
   }
   scope::previous = indent;
 
-  cout << "\n";
-  for (const string& t : tokens) {cout << t << " ";}
-  cout << endl;
-
-  if (tokens[0] == "if") {header_type = HeaderType::If;}
-  if (tokens[0] == "while") {header_type = HeaderType::While;}
-  if (tokens[0] == "func") {header_type = HeaderType::Function;}
+  if (tokens[0][0] == "if") {header_type = HeaderType::If;}
+  if (tokens[0][0] == "while") {header_type = HeaderType::While;}
+  if (tokens[0][0] == "func") {header_type = HeaderType::Function;}
   scope::last_line_start = writer;
 
   // else
   // already handled earlier in dedent
   if (header_type == HeaderType::Else) {return;}
 
-  if (tokens[0] == "break" || tokens[0] == "continue") {
+  if (tokens[0][0] == "break" || tokens[0][0] == "continue") {
    for (s32 i = scope::stack.size() - 1; i >= 0; i--) {
     if (scope::stack[i].type != scope::Type::While) {continue;}
 
-    if (tokens[0] == "break") {
+    if (tokens[0][0] == "break") {
      bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
      addr patch_addr = cast(addr, writer) - 4;
      scope::stack[i].break_unpatched.push_back(patch_addr);
@@ -574,56 +595,48 @@ namespace interpreter {
 
     return;
    }
-   cout << "error: " << tokens[0] << " outside of while loop" << endl;
+   cout << "error: " << tokens[0][0] << " outside of while loop" << endl;
    return;
   }
 
   // set type
-  if (tokens[0] == "var" && tokens[2] == "=" && tokens.size() == 4) {
+  if (tokens[0][0] == "var" && tokens[2][0] == "=" && tokens.size() == 4) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::Variable;
   }
-  if (tokens[0] == "string" && tokens[2] == "=" && tokens.size() == 4 && tokens[3].size() >= 2 && tokens[3].front() == '"' && tokens[3].back() == '"') {
+  if (tokens[0][0] == "string" && tokens[2][0] == "=" && tokens.size() == 4 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"') {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StringFull;
   }
-  if (tokens[0] == "string" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+  if (tokens[0][0] == "string" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StringSize;
   }
-  if (tokens[0] == "stripe" && tokens[2] == "=" && tokens.size() >= 4) {
+  if (tokens[0][0] == "stripe" && tokens[2][0] == "=" && tokens.size() >= 4) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StripeFull;
   }
-  if (tokens[0] == "stripe" && tokens.size() == 3 && utility::is_number(tokens[2])) {
+  if (tokens[0][0] == "stripe" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StripeSize;
   }
-  if (tokens.size() == 3 && tokens[1] == "=") {
+  if (tokens.size() == 3 && tokens[1][0] == "=") {
    assign_type = AssignType::Set;
    set_style = SetStyle::Variable;
 
-   if (symbol::exist(tokens[0]) && symbol::get(tokens[0]).type == symbol::Type::String) {set_style = SetStyle::String;}
+   if (tokens[0].size() == 1 && symbol::exist(tokens[0][0]) && symbol::get(tokens[0][0]).type == symbol::Type::String) {set_style = SetStyle::String;}
 
-   u64 bracket_pos = tokens[0].find('[');
-   if (bracket_pos != string::npos) {
-    string base_name = tokens[0].substr(0, bracket_pos);
-    if (symbol::exist(base_name) && symbol::get(base_name).type == symbol::Type::Stripe) {
-     set_style = SetStyle::Stripe;
-    }
+   if (tokens[0].size() >= 3 && tokens[0].back().find("$offset") == 0) {
+    string base_name = tokens[0][0];
+    if (symbol::exist(base_name) && symbol::get(base_name).type == symbol::Type::Stripe) {set_style = SetStyle::Stripe;}
    }
   }
 
-  // token breakdown
+  // token processing
   for (u32 i = 0; i < tokens.size(); i++) {
-   const string& token = tokens[i];
-   if (token == "=") {is_expression = true; continue;}
+   const vector<string>& expression = tokens[i];
+   if (expression.size() == 1 && expression[0] == "=") {is_expression = true; continue;}
 
-   vector<string> expression_breaked = breakdown(token);
-   // cout << "BREAK: "; for (const string &token : expression_breaked) {cout << "'" << token << "' ";} cout << endl;
-   vector<string> expression_ordered = postfix(expression_breaked);
-   // cout << "SORT: "; for (const string &token : expression_ordered) {cout << "'" << token << "' ";} cout << endl;
-   const vector<string>& expression = expression_ordered;
    for (u32 j = 0; j < expression.size(); j++) {
     const string& token = expression[j];
     const u64 tag_pos = token.find(TOKEN_TAG);
@@ -686,7 +699,7 @@ namespace interpreter {
      u32 word_count = (length + 3) / 4;  // ceiling division of 4 character per fpu
      addr slot_after = cast(addr, slotter) + word_count + 1;
      if (set_style == SetStyle::String) {
-      address = symbol::get(tokens[0]).address;
+      address = symbol::get(tokens[0][0]).address;
       slot_after = slotter;
      }
      bytecode_append(op::push, length);
@@ -738,12 +751,12 @@ namespace interpreter {
      const symbol::Data& symbol = symbol::get(token);
      switch (symbol.type) {
       case symbol::Type::Number: {
-       if (assign_type == AssignType::Set && set_style == SetStyle::Variable && !is_expression && token == tokens[0]) {break;}
+       if (assign_type == AssignType::Set && set_style == SetStyle::Variable && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
        bytecode_append(op::takefrom, symbol.address);
        break;
       }
       case symbol::Type::String: {
-       if (assign_type == AssignType::Set && set_style == SetStyle::String && !is_expression && token == tokens[0]) {break;}
+       if (assign_type == AssignType::Set && set_style == SetStyle::String && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
        bytecode_append(op::push, symbol.address);
        break;
       }
@@ -875,7 +888,7 @@ namespace interpreter {
 
   // declaration
   if (assign_type == AssignType::Declare) {
-   string name = tokens[1];
+   string name = tokens[1][0];
    addr address = memory::vm::ram_global::constant::sentinel;
 
    switch (declare_style) {
@@ -887,19 +900,19 @@ namespace interpreter {
      break;
     }
     case DeclareStyle::StringFull: {
-     u32 length = tokens[3].size() - 2; // exclude quotes
+     u32 length = tokens[3][0].size() - 2; // exclude quotes
      symbol::table.push_back({name, cast(addr, slotter) - (((length + 3) / 4) + 1), symbol::Type::String}); // packed string size
 
      cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
     }
     case DeclareStyle::StringSize: {
-     if (!utility::is_number(tokens[2])) {
-      cout << "error: size for " << name << " must be numeric literal" << endl;
+     if (tokens[2].size() != 1 || !utility::is_number(tokens[2][0])) {
+      cout << "error: size must be constant expression" << endl;
       break;
      }
      address = cast(addr, slotter);
-     s32 length = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
+     s32 length = cast(s32, stod(tokens[2][0]));
      symbol::table.push_back({name, address, symbol::Type::String});
 
      slotter += fpu(cast(s32, ((length + 3) / 4) + 1)); // packed string size
@@ -922,12 +935,12 @@ namespace interpreter {
      break;
     }
     case DeclareStyle::StripeSize: {
-     if (!utility::is_number(tokens[2])) {
-      cout << "error: size for " << name << " must be numeric literal" << endl;
+     if (tokens[2].size() != 1 || !utility::is_number(tokens[2][0])) {
+      cout << "error: size must be constant expression" << endl;
       break;
      }
      address = cast(addr, slotter);
-     s32 count = cast(s32, stof(tokens[2])); // truncate // WARNING: not expression!
+     s32 count = cast(s32, stod(tokens[2][0]));
      symbol::table.push_back({name, address, symbol::Type::Stripe});
 
      slotter += fpu(count);
@@ -943,7 +956,7 @@ namespace interpreter {
   if (assign_type == AssignType::Set) {
    switch (set_style) {
     case SetStyle::Variable: {
-     string name = tokens[0];
+     string name = tokens[0][0];
      addr address = symbol::get(name).address;
      bytecode_append(op::storeto, address);
      break;

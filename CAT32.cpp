@@ -37,10 +37,8 @@ int main() {
  // per line
  while (getline(file, line)) {
   tokenline = interpreter::tokenize(line);
+  cout << '\n' << line.substr(tokenline.indent) << endl;
   interpreter::compile(tokenline);
-
-  if (tokenline.tokens.empty()) {cout << line << endl;}
-  else {cout << endl;}
  }
 
  // dedent
