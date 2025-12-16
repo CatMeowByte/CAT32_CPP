@@ -196,23 +196,14 @@ namespace interpreter {
    }
    if (operator_matched) {continue;}
 
-   // comma
-   if (c == ',') {
+   // single-char separators
+   static const hash_set<char> separators = {'=', ',', ARGUMENT_OPTIONAL[0]};
+   if (separators.count(c)) {
     if (!token.empty()) {
      tokens.push_back(token);
      token.clear();
     }
-    tokens.push_back(",");
-    continue;
-   }
-
-   // optional argument assignment
-   if (c == ARGUMENT_OPTIONAL[0]) {
-    if (!token.empty()) {
-     tokens.push_back(token);
-     token.clear();
-    }
-    tokens.push_back(ARGUMENT_OPTIONAL);
+    tokens.push_back(string(1, c));
     continue;
    }
 
