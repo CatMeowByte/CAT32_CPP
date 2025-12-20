@@ -29,7 +29,7 @@ int main() {
 
  cout << "\nLOAD ===============================\n" << endl;
 
- ifstream file("/media/storage/share/cpp/CAT32/example/constant.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/recursive.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;

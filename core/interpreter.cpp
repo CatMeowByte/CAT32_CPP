@@ -660,6 +660,30 @@ namespace interpreter {
    // skip constant declaration value
    if (i == 3 && declare_style == DeclareStyle::Constant) {continue;}
 
+   // check recursive
+   s32 recursive_index = -1;
+   for (const string& token : expression) {
+    u64 tag_pos = token.find(TOKEN_TAG);
+    if (!tag_pos || tag_pos == string::npos) {continue;}
+
+    string name = token.substr(0, tag_pos);
+    if (!symbol::exist(name) || symbol::get(name).type != symbol::Type::Function) {break;}
+
+    // find current function scope
+    for (s32 k = scope::stack.size() - 1; k >= 0; k--) {
+     if (scope::stack[k].type != scope::Type::Function) {continue;}
+     if (scope::stack[k].header_start + 5 != symbol::get(name).address) {break;}
+
+     recursive_index = k;
+     // stash recursive argument
+     for (u32 m = scope::stack[k].symbol_start - symbol::get(name).args_count; m < scope::stack[k].symbol_start; m++) {
+      bytecode_append(op::takefrom, symbol::table[m].address);
+     }
+     break;
+    }
+    break;
+   }
+
    for (u32 j = 0; j < expression.size(); j++) {
     const string& token = expression[j];
     const u64 tag_pos = token.find(TOKEN_TAG);
@@ -784,6 +808,13 @@ namespace interpreter {
      for (u8 i = args_provided; i < args_total; i++) {bytecode_append(op::push, (*args_default)[i - (args_total - args_default->size())]);}
 
      bytecode_append(emit_opcode, emit_operand);
+
+     // pop recursive argument
+     if (recursive_index != -1) {
+      for (s32 j = scope::stack[recursive_index].symbol_start - 1; j >= cast(s32, scope::stack[recursive_index].symbol_start - args_total); j--) {
+       bytecode_append(op::storeto, symbol::table[j].address);
+      }
+     }
     }
 
     // string
