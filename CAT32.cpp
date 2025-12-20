@@ -29,21 +29,19 @@ int main() {
 
  cout << "\nLOAD ===============================\n" << endl;
 
- ifstream file("/media/storage/share/cpp/CAT32/example/deferfold.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/constant.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;
- interpreter::TokenLine tokenline = {};
  // per line
  while (getline(file, line)) {
-  tokenline = interpreter::tokenize(line);
-  cout << '\n' << line.substr(tokenline.indent) << endl;
-  interpreter::compile(tokenline);
+  vector<vector<string>> tokens = interpreter::tokenize(line);
+  cout << '\n' << line.substr(stoi(tokens[0][0])) << endl;
+  interpreter::compile(tokens);
  }
 
  // dedent
- tokenline = interpreter::tokenize("wait(0)"); // TODO: probably need a better take on this
- interpreter::compile(tokenline);
+ interpreter::compile(interpreter::tokenize("wait(0)")); // TODO: probably need a better take on this
 
  cout << "\nRUN ===============================\n" << endl;
 

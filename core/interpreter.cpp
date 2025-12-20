@@ -15,6 +15,9 @@ namespace interpreter {
  constexpr str ADDRESS_OF = "@";
  constexpr str ARGUMENT_OPTIONAL = ":";
 
+ static const hash_set<string> keywords_declaration = {"var", "con", "string", "stripe", "func"};
+ static const hash_set<string> keywords_control = {"if", "while", "else", "break", "continue", "return"};
+
  enum class Precedence : u8 {
   Base = 0,
   Logic = 0,
@@ -59,14 +62,10 @@ namespace interpreter {
   #undef OP
  };
 
- static const hash_set<string> math_list_operations_bracket = {
-  #define OP(sym, code, prec) sym,
+ static const hash_map<string, Precedence> operator_precedence = {
+  #define OP(sym, code, prec) {sym, prec},
   SORTED_OPERATORS
   #undef OP
-  "(",
-  ")",
-  "[",
-  "]",
  };
 
  static void debug_opcode(octo opcode, fpu operand, addr ticker) {
@@ -127,6 +126,48 @@ namespace interpreter {
   writer += 5;
  }
 
+ static vector<string> slice(const string& text) {
+  vector<string> tokens;
+  string token;
+  bool in_quote = false;
+
+  for (u32 character = 0; character <= text.size(); character++) {
+   const char c = (character < text.size() ? text[character] : ' ');
+
+   // quote (with backslash escape)
+   if (c == '"') {
+    u8 bs = 0;
+    for (u32 pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
+    if (bs % 2 == 0) in_quote = !in_quote;
+    token += c;
+    continue;
+   }
+
+   // inside quote
+   if (in_quote) {
+    token += c;
+    continue;
+   }
+
+   // comment (skip rest of line)
+   if (!in_quote && c == '#') {break;}
+
+   // boundary on space or end string
+   if (c == ' ' || character == text.size()) {
+    if (!token.empty()) {
+     tokens.push_back(token);
+     token.clear();
+    }
+    continue;
+   }
+
+   // build token
+   token += c;
+  }
+
+  return tokens;
+ }
+
  static vector<string> breakdown(const string& expression) {
   vector<string> tokens;
   string token;
@@ -183,7 +224,11 @@ namespace interpreter {
    bool operator_matched = false;
    for (u8 len : {2, 1}) {
     string candidate = expression.substr(i, len);
-    if (math_list_operations_bracket.count(candidate)) {
+    if (
+     math_list_operations.count(candidate)
+     || candidate == "(" || candidate == ")"
+     || candidate == "[" || candidate == "]"
+    ) {
      if (!token.empty()) {
       tokens.push_back(token);
       token.clear();
@@ -227,11 +272,28 @@ namespace interpreter {
   return tokens;
  }
 
- static Precedence precedence(const string& op) {
-  #define OP(sym, code, prec) if (op == sym) {return prec;}
-  SORTED_OPERATORS
-  #undef OP
-  return Precedence::Base;
+ static void substitute(vector<vector<string>>& tokens) {
+  for (u32 i = 1; i < tokens.size(); i++) { // skip metadata token 0
+   for (u32 j = 0; j < tokens[i].size(); j++) {
+    // skip first token in lhs
+    if (j == 0 && tokens.size() > 2) { if (
+      (i == 2 && keywords_declaration.count(tokens[1][0])) // declare
+      || (i == 1 && tokens[i].size() == 1 && tokens[2][0] == "=") // assign
+     ) {continue;}
+    }
+
+    string& token = tokens[i][j];
+
+    // hex/bin to decimal
+    if (utility::is_hex(token)) {token = to_string(utility::hex_to_number(token));}
+    if (utility::is_bin(token)) {token = to_string(utility::bin_to_number(token));}
+
+    // constant
+    if (symbol::exist(token) && symbol::get(token).type == symbol::Type::Constant) {
+     token = utility::string_no_trailing(symbol::get(token).value);
+    }
+   }
+  }
  }
 
  static void fold(vector<string>& output, vector<string>& stash, const string& incoming_token = "", const string& stop_at = "") {
@@ -240,7 +302,7 @@ namespace interpreter {
    && utility::is_number(output[output.size() - 1])
    && utility::is_number(output[output.size() - 2])
    && !stash.empty()
-   && (incoming_token.empty() || precedence(stash.back()) >= precedence(incoming_token))
+   && (incoming_token.empty() || operator_precedence.at(stash.back()) >= operator_precedence.at(incoming_token))
    && (stop_at.empty() || stash.back() != stop_at)
   ) {
    fpu b = fpu(stod(output.back())); output.pop_back();
@@ -298,10 +360,6 @@ namespace interpreter {
     continue;
    }
 
-   // hex/bin to decimal
-   if (utility::is_hex(token)) {token = to_string(utility::hex_to_number(token));}
-   if (utility::is_bin(token)) {token = to_string(utility::bin_to_number(token));}
-
    // unary "-"
    if (token == "-" && (i == 0 || math_list_operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
     // merge with number
@@ -323,7 +381,7 @@ namespace interpreter {
     while (
      !stash.empty()
      && math_list_operations.count(stash.back())
-     && precedence(stash.back()) > precedence(token)
+     && operator_precedence.at(stash.back()) > operator_precedence.at(token)
     ) {
      output.push_back(stash.back());
      stash.pop_back();
@@ -389,70 +447,28 @@ namespace interpreter {
   return output;
  }
 
- TokenLine tokenize(const string& line) {
+ vector<vector<string>> tokenize(const string& line) {
   u8 indent = 0;
-  while (indent < line.size() && line[indent] == ' ') {
-   indent++;
-  }
-  const string text = line.substr(indent);
+  while (indent < line.size() && line[indent] == ' ') {indent++;}
 
-  vector<string> pack;
-  string token;
-  bool in_quote = false;
+  vector<vector<string>> tokens;
+  tokens.push_back({to_string(indent)});
 
-  for (u32 character = 0; character <= text.size(); character++) {
-   const char c = (character < text.size() ? text[character] : ' ');
+  for (const string& token : slice(line.substr(indent))) {tokens.push_back(breakdown(token));}
 
-   // quote (with backslash escape)
-   if (c == '"') {
-    u8 bs = 0;
-    for (u32 pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
-    if (bs % 2 == 0) in_quote = !in_quote;
-    token += c;
-    continue;
-   }
+  substitute(tokens);
 
-   // inside quote
-   if (in_quote) {
-    token += c;
-    continue;
-   }
+  for (vector<string>& token : tokens) {token = postfix(token);}
 
-   // comment (skip rest of line)
-   if (!in_quote && c == '#') {break;}
-
-   // boundary on space or end string
-   if (c == ' ' || character == text.size()) {
-    if (!token.empty()) {
-     pack.push_back(token);
-     token.clear();
-    }
-    continue;
-   }
-
-   // build token
-   token += c;
-  }
-
-  return {indent, pack};
+  return tokens;
  }
 
- void compile(const TokenLine& line) {
+ void compile(const vector<vector<string>>& line_tokens) {
   using namespace memory::vm::process::app;
   using namespace ram_local;
 
-  const u8& indent = line.indent;
-
-  // AST-like token
-  vector<vector<string>> tokens;
-  for (const string& token : line.tokens) {
-   vector<string> breaked = breakdown(token);
-   vector<string> postfixed = postfix(breaked);
-   tokens.push_back(postfixed);
-
-   // cout << "/: "; for (const string& t : breaked) {cout << "'" << t << "' ";} cout << endl;
-   // cout << ">: "; for (const string& t : postfixed) {cout << "'" << t << "' ";} cout << endl;
-  }
+  u8 indent = stoi(line_tokens[0][0]);
+  vector<vector<string>> tokens(line_tokens.begin() + 1, line_tokens.end());
 
   if (tokens.empty()) {return;}
 
@@ -476,7 +492,7 @@ namespace interpreter {
   enum class AssignType : u8 {None, Declare, Set};
   AssignType assign_type = AssignType::None;
 
-  enum class DeclareStyle : u8 {None, Variable, StringFull, StringSize, StripeFull, StripeSize};
+  enum class DeclareStyle : u8 {None, Variable, Constant, StringFull, StringSize, StripeFull, StripeSize};
   DeclareStyle declare_style = DeclareStyle::None;
 
   enum class SetStyle : u8 {None, Variable, String, Stripe};
@@ -599,6 +615,10 @@ namespace interpreter {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::Variable;
   }
+  if (tokens[0][0] == "con" && tokens[2][0] == "=" && tokens.size() == 4) {
+   assign_type = AssignType::Declare;
+   declare_style = DeclareStyle::Constant;
+  }
   if (tokens[0][0] == "string" && tokens[2][0] == "=" && tokens.size() == 4 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"') {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StringFull;
@@ -619,6 +639,11 @@ namespace interpreter {
    assign_type = AssignType::Set;
    set_style = SetStyle::Variable;
 
+   if (tokens[0].size() == 1 && symbol::exist(tokens[0][0]) && symbol::get(tokens[0][0]).type == symbol::Type::Constant) {
+    cout << "error: cannot assign to constant \"" << tokens[0][0] << "\"" << endl;
+    return;
+   }
+
    if (tokens[0].size() == 1 && symbol::exist(tokens[0][0]) && symbol::get(tokens[0][0]).type == symbol::Type::String) {set_style = SetStyle::String;}
 
    if (tokens[0].size() >= 3 && tokens[0].back().find("$offset") == 0) {
@@ -631,6 +656,9 @@ namespace interpreter {
   for (u32 i = 0; i < tokens.size(); i++) {
    const vector<string>& expression = tokens[i];
    if (expression.size() == 1 && expression[0] == "=") {is_expression = true; continue;}
+
+   // skip constant declaration value
+   if (i == 3 && declare_style == DeclareStyle::Constant) {continue;}
 
    for (u32 j = 0; j < expression.size(); j++) {
     const string& token = expression[j];
@@ -859,14 +887,8 @@ namespace interpreter {
     // unfortunately, it seems like this is important and had to be this way
     // please reconsider
     else if (
-     token != "var" &&
-     token != "string" &&
-     token != "stripe" &&
-     token != "if" &&
-     token != "while" &&
-     token != "else" &&
-     token != "func" &&
-     token != "return" &&
+     !keywords_declaration.count(token) &&
+     !keywords_control.count(token) &&
      !(assign_type == AssignType::Declare && (i == 1 || (i == 2 && (declare_style == DeclareStyle::StringSize || declare_style == DeclareStyle::StripeSize))))
     )
     {
@@ -903,6 +925,16 @@ namespace interpreter {
      symbol::table.push_back({name, address, symbol::Type::Number});
      bytecode_append(op::storeto, address);
      cout << name << " is stored in " << address << endl;
+     break;
+    }
+    case DeclareStyle::Constant: {
+     if (tokens[3].size() != 1 || !utility::is_number(tokens[3][0])) {
+      cout << "error: value must be constant expression" << endl;
+      break;
+     }
+     fpu value = stod(tokens[3][0]);
+     symbol::table.push_back({name, memory::vm::ram_global::constant::sentinel, symbol::Type::Constant, value});
+     cout << name << " constant is " << utility::string_no_trailing(value) << endl;
      break;
     }
     case DeclareStyle::StringFull: {

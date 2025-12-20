@@ -4,19 +4,16 @@
 
 
 namespace interpreter {
- struct TokenLine {
-  u8 indent;
-  vector<string> tokens;
- };
 
- TokenLine tokenize(const string& text);
- void compile(const TokenLine& tokens);
+ vector<vector<string>> tokenize(const string& line);
+ void compile(const vector<vector<string>>& line_tokens);
  void step();
 }
 
 namespace symbol {
  enum class Type : u8 {
   Number,
+  Constant,
   String,
   Stripe,
   Function,
@@ -26,6 +23,7 @@ namespace symbol {
   string name;
   addr address;
   Type type;
+  fpu value;
   u8 args_count;
   vector<fpu> args_default;
  };
