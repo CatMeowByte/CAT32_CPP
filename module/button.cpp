@@ -40,7 +40,7 @@ namespace button {
   }
  }
 
- void module_register() {
-  module::add("button", wrap::button, 1);
- }
+ MODULE(
+  module::add("", "button", wrap::button, 1);
+ )
 }

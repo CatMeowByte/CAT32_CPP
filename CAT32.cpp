@@ -1,7 +1,6 @@
 #include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include "core/memory.hpp"
-#include "core/utility.hpp"
 #include "module/button.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
@@ -23,13 +22,11 @@ int main() {
  // init
  memory::reset();
 
- button::module_register();
- video::module_register();
- utility::module_register();
-
  cout << "\nLOAD ===============================\n" << endl;
 
- ifstream file("/media/storage/share/cpp/CAT32/example/recursive.app");
+ interpreter::reset();
+
+ ifstream file("/media/storage/share/cpp/CAT32/example/hashmodule.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;

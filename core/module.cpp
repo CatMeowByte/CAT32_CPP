@@ -1,32 +1,24 @@
 #include "core/module.hpp"
+#include "core/utility.hpp"
 
 namespace module {
- vector<Module> table;
+ Table table;
 
- void add(const string& name, fnp function, u8 args_count, vector<fpu> args_default) {
-  for (u32 i = 0; i < table.size(); i++) {
-   if (table[i].name == name) {
-    table[i].function = function;
-    table[i].args_count = args_count;
-    table[i].args_default = args_default;
-    return;
-   }
-  }
-  table.push_back({name, function, args_count, args_default});
+ void add(const string& space, const string& name, fnp function, u8 args_count, vector<fpu> args_default) {
+  u32 hash_key = ((utility::hash(space.c_str()) & 0xFFFF) << 16) | (utility::hash(name.c_str()) & 0xFFFF);
+  Module module;
+  module.name = name;
+  module.function = function;
+  module.args_count = args_count;
+  module.args_default = args_default;
+  Table::instance()[hash_key] = module;
  }
 
- s32 get_index(const string& name) {
-  for (u32 i = 0; i < table.size(); i++) {
-   if (table[i].name == name) {return i;}
-  }
-  return -1;
+ bool exist(u32 hash) {
+  return Table::instance().count(hash) > 0;
  }
 
- bool exist(const string& name) {
-  return get_index(name) >= 0;
- }
-
- const string& get_name(fpu id) {
-  return table[id].name;
+ const string& get_name(u32 hash) {
+  return table[hash].name;
  }
 }

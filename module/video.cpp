@@ -233,12 +233,12 @@ namespace video {
   }
  }
 
- void module_register() {
-  module::add("clear", wrap::clear, 1, {0});
-  module::add("pixel", wrap::pixel, 3);
-  module::add("line", wrap::line, 5);
-  module::add("rect", wrap::rect, 6, {1});
-  module::add("text", wrap::text, 5, {0});
-  module::add("flip", wrap::flip, 0);
- }
+ MODULE(
+  module::add("video", "clear", wrap::clear, 1, {0});
+  module::add("video", "pixel", wrap::pixel, 3);
+  module::add("video", "line", wrap::line, 5);
+  module::add("video", "rect", wrap::rect, 6, {1});
+  module::add("video", "text", wrap::text, 5, {0});
+  module::add("video", "flip", wrap::flip, 0);
+ )
 }

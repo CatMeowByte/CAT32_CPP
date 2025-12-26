@@ -8,6 +8,7 @@ namespace interpreter {
  vector<vector<string>> tokenize(const string& line);
  void compile(const vector<vector<string>>& line_tokens);
  void step();
+ void reset();
 }
 
 namespace symbol {
@@ -51,6 +52,7 @@ namespace scope {
   addr stack_start;
   u32 symbol_start;
   vector<addr> break_unpatched;
+  vector<u16> space;
  };
 
  extern vector<Frame> stack;

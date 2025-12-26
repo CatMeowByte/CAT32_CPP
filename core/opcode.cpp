@@ -317,7 +317,7 @@ namespace opfunc {
 
  /* module */
  addr call(fpu value) {
-  return module::table[cast(s32, value)].function(value);
+  return module::table[value.value].function(value);
  }
 
  /* nop */

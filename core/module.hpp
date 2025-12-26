@@ -13,11 +13,20 @@ namespace module {
   vector<fpu> args_default;
  };
 
- extern vector<Module> table;
+ // meyer initialization
+ // cpp execute the macro constructor in unpredictable order, maybe even before the table is initialized
+ // this ensure the table exist before the constructor use it
+ struct Table {
+  static hash_map<u32, Module>& instance() {static hash_map<u32, Module> map; return map;}
+  Module& operator[](u32 hash) {return instance()[hash];}
+ };
 
- void add(const string& name, fnp function, u8 args_count, vector<fpu> args_default = {});
- s32 get_index(const string& name);
- bool exist(const string& name);
- const string& get_name(fpu id);
+ extern Table table;
+
+ void add(const string& space, const string& name, fnp function, u8 args_count, vector<fpu> args_default = {});
+ bool exist(u32 hash);
+ const string& get_name(u32 hash);
 };
 
+// register
+#define MODULE(...) namespace {using module::add; struct Register {Register() {__VA_ARGS__}} module_register;}

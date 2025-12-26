@@ -28,8 +28,8 @@ namespace utility {
 
  bool is_identifier(const string& text) {
   if (text.empty()) {return false;}
-  if (!isalpha(text[0]) && text[0] != '_') {return false;}
-  for (char c : text) {if (!isalnum(c) && c != '_') {return false;}}
+  if (!isalpha(text[0]) && text[0] != '_' && text[0] != '.') {return false;}
+  for (char c : text) {if (!isalnum(c) && c != '_' && c != '.') {return false;}}
   return true;
  }
 
@@ -145,8 +145,8 @@ namespace utility {
   }
  }
 
- void module_register() {
-  module::add("see", wrap::see, 1);
-  module::add("wait", wrap::wait, 1);
- }
+ MODULE(
+  module::add("", "see", wrap::see, 1);
+  module::add("", "wait", wrap::wait, 1);
+ )
 }

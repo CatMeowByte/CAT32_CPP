@@ -101,7 +101,7 @@ namespace interpreter {
      }
     }
     else if (name == "call") {
-     value += " (" + module::get_name(operand) + ")";
+     value += " (" + module::get_name(operand.value) + ")";
     }
     else if (name == "subgo") {
      for (s32 i = symbol::table.size() - 1; i >= 0; i--) {
@@ -258,8 +258,8 @@ namespace interpreter {
     continue;
    }
 
-   // variable (alphabet, _)
-   if (isalpha(c) || c == '_') {
+   // identifier (alphabet, _, .)
+   if (isalpha(c) || c == '_' || c == '.') {
     token += c;
     continue;
    }
@@ -508,7 +508,7 @@ namespace interpreter {
   // indent
   if (indent > scope::previous) {
    if (indent - scope::previous > 1) {cout << "caution: too much indent" << endl;}
-   for (u8 indent_level = scope::previous + 1; indent_level <= indent; ++indent_level) {
+   for (u8 indent_level = scope::previous + 1; indent_level <= indent; indent_level++) {
     cout << ">>>>" << endl;
 
     if (scope::last_line_scope_set != scope::Type::Function) { // if, while, and else
@@ -533,7 +533,7 @@ namespace interpreter {
 
   // dedent
   if (indent < scope::previous) {
-   for (u8 indent_level = scope::previous; indent_level > indent; --indent_level) {
+   for (u8 indent_level = scope::previous; indent_level > indent; indent_level--) {
     cout << "<<<<" << endl;
 
     // only handle else because at "else" its a single line dedent with only one keyword
@@ -607,6 +607,19 @@ namespace interpreter {
     return;
    }
    cout << "error: " << tokens[0][0] << " outside of while loop" << endl;
+   return;
+  }
+
+  // use spacename
+  if (tokens[0][0] == "use") {
+   if (tokens.size() < 2) {cout << "error: use requires at least one spacename" << endl; return;}
+   for (u32 i = 1; i < tokens.size(); i++) {
+    if (tokens[i].size() != 1) {cout << "error: invalid spacename" << endl; return;}
+    string space_name = tokens[i][0];
+    u16 space_hash = utility::hash(space_name.c_str()) & 0xFFFF;
+    scope::stack.back().space.push_back(space_hash);
+    cout << "imported spacename \"" << space_name << "\" with hash " << space_hash << endl;
+   }
    return;
   }
 
@@ -708,7 +721,11 @@ namespace interpreter {
      else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).value); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
 
      // symbol
-     symbol::table.push_back({name, address, symbol::Type::Function});
+     symbol::Data function_symbol;
+     function_symbol.name = name;
+     function_symbol.address = address;
+     function_symbol.type = symbol::Type::Function;
+     symbol::table.push_back(function_symbol);
      cout << name << " function is written at bytecode [" << address << "]" << endl;
      const u32 function_symbol_index = symbol::table.size() - 1; // prevent invalidation
 
@@ -760,7 +777,11 @@ namespace interpreter {
       }
 
       const addr args_slot = address + slot;
-      symbol::table.push_back({token, args_slot, symbol::Type::Number});
+      symbol::Data arg_symbol;
+      arg_symbol.name = token;
+      arg_symbol.address = args_slot;
+      arg_symbol.type = symbol::Type::Number;
+      symbol::table.push_back(arg_symbol);
       bytecode_append(op::storeto, args_slot);
       cout << token << " is stored in " << args_slot << endl;
       slot--;
@@ -775,17 +796,45 @@ namespace interpreter {
      string name = token.substr(0, tag_pos);
      u8 args_provided = stoi(token.substr(tag_pos + 1));
 
+     string space_name = "";
+     string function_name = name;
+     u64 dot_pos = name.find('.');
+
+     if (dot_pos != string::npos) {
+      space_name = name.substr(0, dot_pos);
+      function_name = name.substr(dot_pos + 1);
+     }
+
+     u16 function_name_hash = utility::hash(function_name.c_str()) & 0xFFFF;
+     u32 module_hash = 0;
+
+     // unqualified
+     if (dot_pos == string::npos) {
+      for (s32 i = scope::stack.size() - 1; i >= 0 && !module_hash; i--) {
+       for (u32 j = 0; j < scope::stack[i].space.size() && !module_hash; j++) {
+        module_hash = (scope::stack[i].space[j] << 16) | function_name_hash;
+        if (!module::exist(module_hash)) {module_hash = 0;}
+       }
+      }
+     }
+
+     // qualified or fallback
+     if (!module_hash) {
+      module_hash = ((utility::hash(space_name.c_str()) & 0xFFFF) << 16) | function_name_hash;
+      if (!module::exist(module_hash)) {module_hash = 0;}
+     }
+
      u8 args_total;
      const vector<fpu>* args_default;
-     octo emit_opcode;
+     octo emit_opcode = op::nop;
      fpu emit_operand;
 
-     if (module::exist(name)) {
-      const module::Module& registered_module = module::table[module::get_index(name)];
+     if (module_hash) {
+      const module::Module& registered_module = module::table[module_hash];
       args_total = registered_module.args_count;
       args_default = &registered_module.args_default;
       emit_opcode = op::call;
-      emit_operand = module::get_index(name);
+      emit_operand = fpu(module_hash, true);
      }
      if (symbol::exist(name) && symbol::get(name).type == symbol::Type::Function) {
       const symbol::Data& function_symbol = symbol::get(name);
@@ -802,8 +851,9 @@ namespace interpreter {
       emit_operand = SIGNATURE;
      }
 
-     if (args_provided < args_total - args_default->size()) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, args_total - args_default->size()) << ", got " << cast(u32, args_provided) << ")" << endl;}
-     if (args_provided > args_total) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, args_total) << ", got " << cast(u32, args_provided) << ")" << endl;}
+     if (emit_opcode == op::nop) {cout << "error: function \"" << name << "\" not found" << endl; return;}
+     if (args_provided < args_total - args_default->size()) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, args_total - args_default->size()) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
+     if (args_provided > args_total) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, args_total) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
 
      for (u8 i = args_provided; i < args_total; i++) {bytecode_append(op::push, (*args_default)[i - (args_total - args_default->size())]);}
 
@@ -917,10 +967,13 @@ namespace interpreter {
     // terrible code, need proper non-keyword check
     // unfortunately, it seems like this is important and had to be this way
     // please reconsider
-    else if (
-     !keywords_declaration.count(token) &&
-     !keywords_control.count(token) &&
-     !(assign_type == AssignType::Declare && (i == 1 || (i == 2 && (declare_style == DeclareStyle::StringSize || declare_style == DeclareStyle::StripeSize))))
+    else if (true
+     && !keywords_declaration.count(token)
+     && !keywords_control.count(token)
+     && !(assign_type == AssignType::Declare && i == 1)
+     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::StringSize)
+     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::StripeSize)
+     && !(assign_type == AssignType::Set && i == 0 && j == 0)
     )
     {
      cout << "error: invalid identifier \"" << token << "\"" << endl;
@@ -964,13 +1017,22 @@ namespace interpreter {
       break;
      }
      fpu value = stod(tokens[3][0]);
-     symbol::table.push_back({name, memory::vm::ram_global::constant::sentinel, symbol::Type::Constant, value});
+     symbol::Data constant_symbol;
+     constant_symbol.name = name;
+     constant_symbol.address = memory::vm::ram_global::constant::sentinel;
+     constant_symbol.type = symbol::Type::Constant;
+     constant_symbol.value = value;
+     symbol::table.push_back(constant_symbol);
      cout << name << " constant is " << utility::string_no_trailing(value) << endl;
      break;
     }
     case DeclareStyle::StringFull: {
      u32 length = tokens[3][0].size() - 2; // exclude quotes
-     symbol::table.push_back({name, cast(addr, slotter) - (((length + 3) / 4) + 1), symbol::Type::String}); // packed string size
+     symbol::Data string_symbol;
+     string_symbol.name = name;
+     string_symbol.address = cast(addr, slotter) - (((length + 3) / 4) + 1); // packed string size
+     string_symbol.type = symbol::Type::String;
+     symbol::table.push_back(string_symbol);
 
      cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
      break;
@@ -982,7 +1044,11 @@ namespace interpreter {
      }
      address = cast(addr, slotter);
      s32 length = cast(s32, stod(tokens[2][0]));
-     symbol::table.push_back({name, address, symbol::Type::String});
+     symbol::Data string_symbol;
+     string_symbol.name = name;
+     string_symbol.address = address;
+     string_symbol.type = symbol::Type::String;
+     symbol::table.push_back(string_symbol);
 
      slotter += fpu(cast(s32, ((length + 3) / 4) + 1)); // packed string size
 
@@ -992,7 +1058,11 @@ namespace interpreter {
     case DeclareStyle::StripeFull: {
      address = cast(addr, slotter);
      s32 count = tokens.size() - 3;
-     symbol::table.push_back({name, address, symbol::Type::Stripe});
+     symbol::Data stripe_symbol;
+     stripe_symbol.name = name;
+     stripe_symbol.address = address;
+     stripe_symbol.type = symbol::Type::Stripe;
+     symbol::table.push_back(stripe_symbol);
 
      slotter += fpu(count);
 
@@ -1010,7 +1080,11 @@ namespace interpreter {
      }
      address = cast(addr, slotter);
      s32 count = cast(s32, stod(tokens[2][0]));
-     symbol::table.push_back({name, address, symbol::Type::Stripe});
+     symbol::Data stripe_symbol;
+     stripe_symbol.name = name;
+     stripe_symbol.address = address;
+     stripe_symbol.type = symbol::Type::Stripe;
+     symbol::table.push_back(stripe_symbol);
 
      slotter += fpu(count);
 
@@ -1026,6 +1100,7 @@ namespace interpreter {
    switch (set_style) {
     case SetStyle::Variable: {
      string name = tokens[0][0];
+     if (!symbol::exist(name)) {cout << "error: variable \"" << name << "\" not found" << endl; return;}
      addr address = symbol::get(name).address;
      bytecode_append(op::storeto, address);
      break;
@@ -1063,6 +1138,21 @@ namespace interpreter {
 
   if (result == cast(addr, memory::vm::ram_global::constant::sentinel)) {counter += 5;}
   else {counter = result;}
+ }
+
+ void reset() {
+   symbol::table.clear();
+
+   scope::stack.clear();
+   scope::previous = 0;
+   scope::last_jump_operand = memory::vm::ram_global::constant::sentinel;
+   scope::last_line_start = memory::vm::ram_global::constant::sentinel;
+   scope::last_line_scope_set = scope::Type::Generic;
+
+   // base scope frame
+   scope::Frame base = {};
+   base.type = scope::Type::Generic;
+   scope::stack.push_back(base);
  }
 }
 
