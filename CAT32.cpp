@@ -26,7 +26,7 @@ int main() {
 
  interpreter::reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/hashmodule.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/string_reorder.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;

@@ -15,7 +15,7 @@ namespace interpreter {
  constexpr str ADDRESS_OF = "@";
  constexpr str ARGUMENT_OPTIONAL = ":";
 
- static const hash_set<string> keywords_declaration = {"var", "con", "string", "stripe", "func"};
+ static const hash_set<string> keywords_declaration = {"var", "con", "str", "stripe", "func"};
  static const hash_set<string> keywords_control = {"if", "while", "else", "break", "continue", "return"};
 
  enum class Precedence : u8 {
@@ -632,11 +632,11 @@ namespace interpreter {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::Constant;
   }
-  if (tokens[0][0] == "string" && tokens[2][0] == "=" && tokens.size() == 4 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"') {
+  if (tokens[0][0] == "str" && tokens[2][0] == "=" && tokens.size() == 4 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"') {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StringFull;
   }
-  if (tokens[0][0] == "string" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
+  if (tokens[0][0] == "str" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::StringSize;
   }
@@ -725,6 +725,7 @@ namespace interpreter {
      function_symbol.name = name;
      function_symbol.address = address;
      function_symbol.type = symbol::Type::Function;
+     function_symbol.args_count = 0;
      symbol::table.push_back(function_symbol);
      cout << name << " function is written at bytecode [" << address << "]" << endl;
      const u32 function_symbol_index = symbol::table.size() - 1; // prevent invalidation
@@ -871,43 +872,44 @@ namespace interpreter {
     else if (token.front() == '"' && token.back() == '"') {
      string content = token.substr(1, token.size() - 2); // strip quotes
      string name = SYMBOL_STRING_PREFIX + content;
-     if (symbol::exist(name)) {
-      cout << "string already exist in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
-      continue;
-     }
-
-     addr address = slotter;
-     u32 length = content.size();
-     u32 word_count = (length + 3) / 4;  // ceiling division of 4 character per fpu
-     addr slot_after = cast(addr, slotter) + word_count + 1;
-     if (set_style == SetStyle::String) {
-      address = symbol::get(tokens[0][0]).address;
-      slot_after = slotter;
-     }
-     bytecode_append(op::push, length);
-
-     for (u32 word = 0; word < word_count; word++) {
-      s32 packed_word = 0;
-      for (u32 character = 0; character < 4; character++) {
-       u32 char_index = word * 4 + character;
-       if (char_index < length) {packed_word |= cast(s32, content[char_index]) << (character * 8);}
+     if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;}
+     else {
+      addr address = slotter;
+      u32 length = content.size();
+      u32 word_count = (length + 3) / 4;  // ceiling division of 4 character per fpu
+      addr slot_after = cast(addr, slotter) + word_count + 1;
+      if (set_style == SetStyle::String) {
+       address = symbol::get(tokens[0][0]).address;
+       slot_after = slotter;
       }
-      bytecode_append(op::push, fpu(packed_word, true));
-     }
+      bytecode_append(op::push, length);
 
-     for (s32 i = word_count; i >= 0; i--) {
-      bytecode_append(op::storeto, address + i);
-     }
+      for (u32 word = 0; word < word_count; word++) {
+       s32 packed_word = 0;
+       for (u32 character = 0; character < 4; character++) {
+        u32 char_index = word * 4 + character;
+        if (char_index < length) {packed_word |= cast(s32, content[char_index]) << (character * 8);}
+       }
+       bytecode_append(op::push, fpu(packed_word, true));
+      }
 
-     slotter = slot_after;
+      for (s32 i = word_count; i >= 0; i--) {
+       bytecode_append(op::storeto, address + i);
+      }
+
+      slotter = slot_after;
+
+      // hidden declare
+      symbol::Data string_symbol;
+      string_symbol.name = name;
+      string_symbol.address = cast(addr, slotter) - (word_count + 1);
+      string_symbol.type = symbol::Type::String;
+      symbol::table.push_back(string_symbol);
+      cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
+     }
 
      if (declare_style == DeclareStyle::StringFull || set_style == SetStyle::String) {continue;}
-     // hidden declare
-     symbol::table.push_back({name, cast(addr, slotter) - (length + 1), symbol::Type::String});
 
-     cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
-
-     // also push to stack for other use
      bytecode_append(op::push, symbol::get(name).address);
     }
 
@@ -1006,7 +1008,11 @@ namespace interpreter {
    switch (declare_style) {
     case DeclareStyle::Variable: {
      address = cast(addr, slotter++);
-     symbol::table.push_back({name, address, symbol::Type::Number});
+     symbol::Data variable_symbol;
+     variable_symbol.name = name;
+     variable_symbol.address = address;
+     variable_symbol.type = symbol::Type::Number;
+     symbol::table.push_back(variable_symbol);
      bytecode_append(op::storeto, address);
      cout << name << " is stored in " << address << endl;
      break;
