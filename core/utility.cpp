@@ -132,7 +132,6 @@ namespace utility {
    // format float
    string decimal_string = utility::string_no_trailing(float(literal_value));
 
-   // FIXME: the hex is incorrect too. it is supposed to be after the decimal right?
    cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << cast(s32, literal_value.value) << "" << endl;
    OPDONE;
   }
