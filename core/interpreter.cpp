@@ -10,13 +10,19 @@
 
 
 namespace interpreter {
- constexpr str TOKEN_TAG = "$"; // token tagged with this symbol can only be generated internally
  constexpr str SYMBOL_STRING_PREFIX = "str:";
  constexpr str ADDRESS_OF = "@";
  constexpr str ARGUMENT_OPTIONAL = ":";
 
- static const hash_set<string> keywords_declaration = {"var", "con", "str", "stripe", "func"};
- static const hash_set<string> keywords_control = {"if", "while", "else", "break", "continue", "return"};
+ static const hash_set<string> keywords_declaration = {"var", "con", "str", "stripe", "func", "use"};
+ static const hash_set<string> keywords_control = {"if", "else", "while", "break", "continue", "return"};
+
+ // token tagged with this symbol can only be generated internally
+ namespace tag {
+  constexpr str offset = "+>"; // v[n]
+  constexpr str offset_at = "+>@"; // @v[n]
+  constexpr str function_args = "=#"; // foo(n)
+ }
 
  enum class Precedence : u8 {
   Base = 0,
@@ -412,7 +418,7 @@ namespace interpreter {
     if (token == ")" && !stash.empty()) {
      if (utility::is_identifier(stash.back())) {
       if (!paren_args_count.empty()) {
-       output.push_back(stash.back() + TOKEN_TAG + to_string(cast(u32, paren_args_count.back())));
+       output.push_back(stash.back() + tag::function_args + to_string(cast(u32, paren_args_count.back())));
        paren_args_count.pop_back();
       }
       stash.pop_back();
@@ -423,8 +429,8 @@ namespace interpreter {
 
     // emit offset operator after close bracket
     else if (token == "]") {
-     output.push_back(TOKEN_TAG + string("offset"));
-     for (const string& t : output) {if (t[0] == ADDRESS_OF[0]) {output.back() += ADDRESS_OF; break;}}
+     output.push_back(tag::offset);
+     for (const string& t : output) {if (t[0] == ADDRESS_OF[0]) {output.back() = tag::offset_at; break;}}
     }
    }
 
@@ -676,7 +682,7 @@ namespace interpreter {
    // check recursive
    s32 recursive_index = -1;
    for (const string& token : expression) {
-    u64 tag_pos = token.find(TOKEN_TAG);
+    u64 tag_pos = token.find(tag::function_args);
     if (!tag_pos || tag_pos == string::npos) {continue;}
 
     string name = token.substr(0, tag_pos);
@@ -699,7 +705,7 @@ namespace interpreter {
 
    for (u32 j = 0; j < expression.size(); j++) {
     const string& token = expression[j];
-    const u64 tag_pos = token.find(TOKEN_TAG);
+    const u64 tag_pos = token.find(tag::function_args);
 
     if (false) {}
 
@@ -711,7 +717,7 @@ namespace interpreter {
      scope::last_line_scope_set = scope::Type::Function;
 
      string name_tagged = expression.back();
-     u64 tag_pos = name_tagged.find(TOKEN_TAG);
+     u64 tag_pos = name_tagged.find(tag::function_args);
      string name = name_tagged.substr(0, tag_pos);
      addr address = cast(addr, writer);
 
@@ -732,7 +738,7 @@ namespace interpreter {
 
      // arguments
      address = cast(addr, slotter);
-     const u8 args_count = tag_pos == string::npos ? 0 : stoi(name_tagged.substr(tag_pos + 1));
+     const u8 args_count = tag_pos == string::npos ? 0 : stoi(name_tagged.substr(tag_pos + strlen(tag::function_args)));
      s32 slot = args_count - 1;
      string last_required = "";
 
@@ -795,7 +801,7 @@ namespace interpreter {
     // tagged callable
     else if (tag_pos && tag_pos != string::npos) { // ensure the tag is not prefix
      string name = token.substr(0, tag_pos);
-     u8 args_provided = stoi(token.substr(tag_pos + 1));
+     u8 args_provided = stoi(token.substr(tag_pos + strlen(tag::function_args)));
 
      string space_name = "";
      string function_name = name;
@@ -953,10 +959,10 @@ namespace interpreter {
     }
 
     // stripe offset
-    else if (token.find(TOKEN_TAG + string("offset")) == 0) {
+    else if (token == tag::offset || token == tag::offset_at) {
      bytecode_append(op::add, SIGNATURE);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression.size() - 1) {continue;} // stripe assignment handles storage internally
-     if (token.back() == ADDRESS_OF[0]) {continue;} // address semantics require raw address
+    if (token == tag::offset_at) {continue;} // address semantics require raw address
      bytecode_append(op::get, SIGNATURE);
     }
 
