@@ -68,7 +68,7 @@ namespace interpreter {
   #undef OP
  };
 
- static const hash_map<string, Precedence> operator_precedence = {
+ static const hash_map<string, Precedence> operator_precedences = {
   #define OP(sym, code, prec) {sym, prec},
   SORTED_OPERATORS
   #undef OP
@@ -132,150 +132,110 @@ namespace interpreter {
   writer += 5;
  }
 
- static vector<string> slice(const string& text) {
-  vector<string> tokens;
+ static vector<vector<string>> breakdown(const string& line) {
+  static const hash_set<char> boundaries = {'(', ')', '[', ']', ',', ARGUMENT_OPTIONAL[0]};
+
+  vector<vector<string>> output;
+  vector<string> expression;
   string token;
   bool in_quote = false;
+  u32 pos = 0;
 
-  for (u32 character = 0; character <= text.size(); character++) {
-   const char c = (character < text.size() ? text[character] : ' ');
+  // indent
+  while (pos < line.size() && line[pos] == ' ') {pos++;}
+  output.push_back({to_string(pos)});
 
-   // quote (with backslash escape)
-   if (c == '"') {
-    u8 bs = 0;
-    for (u32 pos = character - 1; pos >= 0 && text[pos] == '\\'; pos--) bs++;
-    if (bs % 2 == 0) in_quote = !in_quote;
-    token += c;
-    continue;
+  // each character
+  while (pos < line.size()) {
+   char c = line[pos];
+
+   // push token
+   if (!token.empty() && !in_quote && (
+    c == ' ' || c == '#' || c == '='
+    || boundaries.count(c)
+    || math_list_operations.count(string(1, c))
+    || (pos + 1 < line.size() && math_list_operations.count(line.substr(pos, 2)))
+   )) {
+    expression.push_back(token);
+    token.clear();
+    if (keywords_declaration.count(expression.back()) || keywords_control.count(expression.back())) {
+     output.push_back(expression);
+     expression.clear();
+    }
+   }
+
+   if (false) {}
+
+   // comment
+   else if (c == '#') {break;}
+
+   // quote
+   else if (c == '"') {
+    u8 backslash_count = 0;
+    for (s32 i = pos - 1; i >= 0 && line[i] == '\\'; i--) {backslash_count++;}
+    if (backslash_count % 2 == 0) {
+     if (in_quote) {token += c; expression.push_back(token); token.clear();}
+     else {token += c;}
+     in_quote = !in_quote;
+    }
+    else {token += c;}
    }
 
    // inside quote
-   if (in_quote) {
-    token += c;
-    continue;
-   }
-
-   // comment (skip rest of line)
-   if (!in_quote && c == '#') {break;}
-
-   // boundary on space or end string
-   if (c == ' ' || character == text.size()) {
-    if (!token.empty()) {
-     tokens.push_back(token);
-     token.clear();
-    }
-    continue;
-   }
-
-   // build token
-   token += c;
-  }
-
-  return tokens;
- }
-
- static vector<string> breakdown(const string& expression) {
-  vector<string> tokens;
-  string token;
-  bool in_quote = false;
-
-  for (u32 i = 0; i < expression.size(); i++) {
-   char c = expression[i];
-
-   // quote (with backslash escape)
-   if (c == '"') {
-    u8 bs = 0;
-    for (s32 pos = i - 1; pos >= 0 && expression[pos] == '\\'; pos--) bs++;
-    if (bs % 2 == 0) {
-     if (in_quote) {token += c;}
-     if (!token.empty()) {tokens.push_back(token); token.clear();}
-     if (!in_quote) {token += c;}
-     in_quote = !in_quote;
-     continue;
-    }
-   }
-   if (in_quote) {token += c; continue;}
+   else if (in_quote) {token += c;}
 
    // hex and bin
-   if (c == '0' && (i + 1 < expression.size())) {
-    char p = expression[i + 1];
-    bool is_hex = (p == 'x' || p == 'X');
-    bool is_bin = (p == 'b' || p == 'B');
-    if (is_hex || is_bin) {
-     string num = is_hex ? "0x" : "0b";
-     i += 2;
-     bool has_dot = false;
-     bool has_digit = false;
-     while (i < expression.size()) {
-      char d = expression[i];
-      bool digit_ok = is_hex ? isxdigit(d) : (d == '0' || d == '1');
-      if (digit_ok) {has_digit = true; num += d; i++; continue;}
-      if (d == '.' && !has_dot) {has_dot = true; num += d; i++; continue;}
-      break;
-     }
-     if (has_digit) {tokens.push_back(num);}
-     else {tokens.push_back("0"); cout << "error: incomplete " << (is_hex ? "hex" : "bin") << " literal" << endl;}
-     i--; // adjust for loop increment
-     continue;
+   else if (c == '0' && token.empty() && pos + 1 < line.size() && (line[pos+1] == 'x' || line[pos+1] == 'X' || line[pos+1] == 'b' || line[pos+1] == 'B')) {
+    bool is_hex = (line[pos+1] == 'x' || line[pos+1] == 'X');
+    token += '0';
+    token += line[pos+1];
+    pos += 2;
+    bool has_dot = false;
+    while (pos < line.size()) {
+     char d = line[pos];
+     bool digit_valid = is_hex ? isxdigit(d) : (d == '0' || d == '1');
+     if (digit_valid) {token += d; pos++;}
+     else if (d == '.' && !has_dot) {has_dot = true; token += d; pos++;}
+     else {break;}
     }
+    expression.push_back(token);
+    token.clear();
+    continue;
    }
 
    // addressof
-   if (c == ADDRESS_OF[0] && token.empty()) {
-    token += c;
-    continue;
+   else if (c == ADDRESS_OF[0] && token.empty()) {token += c;}
+
+   // double character operator
+   else if (pos + 1 < line.size() && math_list_operations.count(line.substr(pos, 2))) {expression.push_back(line.substr(pos, 2)); pos++;}
+
+   // single character operator
+   else if (math_list_operations.count(string(1, c))) {expression.push_back(string(1, c));}
+
+   // boundary
+   else if (boundaries.count(c)) {expression.push_back(string(1, c));}
+
+   // equal
+   else if (c == '=') {
+    if (!expression.empty()) {output.push_back(expression); expression.clear();}
+    expression.push_back(string(1, c));
+    output.push_back(expression);
+    expression.clear();
    }
 
-   // operators
-   bool operator_matched = false;
-   for (u8 len : {2, 1}) {
-    string candidate = expression.substr(i, len);
-    if (
-     math_list_operations.count(candidate)
-     || candidate == "(" || candidate == ")"
-     || candidate == "[" || candidate == "]"
-    ) {
-     if (!token.empty()) {
-      tokens.push_back(token);
-      token.clear();
-     }
-     tokens.push_back(candidate);
-     i += len - 1;
-     operator_matched = true;
-     break;
-    }
-   }
-   if (operator_matched) {continue;}
+   // space
+   else if (c == ' ') {}
 
-   // single-char separators
-   static const hash_set<char> separators = {'=', ',', ARGUMENT_OPTIONAL[0]};
-   if (separators.count(c)) {
-    if (!token.empty()) {
-     tokens.push_back(token);
-     token.clear();
-    }
-    tokens.push_back(string(1, c));
-    continue;
-   }
+   // identifier
+   else if (isalpha(c) || isdigit(c) || c == '_' || c == '.') {token += c;}
 
-   // number/decimal (digits or one dot)
-   if (isdigit(c) || (c == '.' && !token.empty() && all_of(token.begin(), token.end(), cast(int(*)(int), isdigit)) && token.find('.') == string::npos)) {
-    token += c;
-    continue;
-   }
-
-   // identifier (alphabet, _, .)
-   if (isalpha(c) || c == '_' || c == '.') {
-    token += c;
-    continue;
-   }
+   pos++;
   }
 
-  if (!token.empty()) {
-   tokens.push_back(token);
-  }
+  if (!token.empty()) {expression.push_back(token);}
+  if (!expression.empty()) {output.push_back(expression);}
 
-  return tokens;
+  return output;
  }
 
  static void substitute(vector<vector<string>>& tokens) {
@@ -308,7 +268,7 @@ namespace interpreter {
    && utility::is_number(output[output.size() - 1])
    && utility::is_number(output[output.size() - 2])
    && !stash.empty()
-   && (incoming_token.empty() || operator_precedence.at(stash.back()) >= operator_precedence.at(incoming_token))
+   && (incoming_token.empty() || operator_precedences.at(stash.back()) >= operator_precedences.at(incoming_token))
    && (stop_at.empty() || stash.back() != stop_at)
   ) {
    fpu b = fpu(stod(output.back())); output.pop_back();
@@ -387,7 +347,7 @@ namespace interpreter {
     while (
      !stash.empty()
      && math_list_operations.count(stash.back())
-     && operator_precedence.at(stash.back()) > operator_precedence.at(token)
+     && operator_precedences.at(stash.back()) > operator_precedences.at(token)
     ) {
      output.push_back(stash.back());
      stash.pop_back();
@@ -454,18 +414,9 @@ namespace interpreter {
  }
 
  vector<vector<string>> tokenize(const string& line) {
-  u8 indent = 0;
-  while (indent < line.size() && line[indent] == ' ') {indent++;}
-
-  vector<vector<string>> tokens;
-  tokens.push_back({to_string(indent)});
-
-  for (const string& token : slice(line.substr(indent))) {tokens.push_back(breakdown(token));}
-
+  vector<vector<string>> tokens = breakdown(line);
   substitute(tokens);
-
   for (vector<string>& token : tokens) {token = postfix(token);}
-
   return tokens;
  }
 

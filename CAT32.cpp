@@ -26,7 +26,7 @@ int main() {
 
  interpreter::reset();
 
- ifstream file("/media/storage/share/cpp/CAT32/example/string_reorder.app");
+ ifstream file("/media/storage/share/cpp/CAT32/example/space_ignorant.app");
  if (!file) {cerr << "Failed to open file." << endl;}
 
  string line;
