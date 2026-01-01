@@ -22,4 +22,6 @@ namespace utility {
  string string_no_trailing(double value);
 
  string string_pick(addr address);
+
+ vector<fpu> string_to_pascal(const string& text);
 }

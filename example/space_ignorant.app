@@ -5,6 +5,9 @@
 var a_x = 5
 con a_max = 100
 
+# str
+str a_empty[15]
+
 # str as text
 str a_name = "test"
 str a_buffer[30] = "width limited content"
@@ -108,6 +111,9 @@ if a_data[0]==99&a_x<=a_max|~~a_index<<2>>1
 # all declaration types
 var  b_x=5
 con b_max= 100
+
+# str
+str b_empty [ 15 ]
 
 # str as text
 str b_name ="test"

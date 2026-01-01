@@ -15,7 +15,6 @@ namespace symbol {
  enum class Type : u8 {
   Number,
   Constant,
-  String,
   Stripe,
   Function,
  };

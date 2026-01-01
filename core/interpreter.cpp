@@ -14,7 +14,7 @@ namespace interpreter {
  constexpr str ADDRESS_OF = "@";
  constexpr str ARGUMENT_OPTIONAL = ":";
 
- static const hash_set<string> keywords_declaration = {"var", "con", "str", "stripe", "func", "use"};
+ static const hash_set<string> keywords_declaration = {"var", "con", "str", "func", "use"};
  static const hash_set<string> keywords_control = {"if", "else", "while", "break", "continue", "return"};
 
  // token tagged with this symbol can only be generated internally
@@ -449,10 +449,10 @@ namespace interpreter {
   enum class AssignType : u8 {None, Declare, Set};
   AssignType assign_type = AssignType::None;
 
-  enum class DeclareStyle : u8 {None, Variable, Constant, StringFull, StringSize, StripeFull, StripeSize};
+  enum class DeclareStyle : u8 {None, Variable, Constant, Stripe};
   DeclareStyle declare_style = DeclareStyle::None;
 
-  enum class SetStyle : u8 {None, Variable, String, Stripe};
+  enum class SetStyle : u8 {None, Variable, Stripe};
   SetStyle set_style = SetStyle::None;
 
   bool is_expression = true;
@@ -581,6 +581,7 @@ namespace interpreter {
   }
 
   // set type
+  // declare
   if (tokens[0][0] == "var" && tokens[2][0] == "=" && tokens.size() == 4) {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::Variable;
@@ -589,22 +590,12 @@ namespace interpreter {
    assign_type = AssignType::Declare;
    declare_style = DeclareStyle::Constant;
   }
-  if (tokens[0][0] == "str" && tokens[2][0] == "=" && tokens.size() == 4 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"') {
+  if (tokens[0][0] == "str" && ((tokens.size() == 2 && tokens[1].back() == tag::offset) || (tokens.size() == 4 && tokens[2][0] == "="))) {
    assign_type = AssignType::Declare;
-   declare_style = DeclareStyle::StringFull;
+   declare_style = DeclareStyle::Stripe;
   }
-  if (tokens[0][0] == "str" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
-   assign_type = AssignType::Declare;
-   declare_style = DeclareStyle::StringSize;
-  }
-  if (tokens[0][0] == "stripe" && tokens[2][0] == "=" && tokens.size() >= 4) {
-   assign_type = AssignType::Declare;
-   declare_style = DeclareStyle::StripeFull;
-  }
-  if (tokens[0][0] == "stripe" && tokens.size() == 3 && tokens[2].size() == 1 && utility::is_number(tokens[2][0])) {
-   assign_type = AssignType::Declare;
-   declare_style = DeclareStyle::StripeSize;
-  }
+
+  // assign
   if (tokens.size() == 3 && tokens[1][0] == "=") {
    assign_type = AssignType::Set;
    set_style = SetStyle::Variable;
@@ -614,9 +605,9 @@ namespace interpreter {
     return;
    }
 
-   if (tokens[0].size() == 1 && symbol::exist(tokens[0][0]) && symbol::get(tokens[0][0]).type == symbol::Type::String) {set_style = SetStyle::String;}
+   if (tokens[0].size() == 1 && symbol::exist(tokens[0][0]) && symbol::get(tokens[0][0]).type == symbol::Type::Stripe) {set_style = SetStyle::Stripe;}
 
-   if (tokens[0].size() >= 3 && tokens[0].back().find("$offset") == 0) {
+   if (tokens[0].size() >= 3 && tokens[0].back() == tag::offset) {
     string base_name = tokens[0][0];
     if (symbol::exist(base_name) && symbol::get(base_name).type == symbol::Type::Stripe) {set_style = SetStyle::Stripe;}
    }
@@ -629,6 +620,9 @@ namespace interpreter {
 
    // skip constant declaration value
    if (i == 3 && declare_style == DeclareStyle::Constant) {continue;}
+
+   // skip stripe declaration identifier
+   if (i == 1 && declare_style == DeclareStyle::Stripe) {continue;}
 
    // check recursive
    s32 recursive_index = -1;
@@ -827,52 +821,48 @@ namespace interpreter {
 
     // string
     else if (token.front() == '"' && token.back() == '"') {
+     // skip declare
+     if (declare_style == DeclareStyle::Stripe && i == 3 && tokens[3].size() == 1) {continue;}
+
      string content = token.substr(1, token.size() - 2); // strip quotes
      string name = SYMBOL_STRING_PREFIX + content;
      if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;}
      else {
       addr address = slotter;
-      u32 length = content.size();
-      u32 word_count = (length + 3) / 4;  // ceiling division of 4 character per fpu
-      addr slot_after = cast(addr, slotter) + word_count + 1;
-      if (set_style == SetStyle::String) {
+      vector<fpu> pascal_data = utility::string_to_pascal(content);
+      addr slot_after = cast(addr, slotter) + pascal_data.size();
+      if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
        address = symbol::get(tokens[0][0]).address;
        slot_after = slotter;
       }
-      bytecode_append(op::push, length);
 
-      for (u32 word = 0; word < word_count; word++) {
-       s32 packed_word = 0;
-       for (u32 character = 0; character < 4; character++) {
-        u32 char_index = word * 4 + character;
-        if (char_index < length) {packed_word |= cast(s32, content[char_index]) << (character * 8);}
-       }
-       bytecode_append(op::push, fpu(packed_word, true));
-      }
-
-      for (s32 i = word_count; i >= 0; i--) {
-       bytecode_append(op::storeto, address + i);
-      }
-
-      slotter = slot_after;
+      for (u32 i = 0; i < pascal_data.size(); i++) {bytecode_append(op::push, pascal_data[i]);}
+      for (s32 i = pascal_data.size() - 1; i >= 0; i--) {bytecode_append(op::storeto, address + i);}
 
       // hidden declare
-      symbol::Data string_symbol;
-      string_symbol.name = name;
-      string_symbol.address = cast(addr, slotter) - (word_count + 1);
-      string_symbol.type = symbol::Type::String;
-      symbol::table.push_back(string_symbol);
-      cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
+      if (slot_after != cast(addr, slotter)) {
+       symbol::Data string_symbol;
+       string_symbol.name = name;
+       string_symbol.address = slotter;
+       string_symbol.type = symbol::Type::Stripe;
+       symbol::table.push_back(string_symbol);
+       cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
+
+       slotter = slot_after;
+      }
      }
 
-     if (declare_style == DeclareStyle::StringFull || set_style == SetStyle::String) {continue;}
+     if (
+      (declare_style == DeclareStyle::Stripe && tokens.size() == 4 && tokens[3].size() == 1)
+      || (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset)
+     ) {continue;}
 
      bytecode_append(op::push, symbol::get(name).address);
     }
 
     // number
     // must be documented that the stored value is the rounded representation from the scaled value
-    else if (utility::is_number(token) && declare_style != DeclareStyle::StripeSize && declare_style != DeclareStyle::StringSize) {
+    else if (utility::is_number(token)) {
      bytecode_append(op::push, fpu(round(stod(token) * (1 << fpu::DECIMAL_WIDTH)), true));
     }
 
@@ -895,12 +885,8 @@ namespace interpreter {
        bytecode_append(op::takefrom, symbol.address);
        break;
       }
-      case symbol::Type::String: {
-       if (assign_type == AssignType::Set && set_style == SetStyle::String && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
-       bytecode_append(op::push, symbol.address);
-       break;
-      }
       case symbol::Type::Stripe: {
+       if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
        bytecode_append(op::push, symbol.address);
        break;
       }
@@ -930,8 +916,7 @@ namespace interpreter {
      && !keywords_declaration.count(token)
      && !keywords_control.count(token)
      && !(assign_type == AssignType::Declare && i == 1)
-     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::StringSize)
-     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::StripeSize)
+     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe)
      && !(assign_type == AssignType::Set && i == 0 && j == 0)
     )
     {
@@ -989,69 +974,46 @@ namespace interpreter {
      cout << name << " constant is " << utility::string_no_trailing(value) << endl;
      break;
     }
-    case DeclareStyle::StringFull: {
-     u32 length = tokens[3][0].size() - 2; // exclude quotes
-     symbol::Data string_symbol;
-     string_symbol.name = name;
-     string_symbol.address = cast(addr, slotter) - (((length + 3) / 4) + 1); // packed string size
-     string_symbol.type = symbol::Type::String;
-     symbol::table.push_back(string_symbol);
+    case DeclareStyle::Stripe: {
+     s32 size = 0;
 
-     cout << name << " string is stored in " << symbol::get(name).address << " with length " << length << endl;
-     break;
-    }
-    case DeclareStyle::StringSize: {
-     if (tokens[2].size() != 1 || !utility::is_number(tokens[2][0])) {
-      cout << "error: size must be constant expression" << endl;
-      break;
+     bool is_single_text = tokens.size() == 4 && tokens[3].size() == 1 && tokens[3][0].size() >= 2 && tokens[3][0].front() == '"' && tokens[3][0].back() == '"';
+
+     // explicit
+     if (tokens[1].back() == tag::offset) {
+      if (tokens[1].size() == 3 && utility::is_number(tokens[1][1])) {size = cast(s32, stod(tokens[1][1]));}
+      else if (tokens[1].size() != 2) {cout << "error: str size must be constant expression" << endl; break;}
      }
-     address = cast(addr, slotter);
-     s32 length = cast(s32, stod(tokens[2][0]));
-     symbol::Data string_symbol;
-     string_symbol.name = name;
-     string_symbol.address = address;
-     string_symbol.type = symbol::Type::String;
-     symbol::table.push_back(string_symbol);
 
-     slotter += fpu(cast(s32, ((length + 3) / 4) + 1)); // packed string size
+     // implicit
+     if (tokens.size() == 4) {size = max(size, cast(s32, is_single_text ? (tokens[3][0].size() - 2 + 3) / 4 + 1 : tokens[3].size()));}
 
-     cout << name << " empty string is stored in " << address << " with length " << length << endl;
-     break;
-    }
-    case DeclareStyle::StripeFull: {
+     if (size == 0) {cout << "error: str declaration requires size or initial value" << endl; break;}
+
+     // store size at index -1
+     bytecode_append(op::push, fpu(size));
+     bytecode_append(op::storeto, slotter);
+     slotter++;
+
      address = cast(addr, slotter);
-     s32 count = tokens.size() - 3;
+     slotter += fpu(size);
+
      symbol::Data stripe_symbol;
      stripe_symbol.name = name;
      stripe_symbol.address = address;
      stripe_symbol.type = symbol::Type::Stripe;
      symbol::table.push_back(stripe_symbol);
 
-     slotter += fpu(count);
-
-     for (s32 i = count - 1; i >= 0; i--) {
-      bytecode_append(op::storeto, address + i);
+     if (tokens.size() == 4) {
+      if (is_single_text) {
+       vector<fpu> pascal_data = utility::string_to_pascal(tokens[3][0].substr(1, tokens[3][0].size() - 2));
+       for (u32 i = 0; i < pascal_data.size(); i++) {bytecode_append(op::push, pascal_data[i]);}
+       for (s32 i = pascal_data.size() - 1; i >= 0; i--) {bytecode_append(op::storeto, address + i);}
+      }
+      else {for (s32 i = tokens[3].size() - 1; i >= 0; i--) {bytecode_append(op::storeto, address + i);}}
      }
 
-     cout << name << " stripe is stored in " << address << " with size " << count << endl;
-     break;
-    }
-    case DeclareStyle::StripeSize: {
-     if (tokens[2].size() != 1 || !utility::is_number(tokens[2][0])) {
-      cout << "error: size must be constant expression" << endl;
-      break;
-     }
-     address = cast(addr, slotter);
-     s32 count = cast(s32, stod(tokens[2][0]));
-     symbol::Data stripe_symbol;
-     stripe_symbol.name = name;
-     stripe_symbol.address = address;
-     stripe_symbol.type = symbol::Type::Stripe;
-     symbol::table.push_back(stripe_symbol);
-
-     slotter += fpu(count);
-
-     cout << name << " empty stripe is stored in " << address << " with size " << count << endl;
+     cout << name << " stripe is stored in " << address << " with size " << size << endl;
      break;
     }
     default: {break;}
@@ -1069,7 +1031,16 @@ namespace interpreter {
      break;
     }
     case SetStyle::Stripe: {
-     bytecode_append(op::set, SIGNATURE);
+     if (tokens[0].size() == 1 && !(tokens[2].size() == 1 && tokens[2][0].size() >= 2 && tokens[2][0].front() == '"' && tokens[2][0].back() == '"')) {
+      string name = tokens[0][0];
+      addr address = symbol::get(name).address;
+      for (s32 i = tokens[2].size() - 1; i >= 0; i--) {
+       bytecode_append(op::storeto, address + i);
+      }
+     }
+     else if (tokens[0].size() >= 3) {
+      bytecode_append(op::set, SIGNATURE);
+     }
      break;
     }
     default: {break;}

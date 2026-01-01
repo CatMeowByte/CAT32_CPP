@@ -112,6 +112,25 @@ namespace utility {
   return out;
  }
 
+ vector<fpu> string_to_pascal(const string& text) {
+  vector<fpu> result;
+  u32 length = text.size();
+  u32 word_count = (length + 3) / 4;
+
+  result.push_back(fpu(length));
+
+  for (u32 word = 0; word < word_count; word++) {
+   s32 packed_word = 0;
+   for (u32 character = 0; character < 4; character++) {
+    u32 char_index = word * 4 + character;
+    if (char_index < length) {packed_word |= cast(s32, text[char_index]) << (character * 8);}
+   }
+   result.push_back(fpu(packed_word, true));
+  }
+
+  return result;
+ }
+
  namespace wrap {
   addr see(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
