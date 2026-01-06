@@ -19,7 +19,7 @@
  OPI(0x2B, subret) \
  OPI(0x2D, jump) \
  OPI(0x2E, jumz) \
- OPC(0x2F, junz, 1) \
+ OPI(0x2F, junz) \
  /* math */ \
  OPC(0x31, add, 2) \
  OPC(0x32, sub, 2) \

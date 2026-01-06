@@ -21,7 +21,7 @@ namespace interpreter {
  namespace tag {
   constexpr str offset = "+>"; // v[n]
   constexpr str offset_at = "+>@"; // @v[n]
-  constexpr str function_args = "=#"; // foo(n)
+  constexpr str callable_args = "=#"; // foo(n)
  }
 
  enum class Precedence : u8 {
@@ -378,7 +378,7 @@ namespace interpreter {
     if (token == ")" && !stash.empty()) {
      if (utility::is_identifier(stash.back())) {
       if (!paren_args_count.empty()) {
-       output.push_back(stash.back() + tag::function_args + to_string(cast(u32, paren_args_count.back())));
+       output.push_back(stash.back() + tag::callable_args + to_string(cast(u32, paren_args_count.back())));
        paren_args_count.pop_back();
       }
       stash.pop_back();
@@ -627,10 +627,10 @@ namespace interpreter {
    // check recursive
    s32 recursive_index = -1;
    for (const string& token : expression) {
-    u64 tag_pos = token.find(tag::function_args);
-    if (!tag_pos || tag_pos == string::npos) {continue;}
+    u64 callable_tag_pos = token.find(tag::callable_args);
+    if (!callable_tag_pos || callable_tag_pos == string::npos) {continue;}
 
-    string name = token.substr(0, tag_pos);
+    string name = token.substr(0, callable_tag_pos);
     if (!symbol::exist(name) || symbol::get(name).type != symbol::Type::Function) {break;}
 
     // find current function scope
@@ -650,20 +650,20 @@ namespace interpreter {
 
    for (u32 j = 0; j < expression.size(); j++) {
     const string& token = expression[j];
-    const u64 tag_pos = token.find(tag::function_args);
+    const u64 callable_tag_pos = token.find(tag::callable_args);
 
     if (false) {}
 
     // function
-    // this is oneshot, inside breakdown for function name extraction
+    // run once early in specific condition to process the whole function declaration header and skip procesing the rest of token
     else if (header_type == HeaderType::Function && i == 1 && j == 0) {
      scope::last_jump_operand = cast(addr, writer) + 1;
      bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
      scope::last_line_scope_set = scope::Type::Function;
 
      string name_tagged = expression.back();
-     u64 tag_pos = name_tagged.find(tag::function_args);
-     string name = name_tagged.substr(0, tag_pos);
+     u64 declare_tag_pos = name_tagged.find(tag::callable_args);
+     string name = name_tagged.substr(0, declare_tag_pos);
      addr address = cast(addr, writer);
 
      // event loop
@@ -683,7 +683,7 @@ namespace interpreter {
 
      // arguments
      address = cast(addr, slotter);
-     const u8 args_count = tag_pos == string::npos ? 0 : stoi(name_tagged.substr(tag_pos + strlen(tag::function_args)));
+     const u8 args_count = declare_tag_pos == string::npos ? 0 : stoi(name_tagged.substr(declare_tag_pos + strlen(tag::callable_args)));
      s32 slot = args_count - 1;
      string last_required = "";
 
@@ -744,9 +744,9 @@ namespace interpreter {
     }
 
     // tagged callable
-    else if (tag_pos && tag_pos != string::npos) { // ensure the tag is not prefix
-     string name = token.substr(0, tag_pos);
-     u8 args_provided = stoi(token.substr(tag_pos + strlen(tag::function_args)));
+    else if (callable_tag_pos && callable_tag_pos != string::npos) { // ensure the tag is not prefix
+     string name = token.substr(0, callable_tag_pos);
+     u8 args_provided = stoi(token.substr(callable_tag_pos + strlen(tag::callable_args)));
 
      string space_name = "";
      string function_name = name;
@@ -781,13 +781,8 @@ namespace interpreter {
      octo emit_opcode = op::nop;
      fpu emit_operand;
 
-     if (module_hash) {
-      const module::Module& registered_module = module::table[module_hash];
-      args_total = registered_module.args_count;
-      args_default = &registered_module.args_default;
-      emit_opcode = op::call;
-      emit_operand = fpu(module_hash, true);
-     }
+     // resolve priority
+     // function first
      if (symbol::exist(name) && symbol::get(name).type == symbol::Type::Function) {
       const symbol::Data& function_symbol = symbol::get(name);
       args_total = function_symbol.args_count;
@@ -795,7 +790,16 @@ namespace interpreter {
       emit_opcode = op::subgo;
       emit_operand = function_symbol.address;
      }
-     if (opcode::exist(name)) {
+     // module second
+     else if (module_hash) {
+      const module::Module& registered_module = module::table[module_hash];
+      args_total = registered_module.args_count;
+      args_default = &registered_module.args_default;
+      emit_opcode = op::call;
+      emit_operand = fpu(module_hash, true);
+     }
+     // opcode last
+     else if (opcode::exist(name)) {
       args_total = opcode::args_count(name);
       static const vector<fpu> opcode_no_defaults = {};
       args_default = &opcode_no_defaults;
