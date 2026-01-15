@@ -50,8 +50,10 @@ namespace memory {
   region(ram_global, vm_address, 32768,
    region(constant, ram_global_address, 32,
     ifpu(zero, constant_address)
-    ifpu(sentinel, zero_next)
-    ifpu(pi, sentinel_next)
+    ifpu(one, zero_next)
+    ifpu(sentinel, one_next)
+    ifpu(signature, sentinel_next)
+    ifpu(pi, signature_next)
     ifpu(tau, pi_next)
     ifpu(euler, tau_next)
    )

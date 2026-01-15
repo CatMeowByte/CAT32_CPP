@@ -130,8 +130,10 @@ namespace opfunc {
  }
 
  addr subret(fpu value) {
-  using namespace memory::vm::process::app::ram_local;
-  if (framer == fpu(0)) {return writer;} // end kernel event loop
+  using namespace memory::vm;
+  using namespace ram_global::constant;
+  using namespace process::app::ram_local;
+  if (framer == zero) {return writer;} // end kernel event loop
   addr address = frames[--framer];
   return address + 5;
  }
@@ -184,7 +186,7 @@ namespace opfunc {
   BAIL_UNLESS_STACK_ATLEAST(2)
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(b ? a / b : fpu(0));
+  push(b ? a / b : memory::vm::ram_global::constant::sentinel);
   OPDONE;
  }
 
@@ -192,7 +194,7 @@ namespace opfunc {
   BAIL_UNLESS_STACK_ATLEAST(2)
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(b ? a - fpu(floor(cast(double, a / b))) * b : fpu(0));
+  push(b ? a - fpu(floor(cast(double, a / b))) * b : memory::vm::ram_global::constant::sentinel);
   OPDONE;
  }
 

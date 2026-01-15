@@ -19,5 +19,3 @@ namespace TICK {
  constexpr u8 UPDATE = 30;
  constexpr u8 DRAW = 15;
 }
-
-constexpr fpu SIGNATURE = fpu(0xFACADE32); // placeholder byte data

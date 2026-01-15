@@ -1,18 +1,21 @@
 #include "core/constant.hpp"
 #include "core/interpreter.hpp"
+#include "core/kernel.hpp"
 #include "core/memory.hpp"
 #include "module/button.hpp"
+#include "module/filesystem.hpp"
 #include "module/video.hpp"
 #include "library/sdl.hpp"
 
-enum class Event : u8 {Load = 15, Init = 0, Step = 5, Draw = 10};
 
-void event_run(Event handler) {
- using namespace memory::vm;
- using namespace ram_global::constant;
- using namespace process::app::ram_local;
- counter = fpu(cast(u8, handler));
- while (counter < writer && sleeper == zero) {interpreter::step();}
+namespace kernel {
+ void run_event(Event handler) {
+  using namespace memory::vm;
+  using namespace ram_global::constant;
+  using namespace process::app::ram_local;
+  counter = fpu(cast(u8, handler));
+  while (counter < writer && sleeper == zero) {interpreter::step();}
+ }
 }
 
 int main() {
@@ -23,28 +26,11 @@ int main() {
  memory::reset();
 
  cout << "\nLOAD ===============================\n" << endl;
-
- interpreter::reset();
-
- ifstream file("/media/storage/share/cpp/CAT32/example/space_ignorant.app");
- if (!file) {cerr << "Failed to open file." << endl;}
-
- string line;
- // per line
- while (getline(file, line)) {
-  vector<vector<string>> tokens = interpreter::tokenize(line);
-  cout << '\n' << line.substr(stoi(tokens[0][0])) << endl;
-  interpreter::compile(tokens);
- }
-
- // dedent
- interpreter::compile(interpreter::tokenize("wait(0)")); // TODO: probably need a better take on this
-
+ filesystem::load("/app/file_manager.app");
  cout << "\nRUN ===============================\n" << endl;
+ filesystem::run();
 
- event_run(Event::Load);
- event_run(Event::Init);
-
+ // internal ticker
  constexpr float update_interval = 1000.0f / TICK::UPDATE;
  constexpr float frame_interval = 1000.0f / TICK::DRAW;
 
@@ -64,13 +50,13 @@ int main() {
    using namespace memory::vm::process::app::ram_local;
    if (sleeper) {sleeper--;}
    button::update();
-   event_run(Event::Step);
+   kernel::run_event(kernel::Event::Step);
    update_time -= update_interval;
   }
 
   if (draw_time >= frame_interval) {
-   event_run(Event::Draw);
-   video::flip();
+   kernel::run_event(kernel::Event::Draw);
+   video::flip(); // FIXME: need to queue
    draw_time = 0.0f;
   }
 

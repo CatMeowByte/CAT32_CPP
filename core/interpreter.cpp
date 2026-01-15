@@ -1,5 +1,4 @@
 #include "core/interpreter.hpp"
-#include "core/constant.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -87,7 +86,7 @@ namespace interpreter {
   string value = "";
   if (has_operand) {
    if (operand == memory::vm::ram_global::constant::sentinel) {value = "!UNPATCHED!";}
-   else if (operand == SIGNATURE) {value = "(unused)";}
+   else if (operand == memory::vm::ram_global::constant::signature) {value = "(unused)";}
    else {
     value = to_string(operand.value);
     if (name == "push") {
@@ -290,8 +289,8 @@ namespace interpreter {
     OP(add, a + b)
     OP(sub, a - b)
     OP(mul, a * b)
-    OP(div, b ? a / b : fpu(0))
-    OP(mod, b ? a - fpu(floor(cast(double, a / b))) * b : fpu(0))
+    OP(div, b ? a / b : memory::vm::ram_global::constant::sentinel)
+    OP(mod, b ? a - fpu(floor(cast(double, a / b))) * b : memory::vm::ram_global::constant::sentinel)
     OP(lt, a < b ? 1 : 0)
     OP(gt, a > b ? 1 : 0)
     OP(land, (a && b) ? 1 : 0)
@@ -357,7 +356,7 @@ namespace interpreter {
 
    else if (token == "(" || token == "[") {
     stash.push_back(token);
-    if (token == "(") {paren_args_count.push_back(0);}
+    if (token == "(" && i > 0 && utility::is_identifier(tokens[i-1])) {paren_args_count.push_back(0);}
    }
 
    else if (token == ")" || token == "]") {
@@ -522,7 +521,7 @@ namespace interpreter {
      case scope::Type::Function: {
       if (bytecode[writer - fpu(5)] != op::subret) { // last opcode
        cout << "implicit return emitted at " << cast(addr, writer) << endl;
-       bytecode_append(op::subret, SIGNATURE);
+       bytecode_append(op::subret, memory::vm::ram_global::constant::signature);
       }
       break;
      }
@@ -804,7 +803,7 @@ namespace interpreter {
       static const vector<fpu> opcode_no_defaults = {};
       args_default = &opcode_no_defaults;
       emit_opcode = opcode::get(name);
-      emit_operand = SIGNATURE;
+      emit_operand = memory::vm::ram_global::constant::signature;
      }
 
      if (emit_opcode == op::nop) {cout << "error: function \"" << name << "\" not found" << endl; return;}
@@ -901,15 +900,15 @@ namespace interpreter {
 
     // stripe offset
     else if (token == tag::offset || token == tag::offset_at) {
-     bytecode_append(op::add, SIGNATURE);
+     bytecode_append(op::add, memory::vm::ram_global::constant::signature);
      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression.size() - 1) {continue;} // stripe assignment handles storage internally
     if (token == tag::offset_at) {continue;} // address semantics require raw address
-     bytecode_append(op::get, SIGNATURE);
+     bytecode_append(op::get, memory::vm::ram_global::constant::signature);
     }
 
     // math operations
     else if (math_opcodes.count(token)) {
-     bytecode_append(math_opcodes.at(token), SIGNATURE);
+     bytecode_append(math_opcodes.at(token), memory::vm::ram_global::constant::signature);
     }
 
     // invalid
@@ -930,7 +929,7 @@ namespace interpreter {
   }
 
   // return
-  if (is_return) {bytecode_append(op::subret, SIGNATURE);}
+  if (is_return) {bytecode_append(op::subret, memory::vm::ram_global::constant::signature);}
 
   // if
   if (header_type == HeaderType::If) {
@@ -1043,7 +1042,7 @@ namespace interpreter {
       }
      }
      else if (tokens[0].size() >= 3) {
-      bytecode_append(op::set, SIGNATURE);
+      bytecode_append(op::set, memory::vm::ram_global::constant::signature);
      }
      break;
     }
