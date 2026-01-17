@@ -4,6 +4,8 @@
 
 #define MAYBE_UNUSED __attribute__((unused))
 
+extern const u32 font_special[32];
+
 namespace memory {
  extern octo raw[SYSTEM::MEMORY];
 
@@ -61,7 +63,11 @@ namespace memory {
 
    bocto(framebuffer, constant_next, 9600)
 
-   region(hardware_io, framebuffer_next, 128,
+   bocto(palette, framebuffer_next, 16)
+
+   bocto(font, palette_next, 512)
+
+   region(hardware_io, font_next, 128,
     ifpu(up, hardware_io_address)
     ifpu(down, up_next)
     ifpu(left, down_next)

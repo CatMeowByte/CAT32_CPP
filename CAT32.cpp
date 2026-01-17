@@ -4,7 +4,6 @@
 #include "core/memory.hpp"
 #include "module/button.hpp"
 #include "module/filesystem.hpp"
-#include "module/video.hpp"
 #include "library/sdl.hpp"
 
 
@@ -18,19 +17,15 @@ namespace kernel {
  }
 }
 
-int main() {
- if (!sdl::init()) {return 1;}
- sdl::delay(1); // wait until ready
-
- // init
+static void boot() {
  memory::reset();
-
  cout << "\nLOAD ===============================\n" << endl;
  filesystem::load("/app/file_manager.app");
  cout << "\nRUN ===============================\n" << endl;
  filesystem::run();
+}
 
- // internal ticker
+static void tick() {
  constexpr float update_interval = 1000.0f / TICK::UPDATE;
  constexpr float frame_interval = 1000.0f / TICK::DRAW;
 
@@ -50,36 +45,28 @@ int main() {
    using namespace memory::vm::process::app::ram_local;
    if (sleeper) {sleeper--;}
    button::update();
-   kernel::run_event(kernel::Event::Step);
+   run_event(kernel::Event::Step);
    update_time -= update_interval;
   }
 
   if (draw_time >= frame_interval) {
-   kernel::run_event(kernel::Event::Draw);
-   video::flip(); // FIXME: need to queue
+   run_event(kernel::Event::Draw);
+   sdl::flip(memory::vm::ram_global::framebuffer);
    draw_time = 0.0f;
   }
 
   sdl::delay(1);
  }
-
- sdl::shutdown();
- return 0;
 }
 
-void fps() {
- static float fps = 0;
- static u32 lastFrame = 0;
+int main() {
+ using namespace sdl;
+ if (!init()) {return 1;}
+ delay(1);
 
- u32 now = sdl::get_ticks();
- u32 delta = now - lastFrame;
- lastFrame = now;
+ boot();
+ tick();
 
- if (delta > 0) {
-  fps = 1000.0f / delta;
- }
-
- char buf[5];
- snprintf(buf, sizeof(buf), "%.1f", fps);
- video::text((VIDEO::WIDTH - (4 * 4)) / 2, VIDEO::HEIGHT - 8, buf, 7, 0);
+ shutdown();
+ return 0;
 }
