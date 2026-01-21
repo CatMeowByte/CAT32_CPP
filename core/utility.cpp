@@ -117,7 +117,7 @@ namespace utility {
   u32 length = text.size();
   u32 word_count = (length + 3) / 4;
 
-  result.push_back(fpu(length));
+  result.push_back(length);
 
   for (u32 word = 0; word < word_count; word++) {
    s32 packed_word = 0;

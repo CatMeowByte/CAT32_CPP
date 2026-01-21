@@ -13,13 +13,13 @@ namespace memory {
 
   using namespace vm::ram_global;
   using namespace constant;
-  zero = fpu(0.0);
-  one = fpu(1.0);
+  zero = 0.0;
+  one = 1.0;
   sentinel = fpu(0x80000000, true);
   signature = fpu(0xFACADE32, true);
-  pi = fpu(3.14159265358979323846);
-  tau = fpu(6.28318530717958647692);
-  euler = fpu(2.71828182845904523536);
+  pi = 3.14159265358979323846;
+  tau = 6.28318530717958647692;
+  euler = 2.71828182845904523536;
 
   for (u32 i = 0; i < 16; i++) {palette[i] = i | 0x80;}
   palette[0] &= 0x7F;

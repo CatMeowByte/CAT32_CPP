@@ -479,7 +479,6 @@ namespace interpreter {
     frame.header_start = scope::last_line_start;
     frame.type = scope::last_line_scope_set;
     frame.symbol_start = symbol::table.size();
-    frame.stack_start = stacker;
     scope::stack.push_back(frame);
 
     scope::last_line_scope_set = scope::Type::Generic;
@@ -505,7 +504,6 @@ namespace interpreter {
     const scope::Frame& frame = scope::stack.back();
 
     symbol::table.resize(frame.symbol_start);
-    stacker = frame.stack_start;
 
     switch (frame.type) {
      case scope::Type::While: {
@@ -611,6 +609,9 @@ namespace interpreter {
     if (symbol::exist(base_name) && symbol::get(base_name).type == symbol::Type::Stripe) {set_style = SetStyle::Stripe;}
    }
   }
+
+  // prevent garbage stack accumulation
+  bytecode_append(op::prime, memory::vm::ram_global::constant::signature);
 
   // token processing
   for (u32 i = 0; i < tokens.size(); i++) {
@@ -994,12 +995,12 @@ namespace interpreter {
      if (size == 0) {cout << "error: str declaration requires size or initial value" << endl; break;}
 
      // store size at index -1
-     bytecode_append(op::push, fpu(size));
+     bytecode_append(op::push, size);
      bytecode_append(op::storeto, slotter);
      slotter++;
 
      address = cast(addr, slotter);
-     slotter += fpu(size);
+     slotter += size;
 
      symbol::Data stripe_symbol;
      stripe_symbol.name = name;

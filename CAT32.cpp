@@ -26,16 +26,17 @@ static void boot() {
 }
 
 static void tick() {
- constexpr float update_interval = 1000.0f / TICK::UPDATE;
- constexpr float frame_interval = 1000.0f / TICK::DRAW;
+ constexpr double update_interval = 1000.0 / TICK::UPDATE;
+ constexpr double frame_interval = 1000.0 / TICK::DRAW;
 
- u32 tick_prev = sdl::get_ticks();
- float update_time = 0.0f;
- float draw_time = 0.0f;
+ u64 tick_prev = sdl::get_ticks();
+ double update_time = 0;
+ double draw_time = 0;
+
 
  while (sdl::poll()) {
-  u32 tick_now = sdl::get_ticks();
-  float tick_delta = tick_now - tick_prev;
+  u64 tick_now = sdl::get_ticks();
+  double tick_delta = tick_now - tick_prev;
   tick_prev = tick_now;
 
   update_time += tick_delta;
@@ -52,7 +53,7 @@ static void tick() {
   if (draw_time >= frame_interval) {
    run_event(kernel::Event::Draw);
    sdl::flip(memory::vm::ram_global::framebuffer);
-   draw_time = 0.0f;
+   draw_time = 0;
   }
 
   sdl::delay(1);

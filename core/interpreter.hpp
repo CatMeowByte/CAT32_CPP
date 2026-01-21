@@ -48,7 +48,6 @@ namespace scope {
   Type type;
   addr jump_operand;
   addr header_start;
-  addr stack_start;
   u32 symbol_start;
   vector<addr> break_unpatched;
   vector<u16> space;

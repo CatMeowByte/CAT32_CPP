@@ -43,6 +43,8 @@
  OPC(0x4C, bnot, 1) \
  OPC(0x4D, bshl, 2) \
  OPC(0x4E, bshr, 2) \
+ /* marker */ \
+ OPI(0xAA, prime) \
  /* module */ \
  OPI(0xFF, call) \
  /* nop */ \

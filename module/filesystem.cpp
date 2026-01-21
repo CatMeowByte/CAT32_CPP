@@ -198,9 +198,9 @@ namespace filesystem {
   memset(ram_local_octo, 0, ram_local_size);
 
   using namespace ram_local;
-  stacker = fpu(field_length);
-  slotter = fpu(cast(s32, (field_address - ram_local_address) / sizeof(fpu)));
-  writer = fpu(15);
+  stacker = field_length;
+  slotter = cast(s32, (field_address - ram_local_address) / sizeof(fpu));
+  writer = 15;
 
   memory::unaligned_32_write(bytecode + 1, memory::vm::ram_global::constant::sentinel.value);
   memory::unaligned_32_write(bytecode + 6, memory::vm::ram_global::constant::sentinel.value);

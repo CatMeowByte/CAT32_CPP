@@ -10,7 +10,7 @@ namespace sdl {
  bool poll();
 
  void delay(const u32 ms);
- u32 get_ticks();
+ u64 get_ticks();
 
  bool is_key_pressed(const str key_name);
 

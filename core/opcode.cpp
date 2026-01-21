@@ -84,7 +84,7 @@ namespace opfunc {
    bool is_global = address_signed < 0;
    addr address = is_global ? -address_signed : address_signed;
    octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   push(fpu(region[address]));
+   push(region[address]);
    OPDONE;
   }
 
@@ -314,6 +314,13 @@ namespace opfunc {
   fpu b = memory::pop();
   fpu a = memory::pop();
   push(a >> cast(s32, b));
+  OPDONE;
+ }
+
+ /* marker */
+ addr prime(fpu value) {
+  using namespace memory::vm::process::app::ram_local;
+  stacker = field_length;
   OPDONE;
  }
 
