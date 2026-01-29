@@ -342,11 +342,21 @@ namespace interpreter {
     // fold constant
     fold(output, stash, token);
 
-    // defer operator
+    // pop deferred operator
     while (
      !stash.empty()
      && math_list_operations.count(stash.back())
-     && operator_precedences.at(stash.back()) > operator_precedences.at(token)
+     // if higher precedence
+     && (operator_precedences.at(stash.back()) > operator_precedences.at(token)
+      // or not foldable
+      || (operator_precedences.at(stash.back()) == operator_precedences.at(token)
+       && (output.empty()
+        || i + 1 >= tokens.size()
+        || !utility::is_number(output.back())
+        || !utility::is_number(tokens[i + 1])
+       )
+      )
+     )
     ) {
      output.push_back(stash.back());
      stash.pop_back();
