@@ -52,7 +52,7 @@ static void tick() {
 
   if (draw_time >= frame_interval) {
    run_event(kernel::Event::Draw);
-   sdl::flip(memory::vm::ram_global::framebuffer);
+   sdl::flip();
    draw_time = 0;
   }
 
@@ -61,13 +61,14 @@ static void tick() {
 }
 
 int main() {
- using namespace sdl;
- if (!init()) {return 1;}
- delay(1);
+ using namespace memory::vm::ram_global;
+ if (!sdl::audio(hardware_io::frequency)) {return 1;}
+ if (!sdl::video(framebuffer)) {return 1;}
+ sdl::delay(1);
 
  boot();
  tick();
 
- shutdown();
+ sdl::stop();
  return 0;
 }

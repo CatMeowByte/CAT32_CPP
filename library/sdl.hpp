@@ -1,18 +1,20 @@
 #pragma once
 
-#include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL.h>
 
 #include "core/constant.hpp" // IWYU pragma: keep
 
 namespace sdl {
- bool init();
- void shutdown();
- bool poll();
+ bool video(octo* data);
+ bool audio(fpu* data);
 
- void delay(const u32 ms);
- u64 get_ticks();
+ bool poll();
+ void stop();
+
+ // alias
+ constexpr void (*delay)(u32) = SDL_Delay;
+ constexpr u64 (*get_ticks)() = SDL_GetTicks;
 
  bool is_key_pressed(const str key_name);
-
- void flip(const u8* data);
+ void flip();
 }

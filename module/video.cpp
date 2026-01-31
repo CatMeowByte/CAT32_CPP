@@ -2,8 +2,12 @@
 #include "core/module.hpp"
 #include "core/opcode.hpp"
 #include "core/utility.hpp"
-#include "module/font.hpp"
 #include "module/video.hpp"
+
+namespace FONT {
+ constexpr u8 WIDTH = 4;
+ constexpr u8 HEIGHT = 8;
+}
 
 namespace video {
  void clear(u8 color) {

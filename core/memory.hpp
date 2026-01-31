@@ -85,8 +85,10 @@ namespace memory {
     ifpu(magnetometer_x, gyroscope_z_next)
     ifpu(magnetometer_y, magnetometer_x_next)
     ifpu(magnetometer_z, magnetometer_y_next)
+    bfpu(frequency, magnetometer_z_next, 4)
+    bfpu(duty, frequency_next, 4)
    )
-   check(hardware_io, hardware_io::magnetometer_z)
+   check(hardware_io, hardware_io::duty)
   )
   check(ram_global, ram_global::hardware_io::magnetometer_z)
 

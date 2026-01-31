@@ -1,4 +1,5 @@
 
+#include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include <sys/stat.h>
 #if defined(_WIN32)
@@ -347,12 +348,6 @@ namespace filesystem {
   addr run(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(1)
    addr address_path = memory::pop();
-   // FIXME:
-   // first time encountering "reference" default value
-   // if value gives the value directly, reference means giving the memory address that point to the value
-   // any number SHOULD be valid by the peekpoke rule
-   // though it seems like the invalid/nothing is undecided, so its currently take sentinel (-32768 points at the first bytecode)
-   // and the current implementation still hasnt considered negative value yet, so currently can not put thing in global ram
    using namespace memory::vm::ram_global::constant;
    if (address_path != cast(addr, sentinel) && ram_local_fpu[address_path] != zero) {
     string string_path = utility::string_pick(address_path);
@@ -374,6 +369,6 @@ namespace filesystem {
   module::add("filesystem", "make_dir", wrap::make_dir, 1);
   module::add("filesystem", "remove", wrap::remove, 1);
   module::add("", "load", wrap::load, 1);
-  module::add("", "run", wrap::run, 1, {memory::vm::ram_global::constant::sentinel});
+  module::add("", "run", wrap::run, 1, {SENTINEL});
  )
 }

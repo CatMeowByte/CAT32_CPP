@@ -15,7 +15,7 @@ namespace memory {
   using namespace constant;
   zero = 0.0;
   one = 1.0;
-  sentinel = fpu(0x80000000, true);
+  sentinel = SENTINEL;
   signature = fpu(0xFACADE32, true);
   pi = 3.14159265358979323846;
   tau = 6.28318530717958647692;
@@ -59,5 +59,8 @@ namespace memory {
    0x82,0x00,0x00,0x00,0x06,0x06,0x4C,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
   };
   memcpy(font, font_data, 512);
+
+  using namespace hardware_io;
+  for (u32 i = 0; i < 4; i++) {duty[i] = 0.5;}
  }
 }
