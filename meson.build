@@ -1,12 +1,34 @@
-project('CAT-32', 'cpp',
- default_options: [
-  'cpp_std=c++11'
- ]
+project(
+ 'CAT-32',
+ 'cpp',
+ default_options: ['cpp_std=c++11'],
 )
 
-sources = run_command('find', '.', '-name', '*.cpp', '!', '-path', './build/*', check: true).stdout().strip().split('\n')
+sources = [
+# kernel
+'CAT32.cpp',
 
-executable('CAT-32', sources,
+# core
+'core/interpreter.cpp',
+'core/memory.cpp',
+'core/module.cpp',
+'core/opcode.cpp',
+'core/utility.cpp',
+
+# library
+'library/sdl.cpp',
+
+# module
+'module/audio.cpp',
+'module/button.cpp',
+'module/filesystem.cpp',
+'module/string.cpp',
+'module/video.cpp',
+]
+
+executable(
+ 'CAT-32',
+ sources,
  include_directories: include_directories('.'),
- dependencies: dependency('sdl3')
+ dependencies: dependency('sdl3'),
 )

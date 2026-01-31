@@ -1,10 +1,40 @@
-# CAT32-CPP
+```
+████████  ████████  ████████  ████████████  ████████████
+████      ████  ██    ████    ████████████  ████████████
+████      ████████    ████            ████  ████    ████
+████      ████  ██    ████            ████          ████
+████████  ████  ██    ████        ████████        ██████
+                                  ████████      ██████
+████████████████████████████          ████    ██████
+████████████████████████████          ████  ██████
+████████████████████████████  ████████████  ████████████
+████████████████████████████  ████████████  ████████████
+```
 
-Low-level implementation of CAT32 system with its language interpreter.
+Low-level implementation of CAT-32 system with MIAU language interpreter.
 
-#### Project Structure
+There is nothing to tell for now.
 
-+ CAT32 is a kernel
-+ /core has kernel modules to define the system functionality
-+ /lib is a wrapper to interact with external environment, likely platform specific
-+ /spec is the global configuration and definition
+## Building
+
+### Requirements
++ Meson / Muon
++ Ninja / Samurai
++ C++11 compiler
++ SDL3 library
+
+### Build
+```sh
+meson setup build
+meson compile -C build
+```
+
+Then run `CAT-32` executable from `./build` directory.
+
+# License
+
+This project is licensed under [GNU General Public License version 3 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
+
+# Contributing
+
+This project follows the [Heretic Git Guidelines](https://catmeowbyte.github.io/heretic_git_guidelines).
