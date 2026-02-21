@@ -15,10 +15,10 @@ namespace button {
   {hardware_io::down, {"down", "s", nullptr, nullptr}},
   {hardware_io::left, {"left", "a", nullptr, nullptr}},
   {hardware_io::right, {"right", "d", nullptr, nullptr}},
-  {hardware_io::ok, {"space", "return", "j", "x"}},
-  {hardware_io::cancel, {"left ctrl", "right ctrl", "k", "z"}},
-  {hardware_io::shoulder_left, {"left shift", "q", nullptr, nullptr}},
-  {hardware_io::shoulder_right, {"right shift", "e", nullptr, nullptr}},
+  {hardware_io::primary, {"space", "return", "j", "x"}},
+  {hardware_io::secondary, {"left ctrl", "right ctrl", "k", "z"}},
+  {hardware_io::trigger, {"left shift", "q", nullptr, nullptr}},
+  {hardware_io::context, {"right shift", "e", nullptr, nullptr}},
  };
 
  void update() {

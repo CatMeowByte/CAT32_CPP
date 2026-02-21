@@ -48,65 +48,65 @@ namespace memory {
 
  #define check(region_name,item_name) static_assert(item_name##_next <= region_name##_next, "region overflow");
 
- region(vm, 0, SYSTEM::MEMORY,
-  region(ram_global, vm_address, 32768,
-   region(constant, ram_global_address, 32,
-    ifpu(zero, constant_address)
-    ifpu(one, zero_next)
-    ifpu(sentinel, one_next)
-    ifpu(signature, sentinel_next)
-    ifpu(pi, signature_next)
-    ifpu(tau, pi_next)
-    ifpu(euler, tau_next)
+ region(vm, 0, SYSTEM::MEMORY, // map of the entire memory
+  region(ram_global, vm_address, 32768, // presistent memory
+   region(constant, ram_global_address, 32, // populated at startup. should be unchanged
+    ifpu(zero, constant_address) // runtime zero reference
+    ifpu(one, zero_next) // runtime one reference
+    ifpu(sentinel, one_next) // runtime sentinel reference. not to be confused with compile time SENTINEL
+    ifpu(signature, sentinel_next) // special bytes. meaningless
+    ifpu(pi, signature_next) // pi
+    ifpu(tau, pi_next) // tau. why is it exist if pi*2 is possible too?
+    ifpu(euler, tau_next) // euler. likely almost never be used
    )
    check(constant, constant::euler)
 
-   bocto(framebuffer, constant_next, 9600)
+   bocto(framebuffer, constant_next, 9600) // 120*160 4bpp pixel data
 
-   bocto(palette, framebuffer_next, 16)
+   bocto(palette, framebuffer_next, 16) // 16 color remap to hardware color index. bit 7 sets visibility, 0-3 sets target index
 
-   bocto(font, palette_next, 512)
+   bocto(font, palette_next, 512) // 128 characters 16*8 grid 4x8 1bpp. 0-31 map to special characters, 32-127 standard ascii
 
-   region(hardware_io, font_next, 128,
-    ifpu(up, hardware_io_address)
-    ifpu(down, up_next)
-    ifpu(left, down_next)
-    ifpu(right, left_next)
-    ifpu(ok, right_next)
-    ifpu(cancel, ok_next)
-    ifpu(shoulder_left, cancel_next)
-    ifpu(shoulder_right, shoulder_left_next)
-    ifpu(acceleration_x, shoulder_right_next)
-    ifpu(acceleration_y, acceleration_x_next)
-    ifpu(acceleration_z, acceleration_y_next)
-    ifpu(gyroscope_x, acceleration_z_next)
-    ifpu(gyroscope_y, gyroscope_x_next)
-    ifpu(gyroscope_z, gyroscope_y_next)
-    ifpu(magnetometer_x, gyroscope_z_next)
-    ifpu(magnetometer_y, magnetometer_x_next)
-    ifpu(magnetometer_z, magnetometer_y_next)
-    bfpu(frequency, magnetometer_z_next, 4)
-    bfpu(duty, frequency_next, 4)
+   region(hardware_io, font_next, 128, // essential hardware device input and output
+    ifpu(up, hardware_io_address) // d pad up
+    ifpu(down, up_next) // d pad down
+    ifpu(left, down_next) // d pad left
+    ifpu(right, left_next) // d pad right
+    ifpu(primary, right_next) // dedicated button. ok / a / accept
+    ifpu(secondary, primary_next) // rocker press. back / b / cancel
+    ifpu(trigger, secondary_next) // shoulder right
+    ifpu(context, trigger_next) // shoulder left
+    ifpu(acceleration_x, context_next) // right
+    ifpu(acceleration_y, acceleration_x_next) // up
+    ifpu(acceleration_z, acceleration_y_next) // front
+    ifpu(gyroscope_x, acceleration_z_next) // roll
+    ifpu(gyroscope_y, gyroscope_x_next) // pitch
+    ifpu(gyroscope_z, gyroscope_y_next) // yaw
+    ifpu(magnetometer_x, gyroscope_z_next) // right
+    ifpu(magnetometer_y, magnetometer_x_next) // up
+    ifpu(magnetometer_z, magnetometer_y_next) // front
+    bfpu(frequency, magnetometer_z_next, 4) // 4 channel frequencies in hertz
+    bfpu(duty, frequency_next, 4) // 4 channel duties from 0.0 to 1.0
    )
    check(hardware_io, hardware_io::duty)
   )
   check(ram_global, ram_global::hardware_io::magnetometer_z)
 
-  region(process, ram_global_next, 65536,
-   region(app, process_address, 65536,
+  region(process, ram_global_next, 65536, // process region
+   region(app, process_address, 65536, // app 0
 
-    bocto(bytecode, app_address, 32768)
+    bocto(bytecode, app_address, 32768) // compiled bytecode
 
-    region(ram_local, bytecode_next, 32768,
-     ifpu(stacker, ram_local_address)
-     ifpu(slotter, stacker_next)
-     ifpu(writer, slotter_next)
-     ifpu(counter, writer_next)
-     ifpu(sleeper, counter_next)
-     ifpu(framer, sleeper_next)
-     bfpu(frames, framer_next, 121)
-     bocto(sprite, frames_next, 8192)
-     bfpu(field, sprite_next, 6016)
+    region(ram_local, bytecode_next, 32768, // app memory
+     ifpu(stacker, ram_local_address) // stack pointer. starts from end of local memory
+     ifpu(slotter, stacker_next) // variable allocator. increment on compile
+     ifpu(writer, slotter_next) // points to after last bytecode
+     ifpu(counter, writer_next) // bytecode execution pointer
+     ifpu(sleeper, counter_next) // wait countdown on ticks
+     ifpu(framer, sleeper_next) // call adress pointer
+     bfpu(frames, framer_next, 121) // call adress stack
+     bocto(sprite, frames_next, 8192) // 128x128 4bpp sprite data
+     bfpu(field, sprite_next, 6016) // free space. last few bytes is used as stack
     )
     check(ram_local, ram_local::field)
    )
