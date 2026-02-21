@@ -1,3 +1,4 @@
+#include "core/constant.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -15,7 +16,7 @@ namespace video {
   memset(framebuffer, (color & 0xF) << 4 | (color & 0xF), framebuffer_size);
  }
 
- u8 pixel(s32 x, s32 y, s8 color = -1) {
+ u8 pixel(s32 x, s32 y, s32 color = SENTINEL) {
   if (x < 0 || y < 0 || x >= VIDEO::WIDTH || y >= VIDEO::HEIGHT) {return 0;}
   u16 index = y * VIDEO::WIDTH + x;
   u16 byte_pos = index / 2;
@@ -289,7 +290,7 @@ namespace video {
 
  MODULE(
   module::add("video", "clear", wrap::clear, 1, {0});
-  module::add("video", "pixel", wrap::pixel, 3, {-1});
+  module::add("video", "pixel", wrap::pixel, 3, {SENTINEL});
   module::add("video", "line", wrap::line, 5);
   module::add("video", "rect", wrap::rect, 6, {1});
   module::add("video", "circle", wrap::circle, 5, {1});
