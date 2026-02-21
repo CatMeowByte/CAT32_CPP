@@ -268,8 +268,8 @@ namespace interpreter {
    && utility::is_number(output[output.size() - 1])
    && utility::is_number(output[output.size() - 2])
    && !stash.empty()
-   && (incoming_token.empty() || operator_precedences.at(stash.back()) >= operator_precedences.at(incoming_token))
    && (stop_at.empty() || stash.back() != stop_at)
+   && (incoming_token.empty() || (operator_precedences.count(stash.back()) && operator_precedences.at(stash.back()) >= operator_precedences.at(incoming_token)))
   ) {
    fpu b = fpu(stod(output.back())); output.pop_back();
    fpu a = fpu(stod(output.back())); output.pop_back();
