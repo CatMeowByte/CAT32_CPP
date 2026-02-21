@@ -148,8 +148,21 @@ namespace interpreter {
   while (pos < line.size()) {
    char c = line[pos];
 
+   // inside quote
+   if (in_quote) {
+    if (c == '"') {
+     u8 backslash_count = 0;
+     for (s32 i = pos - 1; i >= 0 && line[i] == '\\'; i--) {backslash_count++;}
+     if (backslash_count % 2 == 0) {token += c; expression.push_back(token); token.clear(); in_quote = false;}
+     else {token += c;}
+    }
+    else {token += c;}
+    pos++;
+    continue;
+   }
+
    // push token
-   if (!token.empty() && !in_quote && (
+   if (!token.empty() && (
     c == ' ' || c == '#' || c == '='
     || boundaries.count(c)
     || math_list_operations.count(string(1, c))
@@ -169,19 +182,7 @@ namespace interpreter {
    else if (c == '#') {break;}
 
    // quote
-   else if (c == '"') {
-    u8 backslash_count = 0;
-    for (s32 i = pos - 1; i >= 0 && line[i] == '\\'; i--) {backslash_count++;}
-    if (backslash_count % 2 == 0) {
-     if (in_quote) {token += c; expression.push_back(token); token.clear();}
-     else {token += c;}
-     in_quote = !in_quote;
-    }
-    else {token += c;}
-   }
-
-   // inside quote
-   else if (in_quote) {token += c;}
+   else if (c == '"') {token += c; in_quote = true;}
 
    // hex and bin
    else if (c == '0' && token.empty() && pos + 1 < line.size() && (line[pos+1] == 'x' || line[pos+1] == 'X' || line[pos+1] == 'b' || line[pos+1] == 'B')) {
