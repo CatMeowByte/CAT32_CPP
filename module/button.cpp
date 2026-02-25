@@ -17,8 +17,8 @@ namespace button {
   {hardware_io::right, {"right", "d", nullptr, nullptr}},
   {hardware_io::primary, {"space", "return", "j", "x"}},
   {hardware_io::secondary, {"left ctrl", "right ctrl", "k", "z"}},
-  {hardware_io::trigger, {"left shift", "q", nullptr, nullptr}},
-  {hardware_io::context, {"right shift", "e", nullptr, nullptr}},
+  {hardware_io::context, {"left shift", "q", "l", nullptr}},
+  {hardware_io::trigger, {"right shift", "e", "i", nullptr}},
  };
 
  void update() {

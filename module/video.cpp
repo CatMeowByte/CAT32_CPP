@@ -141,6 +141,56 @@ namespace video {
   }
  }
 
+ void blit(s32 src_x, s32 src_y, s32 src_w, s32 src_h, s32 dst_x, s32 dst_y, s32 dst_w, s32 dst_h, u8 rotation) {
+  s32 dst_w_abs = dst_w < 0 ? -dst_w : dst_w;
+  s32 dst_h_abs = dst_h < 0 ? -dst_h : dst_h;
+
+  if (!dst_w_abs || !dst_h_abs || !src_w || !src_h) {return;}
+
+  u8 rotation_step = rotation & 3;
+  bool is_flip_h = cast(bool, rotation & 4) ^ (dst_w < 0);
+  bool is_flip_v = dst_h < 0;
+  s32 sx_range = (rotation_step & 1) ? src_h : src_w;
+  s32 sy_range = (rotation_step & 1) ? src_w : src_h;
+
+  using namespace memory::vm::process::app::ram_local;
+
+  s32 px_min = dst_w < 0 ? dst_w : 0;
+  s32 py_min = dst_h < 0 ? dst_h : 0;
+  s32 px_lo = max(px_min, -dst_x);
+  s32 py_lo = max(py_min, -dst_y);
+  s32 px_hi = min(px_min + dst_w_abs, VIDEO::WIDTH - dst_x);
+  s32 py_hi = min(py_min + dst_h_abs, VIDEO::HEIGHT - dst_y);
+
+  if (px_lo >= px_hi || py_lo >= py_hi) {return;}
+
+  for (s32 py = py_lo; py < py_hi; py++) {
+   for (s32 px = px_lo; px < px_hi; px++) {
+    s32 sx_raw = (px - px_min) * sx_range / dst_w_abs;
+    s32 sy_raw = (py - py_min) * sy_range / dst_h_abs;
+
+    s32 sx = 0;
+    s32 sy = 0;
+
+    switch (rotation_step) {
+     case 0: {sx = sx_raw; sy = sy_raw; break;}
+     case 1: {sx = src_w - 1 - sy_raw; sy = sx_raw; break;}
+     case 2: {sx = src_w - 1 - sx_raw; sy = src_h - 1 - sy_raw; break;}
+     case 3: {sx = sy_raw; sy = src_h - 1 - sx_raw; break;}
+    }
+
+    if (is_flip_h) {sx = src_w - 1 - sx;}
+    if (is_flip_v) {sy = src_h - 1 - sy;}
+
+    if (sx < 0 || sy < 0 || sx >= src_w || sy >= src_h) {continue;}
+
+    u32 index = (src_y + sy) * 128 + (src_x + sx);
+    u8 color = (sprite[index / 2] >> (index % 2 == 0 ? 4 : 0)) & 0xF;
+    video::pixel(dst_x + px, dst_y + py, color);
+   }
+  }
+ }
+
  void text(s32 x, s32 y, string text, u8 color, u8 background) {
   s32 cursor_x = x;
   s32 cursor_y = y;
@@ -258,6 +308,21 @@ namespace video {
    OPDONE;
   }
 
+  addr blit(fpu value) {
+   BAIL_UNLESS_STACK_ATLEAST(9)
+   u8 rotation = memory::pop();
+   s32 dst_h = memory::pop();
+   s32 dst_w = memory::pop();
+   s32 dst_y = memory::pop();
+   s32 dst_x = memory::pop();
+   s32 src_h = memory::pop();
+   s32 src_w = memory::pop();
+   s32 src_y = memory::pop();
+   s32 src_x = memory::pop();
+   video::blit(src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w, dst_h, rotation);
+   OPDONE;
+  }
+
   addr text(fpu value) {
    BAIL_UNLESS_STACK_ATLEAST(5)
    u8 background = memory::pop();
@@ -294,6 +359,7 @@ namespace video {
   module::add("video", "line", wrap::line, 5);
   module::add("video", "rect", wrap::rect, 6, {1});
   module::add("video", "circle", wrap::circle, 5, {1});
+  module::add("video", "blit", wrap::blit, 9);
   module::add("video", "text", wrap::text, 5, {0});
   module::add("video", "color", wrap::color, 2);
   module::add("video", "alpha", wrap::alpha, 2);

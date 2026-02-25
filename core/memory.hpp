@@ -74,9 +74,9 @@ namespace memory {
     ifpu(right, left_next) // d pad right
     ifpu(primary, right_next) // dedicated button. ok / a / accept
     ifpu(secondary, primary_next) // rocker press. back / b / cancel
-    ifpu(trigger, secondary_next) // shoulder right
-    ifpu(context, trigger_next) // shoulder left
-    ifpu(acceleration_x, context_next) // right
+    ifpu(context, secondary_next) // shoulder left
+    ifpu(trigger, context_next) // shoulder right
+    ifpu(acceleration_x, trigger_next) // right
     ifpu(acceleration_y, acceleration_x_next) // up
     ifpu(acceleration_z, acceleration_y_next) // front
     ifpu(gyroscope_x, acceleration_z_next) // roll
