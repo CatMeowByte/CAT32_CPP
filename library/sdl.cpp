@@ -24,9 +24,9 @@ static void audio_callback(void* userdata, SDL_AudioStream* stream, int addition
  for (u32 i = 0; i < sample; i++) {
   buffer[i] = 0;
   for (u8 ch = 0; ch < AUDIO::CHANNEL; ch++) {
-   if (!data[ch].value || data[ch].value > cast(s32, (AUDIO::RATE / 2) << fpu::DECIMAL_WIDTH)) {continue;}
-   buffer[i] += ((cast(s32, phase[ch] >> fpu::DECIMAL_WIDTH) < data[ch + AUDIO::CHANNEL].value) ? INT16_MAX : INT16_MIN) / AUDIO::CHANNEL;
-   phase[ch] += (cast(u64, data[ch].value) << (32 - fpu::DECIMAL_WIDTH)) / AUDIO::RATE;
+   if (!data[ch].r() || data[ch].r() > cast(s32, (AUDIO::RATE / 2) << fpu::WIDTH)) {continue;}
+   buffer[i] += ((cast(s32, phase[ch] >> fpu::WIDTH) < data[ch + AUDIO::CHANNEL].r()) ? INT16_MAX : INT16_MIN) / AUDIO::CHANNEL;
+   phase[ch] += (cast(u64, data[ch].r()) << (32 - fpu::WIDTH)) / AUDIO::RATE;
   }
  }
 

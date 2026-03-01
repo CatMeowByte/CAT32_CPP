@@ -41,7 +41,7 @@ namespace opfunc {
  addr push(fpu value) {
   BAIL_IF_STACK_OVERFLOW
   using namespace memory::vm::process::app::ram_local;
-  field[--stacker] = value;
+  field[(--stacker).i()] = value;
   OPDONE;
  }
 
@@ -50,14 +50,14 @@ namespace opfunc {
   BAIL_IF_STACK_OVERFLOW
   using namespace memory::vm::process::app;
   using namespace ram_local;
-  field[--stacker] = ram_local_fpu[value];
+  field[(--stacker).i()] = ram_local_fpu[value.i()];
   OPDONE;
  }
 
  addr storeto(fpu value) {
   BAIL_UNLESS_STACK_ATLEAST(1)
   using namespace memory::vm::process::app;
-  ram_local_fpu[value] = memory::pop();
+  ram_local_fpu[value.i()] = memory::pop();
   OPDONE;
  }
 
@@ -106,7 +106,7 @@ namespace opfunc {
    addr address = is_global ? -address_signed : address_signed;
    octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
    s32 raw = memory::unaligned_32_read(region + address);
-   push(fpu(raw, true));
+   push(fpu::raw(raw));
    OPDONE;
   }
 
@@ -117,15 +117,15 @@ namespace opfunc {
    bool is_global = address_signed < 0;
    addr address = is_global ? -address_signed : address_signed;
    octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   memory::unaligned_32_write(region + address, val.value);
+   memory::unaligned_32_write(region + address, val.r());
    OPDONE;
   }
 
  /* counter */
  addr subgo(fpu value) {
   using namespace memory::vm::process::app::ram_local;
-  if (framer >= fpu(frames_length)) {OPDONE;}
-  frames[framer++] = counter;
+  if (cast(u32, framer.i()) >= frames_length) {OPDONE;}
+  frames[(framer++).i()] = counter;
   return value;
  }
 
@@ -134,7 +134,7 @@ namespace opfunc {
   using namespace ram_global::constant;
   using namespace process::app::ram_local;
   if (framer == zero) {return writer;} // end kernel event loop
-  addr address = frames[--framer];
+  addr address = frames[(--framer).i()];
   return address + 5;
  }
 
@@ -326,7 +326,7 @@ namespace opfunc {
 
  /* module */
  addr call(fpu value) {
-  return module::table[value.value].function(value);
+  return module::table[value.r()].function(value);
  }
 
  /* nop */

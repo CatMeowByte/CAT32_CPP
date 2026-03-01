@@ -14,7 +14,7 @@
 #include <string> // IWYU pragma: export
 #include <vector> // IWYU pragma: export
 
-#include "core/fpu.hpp" // IWYU pragma: export
+#include "core/fixed_point_unit.hpp" // IWYU pragma: export
 
 using namespace std;
 

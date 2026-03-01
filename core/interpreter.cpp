@@ -88,13 +88,13 @@ namespace interpreter {
    if (operand == memory::vm::ram_global::constant::sentinel) {value = "!UNPATCHED!";}
    else if (operand == memory::vm::ram_global::constant::signature) {value = "(unused)";}
    else {
-    value = to_string(operand.value);
+    value = to_string(operand.r());
     if (name == "push") {
      value += " (" + utility::string_no_trailing(operand) + ")";
 
      // printable ASCII
      value += " \"";
-     for (u8 i = 0; i < 4; i++) {value += cast(char, (operand.value >> (i * 8)) & 0xFF);}
+     for (u8 i = 0; i < 4; i++) {value += cast(char, (operand.r() >> (i * 8)) & 0xFF);}
      value += "\"";
     }
     else if (name == "takefrom" || name == "storeto") {
@@ -106,7 +106,7 @@ namespace interpreter {
      }
     }
     else if (name == "call") {
-     value += " (" + module::get_name(operand.value) + ")";
+     value += " (" + module::get_name(operand.r()) + ")";
     }
     else if (name == "subgo") {
      for (s32 i = symbol::table.size() - 1; i >= 0; i--) {
@@ -126,8 +126,8 @@ namespace interpreter {
   using namespace memory::vm::process::app;
   using namespace ram_local;
   debug_opcode(opcode, operand, writer);
-  bytecode[writer] = opcode;
-  memory::unaligned_32_write(bytecode + writer + 1, operand.value);
+  bytecode[writer.i()] = opcode;
+  memory::unaligned_32_write(bytecode + writer.i() + 1, operand.r());
   writer += 5;
  }
 
@@ -479,7 +479,7 @@ namespace interpreter {
     cout << ">>>>" << endl;
 
     if (scope::last_line_scope_set != scope::Type::Function) { // if, while, and else
-     const octo last_opcode = bytecode[writer - fpu(5)];
+     const octo last_opcode = bytecode[writer.i() - 5];
      if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
       cout << "caution: last opcode before indent is not jump/jumz/junz" << endl;
      }
@@ -522,13 +522,13 @@ namespace interpreter {
 
       // patch break
       for (addr patch_addr : frame.break_unpatched) {
-       memory::unaligned_32_write(bytecode + patch_addr, writer.value);
+       memory::unaligned_32_write(bytecode + patch_addr, writer.r());
        cout << "patching break at " << patch_addr << " to " << cast(addr, writer) << endl;
       }
       break;
      }
      case scope::Type::Function: {
-      if (bytecode[writer - fpu(5)] != op::subret) { // last opcode
+      if (bytecode[writer.i() - 5] != op::subret) { // last opcode
        cout << "implicit return emitted at " << cast(addr, writer) << endl;
        bytecode_append(op::subret, memory::vm::ram_global::constant::signature);
       }
@@ -537,7 +537,7 @@ namespace interpreter {
      default: {break;}
     }
 
-    memory::unaligned_32_write(bytecode + frame.jump_operand, writer.value);
+    memory::unaligned_32_write(bytecode + frame.jump_operand, writer.r());
     cout << "patching jump operand at " << frame.jump_operand << " to address " << cast(addr, writer) << endl;
 
     scope::stack.pop_back();
@@ -678,9 +678,9 @@ namespace interpreter {
      addr address = cast(addr, writer);
 
      // event loop
-     if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).value); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
-     else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).value); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
-     else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).value); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
+     if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).r()); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
+     else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).r()); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
+     else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).r()); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
 
      // symbol
      symbol::Data function_symbol;
@@ -807,7 +807,7 @@ namespace interpreter {
       args_total = registered_module.args_count;
       args_default = &registered_module.args_default;
       emit_opcode = op::call;
-      emit_operand = fpu(module_hash, true);
+      emit_operand = fpu::raw(module_hash);
      }
      // opcode last
      else if (opcode::exist(name)) {
@@ -880,7 +880,7 @@ namespace interpreter {
      // preserve fractional
      double decimal = stod(token);
      // scale to fixed point unit
-     double scaled = decimal * (1 << fpu::DECIMAL_WIDTH);
+     double scaled = decimal * (1 << fpu::WIDTH);
      // round instead of truncate to zero
      double rounded = round(scaled);
      // pick the lower 32 bit
@@ -888,7 +888,7 @@ namespace interpreter {
      // reinterpret as s32
      s32 raw;
      memcpy(&raw, &bits, 4);
-     bytecode_append(op::push, fpu(raw, true));
+     bytecode_append(op::push, fpu::raw(raw));
     }
 
     // addressof
@@ -1081,8 +1081,8 @@ namespace interpreter {
 
   if (counter >= writer) {return;}
 
-  octo opcode = bytecode[counter];
-  fpu operand = fpu(memory::unaligned_32_read(bytecode + counter + 1), true);
+  octo opcode = bytecode[counter.i()];
+  fpu operand = fpu::raw(memory::unaligned_32_read(bytecode + counter.i() + 1));
   addr result = memory::vm::ram_global::constant::sentinel;
 
   // debug_opcode(opcode, operand, counter);

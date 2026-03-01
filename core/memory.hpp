@@ -127,7 +127,7 @@ namespace memory {
  void reset();
 
  // internal
- inline fpu pop() {using namespace vm::process::app::ram_local; return field[stacker++];}
+ inline fpu pop() {using namespace vm::process::app::ram_local; return field[stacker++.i()];}
 
  // unaligned
  inline s32 unaligned_32_read(octo* ptr) {return cast(s32, ptr[0]) | (cast(s32, ptr[1]) << 8) | (cast(s32, ptr[2]) << 16) | (cast(s32, ptr[3]) << 24);}

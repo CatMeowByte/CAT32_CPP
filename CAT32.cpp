@@ -12,7 +12,7 @@ namespace kernel {
   using namespace memory::vm;
   using namespace ram_global::constant;
   using namespace process::app::ram_local;
-  counter = fpu(cast(u8, handler));
+  counter = cast(u8, handler);
   while (counter < writer && sleeper == zero) {interpreter::step();}
  }
 }

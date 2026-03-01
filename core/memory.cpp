@@ -16,7 +16,7 @@ namespace memory {
   zero = 0.0;
   one = 1.0;
   sentinel = SENTINEL;
-  signature = fpu(0xFACADE32, true);
+  signature = fpu::raw(0xFACADE32); // TODO: new optimized bytecode should render this obsolete
   pi = 3.14159265358979323846;
   tau = 6.28318530717958647692;
   euler = 2.71828182845904523536;

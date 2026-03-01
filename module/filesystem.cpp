@@ -338,9 +338,9 @@ namespace filesystem {
   slotter = cast(u32, (field_address - ram_local_address) / sizeof(fpu));
   writer = 15;
 
-  memory::unaligned_32_write(bytecode + 1, memory::vm::ram_global::constant::sentinel.value);
-  memory::unaligned_32_write(bytecode + 6, memory::vm::ram_global::constant::sentinel.value);
-  memory::unaligned_32_write(bytecode + 11, memory::vm::ram_global::constant::sentinel.value);
+  memory::unaligned_32_write(bytecode + 1, memory::vm::ram_global::constant::sentinel.r());
+  memory::unaligned_32_write(bytecode + 6, memory::vm::ram_global::constant::sentinel.r());
+  memory::unaligned_32_write(bytecode + 11, memory::vm::ram_global::constant::sentinel.r());
 
 
   interpreter::reset();

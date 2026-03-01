@@ -106,8 +106,8 @@ namespace utility {
  string string_pick(addr address) {
   using namespace memory::vm::process::app;
   string out;
-  for (s32 i = 0; i < cast(s32, ram_local_fpu[address]); i++) {
-   out += cast(char, (ram_local_fpu[address + 1 + i / 4].value >> ((i % 4) * 8)) & 0xFF);
+  for (s32 i = 0; i < ram_local_fpu[address].i(); i++) {
+   out += cast(char, (ram_local_fpu[address + 1 + i / 4].r() >> ((i % 4) * 8)) & 0xFF);
   }
   return out;
  }
@@ -125,7 +125,7 @@ namespace utility {
     u32 char_index = word * 4 + character;
     if (char_index < length) {packed_word |= cast(s32, text[char_index]) << (character * 8);}
    }
-   result.push_back(fpu(packed_word, true));
+   result.push_back(fpu::raw(packed_word));
   }
 
   return result;
@@ -142,16 +142,16 @@ namespace utility {
    hex_out << hex;
    hex_out << setw(8);
    hex_out << setfill('0');
-   hex_out << cast(s32, literal_value.value);
+   hex_out << literal_value.r();
    string hex_string = hex_out.str();
 
-   int dot_position = fpu::DECIMAL_WIDTH / 4;
+   int dot_position = fpu::WIDTH / 4;
    string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
 
    // format float
-   string decimal_string = utility::string_no_trailing(float(literal_value));
+   string decimal_string = utility::string_no_trailing(literal_value.d());
 
-   cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << cast(s32, literal_value.value) << "" << endl;
+   cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << literal_value.r() << "" << endl;
    OPDONE;
   }
 
