@@ -876,9 +876,19 @@ namespace interpreter {
     }
 
     // number
-    // must be documented that the stored value is the rounded representation from the scaled value
     else if (utility::is_number(token)) {
-     bytecode_append(op::push, fpu(round(stod(token) * (1 << fpu::DECIMAL_WIDTH)), true));
+     // preserve fractional
+     double decimal = stod(token);
+     // scale to fixed point unit
+     double scaled = decimal * (1 << fpu::DECIMAL_WIDTH);
+     // round instead of truncate to zero
+     double rounded = round(scaled);
+     // pick the lower 32 bit
+     u32 bits = cast(s64, rounded) & 0xFFFFFFFF;
+     // reinterpret as s32
+     s32 raw;
+     memcpy(&raw, &bits, 4);
+     bytecode_append(op::push, fpu(raw, true));
     }
 
     // addressof
