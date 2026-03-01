@@ -19,9 +19,7 @@ namespace kernel {
 
 static void boot() {
  memory::reset();
- cout << "\nLOAD ===============================\n" << endl;
  filesystem::load("/app/file_manager.app");
- cout << "\nRUN ===============================\n" << endl;
  filesystem::run();
 }
 

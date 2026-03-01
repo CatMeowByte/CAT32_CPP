@@ -193,6 +193,7 @@ namespace filesystem {
  }
 
  void load(const string& path) {
+  cout << "\n\nLoad: " << path << endl;
   using namespace memory::vm::process::app;
 
   memset(bytecode, 0, bytecode_size);
@@ -334,7 +335,7 @@ namespace filesystem {
 
   using namespace ram_local;
   stacker = field_length;
-  slotter = cast(s32, (field_address - ram_local_address) / sizeof(fpu));
+  slotter = cast(u32, (field_address - ram_local_address) / sizeof(fpu));
   writer = 15;
 
   memory::unaligned_32_write(bytecode + 1, memory::vm::ram_global::constant::sentinel.value);
@@ -357,6 +358,12 @@ namespace filesystem {
   // dedent hack
   interpreter::compile(interpreter::tokenize("return"));
 
+  using namespace ram_local;
+  u32 rom_net = cast(u32, writer) - 15;
+  u32 ram_net = cast(u32, slotter) - cast(u32, (field_address - ram_local_address) / sizeof(fpu));
+  cout << "ROM: " << rom_net << " bytes (" << (rom_net * 100 / bytecode_size) << "%) [" << (bytecode_size - cast(s32, writer)) << " bytes free]" << endl;
+  cout << "RAM: " << ram_net << " slots (" << (ram_net * 100 / field_length) << "%) [" << (field_length - ram_net) << " slots free]" << endl;
+
   // block event
   bytecode[cast(u8, kernel::Event::Init)] = op::subret;
   bytecode[cast(u8, kernel::Event::Step)] = op::subret;
@@ -364,7 +371,7 @@ namespace filesystem {
  }
 
  void run() {
-
+  cout << "\n\nRun" << endl;
   using namespace memory::vm::process::app;
   bytecode[cast(u8, kernel::Event::Init)] = op::jump;
   bytecode[cast(u8, kernel::Event::Step)] = op::jump;
