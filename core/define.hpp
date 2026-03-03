@@ -28,8 +28,9 @@ using u64 = uint64_t;
 using s64 = int64_t;
 
 using octo = u8;
-using addr = u32;
-using fnp = addr(*)(fpu); // function pointer
+
+using code_address = u16;
+using opcode_call = code_address(*)();
 
 using str = const char*;
 

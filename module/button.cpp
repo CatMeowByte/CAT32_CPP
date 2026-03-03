@@ -32,12 +32,10 @@ namespace button {
  }
 
  namespace wrap {
-  addr button(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
+  OPCODE(button, {
    fpu index = memory::pop();
-   opfunc::push(keymap[cast(u8, index) % KEY_COUNT].memory);
-   OPDONE;
-  }
+   memory::push(keymap[cast(u8, index) % KEY_COUNT].memory);
+  })
  }
 
  MODULE(

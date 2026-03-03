@@ -381,122 +381,102 @@ namespace filesystem {
  }
 
  namespace wrap {
-  using namespace memory::vm::process::app;
-
-  addr read(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(4)
+  OPCODE(read, {
+   using namespace memory::vm::process::app;
    u32 length = memory::pop();
    u32 offset = memory::pop();
-   addr address_path = memory::pop();
-   addr address_destination = memory::pop();
+   code_address address_path = memory::pop().a();
+   code_address address_destination = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    vector<octo> data = filesystem::read(string_path, offset, length);
    s32 buffer_size = ram_local_fpu[address_destination - 1];
    u32 byte_capacity = buffer_size * sizeof(fpu);
    u32 bytes_to_copy = min(cast(u32, data.size()), byte_capacity);
    memcpy(&ram_local_fpu[address_destination], data.data(), bytes_to_copy);
-   OPDONE;
-  }
+  })
 
-  addr write(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(3)
-   addr address_source = memory::pop();
+  OPCODE(write, {
+   using namespace memory::vm::process::app;
+   code_address address_source = memory::pop().a();
    u32 offset = memory::pop();
-   addr address_path = memory::pop();
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    s32 source_size = ram_local_fpu[address_source - 1];
    u32 byte_count = source_size * sizeof(fpu);
    vector<octo> data(byte_count);
    memcpy(data.data(), &ram_local_fpu[address_source], byte_count);
    filesystem::write(string_path, offset, data);
-   OPDONE;
-  }
+  })
 
-  addr list_count(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(list_count, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    u32 count = filesystem::list_count(string_path);
-   opfunc::push(count);
-   OPDONE;
-  }
+   memory::push(count);
+  })
 
-  addr list_index(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(3)
+  OPCODE(list_index, {
+   using namespace memory::vm::process::app;
    u32 index = memory::pop();
-   addr address_path = memory::pop();
-   addr address_destination = memory::pop();
+   code_address address_path = memory::pop().a();
+   code_address address_destination = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    string result = filesystem::list_index(string_path, index);
    vector<fpu> packed_pascal = utility::string_to_pascal(result);
    s32 buffer_size = ram_local_fpu[address_destination - 1];
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
    for (u32 i = 0; i < limit; i++) {ram_local_fpu[address_destination + i] = packed_pascal[i];}
-   OPDONE;
-  }
+  })
 
-  addr exist(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(exist, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    bool result = filesystem::exist(string_path);
-   opfunc::push(result);
-   OPDONE;
-  }
+   memory::push(result);
+  })
 
-  addr is_dir(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(is_dir, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    bool result = filesystem::is_dir(string_path);
-   opfunc::push(result);
-   OPDONE;
-  }
+   memory::push(result);
+  })
 
-  addr size(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(size, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    u32 result = filesystem::size(string_path);
-   opfunc::push(result);
-   OPDONE;
-  }
+   memory::push(result);
+  })
 
-  addr make_dir(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(make_dir, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    filesystem::make_dir(string_path);
-   OPDONE;
-  }
+  })
 
-  addr remove(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(remove, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    filesystem::remove(string_path);
-   OPDONE;
-  }
+  })
 
-  addr load(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(load, {
+   code_address address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    filesystem::load(string_path);
-   OPDONE;
-  }
+  })
 
-  addr run(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address_path = memory::pop();
+  OPCODE(run, {
+   using namespace memory::vm::process::app;
    using namespace memory::vm::ram_global::constant;
-   if (address_path != cast(addr, sentinel) && ram_local_fpu[address_path] != zero) {
+   code_address address_path = memory::pop().a();
+   if (address_path) {
     string string_path = utility::string_pick(address_path);
     filesystem::load(string_path);
    }
    filesystem::run();
-   OPDONE;
-  }
+  })
  }
 
  MODULE(
@@ -510,6 +490,6 @@ namespace filesystem {
   module::add("filesystem", "make_dir", wrap::make_dir, 1);
   module::add("filesystem", "remove", wrap::remove, 1);
   module::add("", "load", wrap::load, 1);
-  module::add("", "run", wrap::run, 1, {SENTINEL});
+  module::add("", "run", wrap::run, 1, {0});
  )
 }

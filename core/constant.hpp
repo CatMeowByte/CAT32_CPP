@@ -26,4 +26,4 @@ namespace TICK {
  constexpr u8 DRAW = 15;
 }
 
-constexpr fpu SENTINEL = fpu::raw(INT32_MIN);
+constexpr fpu SENTINEL = fpu::raw(0x80000000);

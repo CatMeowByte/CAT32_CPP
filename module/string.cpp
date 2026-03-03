@@ -89,55 +89,46 @@ namespace string_ops {
  }
 
  namespace wrap {
-  using namespace memory::vm::process::app;
-
-  addr differ(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
-   addr address_b = memory::pop();
-   addr address_a = memory::pop();
+  OPCODE(differ, {
+   code_address address_b = memory::pop().a();
+   code_address address_a = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
-   opfunc::push(string_ops::differ(text_a, text_b));
-   OPDONE;
-  }
+   memory::push(string_ops::differ(text_a, text_b));
+  })
 
-  addr order(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
-   addr address_b = memory::pop();
-   addr address_a = memory::pop();
+  OPCODE(order, {
+   code_address address_b = memory::pop().a();
+   code_address address_a = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
-   opfunc::push(string_ops::order(text_a, text_b));
-   OPDONE;
-  }
+   memory::push(string_ops::order(text_a, text_b));
+  })
 
-  addr to_n(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   addr address = memory::pop();
+  OPCODE(to_n, {
+   code_address address = memory::pop().a();
    string string_text = utility::string_pick(address);
    double result = string_ops::to_n(string_text);
-   opfunc::push(result);
-   OPDONE;
-  }
+   memory::push(result);
+  })
 
-  addr from_n(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
+  OPCODE(from_n, {
+   using namespace memory::vm::process::app;
    double number = memory::pop();
-   addr destination = memory::pop();
+   code_address destination = memory::pop().a();
    string number_text = utility::string_no_trailing(number);
    vector<fpu> packed_pascal = utility::string_to_pascal(number_text);
    s32 buffer_size = ram_local_fpu[destination - 1];
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
    for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
-   opfunc::push(destination);
-   OPDONE;
-  }
+   memory::push(destination);
+  })
 
-  addr add(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(3)
-   addr address_b = memory::pop();
-   addr address_a = memory::pop();
-   addr destination = memory::pop();
+  OPCODE(add, {
+   using namespace memory::vm::process::app;
+   code_address address_b = memory::pop().a();
+   code_address address_a = memory::pop().a();
+   code_address destination = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
    string result = text_a + text_b;
@@ -145,25 +136,23 @@ namespace string_ops {
    s32 buffer_size = ram_local_fpu[destination - 1];
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
    for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
-   opfunc::push(destination);
-   OPDONE;
-  }
+   memory::push(destination);
+  })
 
-  addr sub(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(4)
+  OPCODE(sub, {
+   using namespace memory::vm::process::app;
    s32 length = memory::pop();
    s32 start = memory::pop();
-   addr source = memory::pop();
-   addr destination = memory::pop();
+   code_address source = memory::pop().a();
+   code_address destination = memory::pop().a();
    string text = utility::string_pick(source);
    string result = text.substr(start, length);
    vector<fpu> packed_pascal = utility::string_to_pascal(result);
    s32 buffer_size = ram_local_fpu[destination - 1];
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
    for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
-   opfunc::push(destination);
-   OPDONE;
-  }
+   memory::push(destination);
+  })
  }
 
  MODULE(

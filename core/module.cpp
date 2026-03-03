@@ -4,7 +4,7 @@
 namespace module {
  Table table;
 
- void add(const string& space, const string& name, fnp function, u8 args_count, vector<fpu> args_default) {
+ void add(const string& space, const string& name, opcode_call function, u8 args_count, vector<fpu> args_default) {
   u32 hash_key = ((utility::hash(space.c_str()) & 0xFFFF) << 16) | (utility::hash(name.c_str()) & 0xFFFF);
   Module module;
   module.name = name;

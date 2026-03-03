@@ -8,7 +8,7 @@
 namespace module {
  struct Module {
   string name;
-  fnp function;
+  opcode_call function;
   u8 args_count;
   vector<fpu> args_default;
  };
@@ -23,7 +23,7 @@ namespace module {
 
  extern Table table;
 
- void add(const string& space, const string& name, fnp function, u8 args_count, vector<fpu> args_default = {});
+ void add(const string& space, const string& name, opcode_call function, u8 args_count, vector<fpu> args_default = {});
  bool exist(u32 hash);
  const string& get_name(u32 hash);
 };

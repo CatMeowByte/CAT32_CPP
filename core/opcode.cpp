@@ -3,21 +3,18 @@
 #include "core/opcode.hpp"
 
 namespace opcode {
- struct OpcodeInfo {u8 id; u8 args;};
- static const hash_map<string, OpcodeInfo> opcode_table = {
-  #define OPI(hex, name)
-  #define OPC(hex, name, args) {#name, {op::name, args}},
+ static const hash_map<string, u8> opcode_table = {
+  #define OP(hex, name) {#name, hex},
+  #define OPA(hex, name) {#name, hex},
+  #define OPV(hex, name) {#name, hex},
   OPCODES
-  #undef OPI
-  #undef OPC
+  #undef OP
+  #undef OPA
+  #undef OPV
  };
 
  u8 get(string cmd) {
-  return opcode_table.count(cmd) ? opcode_table.at(cmd).id : op::nop;
- }
-
- u8 args_count(string cmd) {
-  return opcode_table.count(cmd) ? opcode_table.at(cmd).args : 0;
+  return opcode_table.count(cmd) ? opcode_table.at(cmd) : op::nop;
  }
 
  bool exist(string cmd) {
@@ -26,311 +23,215 @@ namespace opcode {
 
  string name(u8 value) {
   switch (value) {
-   #define OPI(hex, name) case hex: return #name;
-   #define OPC(hex, name, args) case hex: return #name;
+   #define OP(hex, name) case hex: return #name;
+   #define OPA(hex, name) case hex: return #name;
+   #define OPV(hex, name) case hex: return #name;
    OPCODES
-   #undef OPI
-   #undef OPC
+   #undef OP
+   #undef OPA
+   #undef OPV
   }
   return "UNKNOWN";
  }
 }
 
-namespace opfunc {
+namespace op_call {
  /* stack */
- addr push(fpu value) {
-  BAIL_IF_STACK_OVERFLOW
+ OPCODE_VALUE(push, {
   using namespace memory::vm::process::app::ram_local;
-  field[(--stacker).i()] = value;
-  OPDONE;
- }
+  field[(--stacker).i()] = operand;
+ })
 
  /* memory */
- addr takefrom(fpu value) {
-  BAIL_IF_STACK_OVERFLOW
+ OPCODE_ADDRESS(takefrom, {
   using namespace memory::vm::process::app;
   using namespace ram_local;
-  field[(--stacker).i()] = ram_local_fpu[value.i()];
-  OPDONE;
- }
+  field[(--stacker).i()] = ram_local_fpu[operand];
+ })
 
- addr storeto(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE_ADDRESS(storeto, {
   using namespace memory::vm::process::app;
-  ram_local_fpu[value.i()] = memory::pop();
-  OPDONE;
- }
+  fpu value = memory::pop();
+  ram_local_fpu[operand] = value;
+ })
 
- addr get(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE(get, {
   using namespace memory::vm::process::app;
-  addr address = memory::pop();
-  push(ram_local_fpu[address]);
-  OPDONE;
- }
+  code_address address = memory::pop();
+  memory::push(ram_local_fpu[address]);
+ })
 
-  addr set(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
-   using namespace memory::vm::process::app;
-   fpu a = memory::pop();
-   addr address = memory::pop();
-   ram_local_fpu[address] = a;
-   OPDONE;
-  }
-
-  addr peek8(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   s32 address_signed = memory::pop();
-   bool is_global = address_signed < 0;
-   addr address = is_global ? -address_signed : address_signed;
-   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   push(region[address]);
-   OPDONE;
-  }
-
-  addr poke8(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
-   fpu val = memory::pop();
-   s32 address_signed = memory::pop();
-   bool is_global = address_signed < 0;
-   addr address = is_global ? -address_signed : address_signed;
-   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   region[address] = cast(octo, val);
-   OPDONE;
-  }
-
-  addr peek32(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
-   s32 address_signed = memory::pop();
-   bool is_global = address_signed < 0;
-   addr address = is_global ? -address_signed : address_signed;
-   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   s32 raw = memory::unaligned_32_read(region + address);
-   push(fpu::raw(raw));
-   OPDONE;
-  }
-
-  addr poke32(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
-   fpu val = memory::pop();
-   s32 address_signed = memory::pop();
-   bool is_global = address_signed < 0;
-   addr address = is_global ? -address_signed : address_signed;
-   octo* region = is_global ? memory::vm::ram_global_octo : memory::vm::process::app::ram_local_octo;
-   memory::unaligned_32_write(region + address, val.r());
-   OPDONE;
-  }
+ OPCODE(set, {
+  using namespace memory::vm::process::app;
+  fpu value = memory::pop();
+  code_address address = memory::pop();
+  ram_local_fpu[address] = value;
+ })
 
  /* counter */
- addr subgo(fpu value) {
+ OPCODE_ADDRESS(subgo, {
   using namespace memory::vm::process::app::ram_local;
-  if (cast(u32, framer.i()) >= frames_length) {OPDONE;}
+  if (cast(u32, framer.i()) >= frames_length) {return counter.a() + 3;}
   frames[(framer++).i()] = counter;
-  return value;
- }
+  return operand;
+ })
 
- addr subret(fpu value) {
+ OPCODE(subret, {
   using namespace memory::vm;
   using namespace ram_global::constant;
   using namespace process::app::ram_local;
-  if (framer == zero) {return writer;} // end kernel event loop
-  addr address = frames[(--framer).i()];
-  return address + 5;
- }
+  if (framer == zero) {return writer.a();} // end kernel event loop
+  return frames[(--framer).i()].a() + 3;
+ })
 
- addr jump(fpu value) {
-  if (value == memory::vm::ram_global::constant::sentinel) {return memory::vm::process::app::ram_local::writer;}
-  return value;
- }
+ OPCODE_ADDRESS(jump, {
+  if (operand == 0xFFFF) {return memory::vm::process::app::ram_local::writer.a();} // end of code_address
+  return operand;
+ })
 
- addr jumz(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE_ADDRESS(jumz, {
+  using namespace memory::vm::process::app::ram_local;
   fpu check = memory::pop();
-  if (!check) {return value;}
-  OPDONE;
- }
+  if (!check) {return operand;}
+ })
 
- addr junz(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE_ADDRESS(junz, {
+  using namespace memory::vm::process::app::ram_local;
   fpu check = memory::pop();
-  if (check) {return value;}
-  OPDONE;
- }
+  if (check) {return operand;}
+ })
 
  /* math */
- addr add(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(add, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a + b);
-  OPDONE;
- }
+  memory::push(a + b);
+ })
 
- addr sub(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(sub, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a - b);
-  OPDONE;
- }
+  memory::push(a - b);
+ })
 
- addr mul(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(mul, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a * b);
-  OPDONE;
- }
+  memory::push(a * b);
+ })
 
- addr div(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(div, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(b ? a / b : memory::vm::ram_global::constant::sentinel);
-  OPDONE;
- }
+  memory::push(b ? a / b : memory::vm::ram_global::constant::sentinel);
+ })
 
- addr mod(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(mod, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(b ? a - fpu(floor(cast(double, a / b))) * b : memory::vm::ram_global::constant::sentinel);
-  OPDONE;
- }
+  memory::push(b ? a - fpu(floor(a / b)) * b : memory::vm::ram_global::constant::sentinel);
+ })
 
- addr neg(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE(neg, {
   fpu a = memory::pop();
-  push(-a);
-  OPDONE;
- }
+  memory::push(-a);
+ })
 
  /* logic */
- addr eq(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(eq, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a == b);
-  OPDONE;
- }
+  memory::push(a == b);
+ })
 
- addr neq(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(neq, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a != b);
-  OPDONE;
- }
+  memory::push(a != b);
+ })
 
- addr gt(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(gt, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a > b);
-  OPDONE;
- }
+  memory::push(a > b);
+ })
 
- addr lt(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(lt, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a < b);
-  OPDONE;
- }
+  memory::push(a < b);
+ })
 
- addr geq(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(geq, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a >= b);
-  OPDONE;
- }
+  memory::push(a >= b);
+ })
 
- addr leq(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(leq, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a <= b);
-  OPDONE;
- }
+  memory::push(a <= b);
+ })
 
- addr land(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(land, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a && b);
-  OPDONE;
- }
+  memory::push(a && b);
+ })
 
- addr lor(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(lor, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a || b);
-  OPDONE;
- }
+  memory::push(a || b);
+ })
 
- addr lnot(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE(lnot, {
   fpu a = memory::pop();
-  push(!a);
-  OPDONE;
- }
+  memory::push(!a);
+ })
 
  /* bit */
- addr band(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(band, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a & b);
-  OPDONE;
- }
+  memory::push(a & b);
+ })
 
- addr bor(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(bor, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a | b);
-  OPDONE;
- }
+  memory::push(a | b);
+ })
 
- addr bnot(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(1)
+ OPCODE(bnot, {
   fpu a = memory::pop();
-  push(~a);
-  OPDONE;
- }
+  memory::push(~a);
+ })
 
- addr bshl(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(bshl, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a << cast(s32, b));
-  OPDONE;
- }
+  memory::push(a << cast(s32, b));
+ })
 
- addr bshr(fpu value) {
-  BAIL_UNLESS_STACK_ATLEAST(2)
+ OPCODE(bshr, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  push(a >> cast(s32, b));
-  OPDONE;
- }
+  memory::push(a >> cast(s32, b));
+ })
 
  /* marker */
- addr prime(fpu value) {
+ OPCODE(prime, {
   using namespace memory::vm::process::app::ram_local;
   stacker = field_length;
-  OPDONE;
- }
+ })
 
  /* module */
- addr call(fpu value) {
-  return module::table[value.r()].function(value);
- }
+ OPCODE_VALUE(call, {
+  module::table[operand.r()].function();
+ })
 
  /* nop */
- addr nop(fpu value) {
-  OPDONE;
- }
+ OPCODE(nop, {})
 }

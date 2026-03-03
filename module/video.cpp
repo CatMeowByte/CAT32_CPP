@@ -257,36 +257,29 @@ namespace video {
  }
 
  namespace wrap {
-  addr clear(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
+  OPCODE(clear, {
    u8 color = memory::pop();
    video::clear(color);
-   OPDONE;
-  }
+  })
 
-  addr pixel(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(3)
+  OPCODE(pixel, {
    u8 color = memory::pop();
    s32 y = memory::pop();
    s32 x = memory::pop();
    u8 color_old = video::pixel(x, y, color);
-   opfunc::push(color_old);
-   OPDONE;
-  }
+   memory::push(color_old);
+  })
 
-  addr line(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(5)
+  OPCODE(line, {
    u8 color = memory::pop();
    s32 by = memory::pop();
    s32 bx = memory::pop();
    s32 ay = memory::pop();
    s32 ax = memory::pop();
    video::line(ax, ay, bx, by, color);
-   OPDONE;
-  }
+  })
 
-  addr rect(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(6)
+  OPCODE(rect, {
    bool fill = memory::pop();
    u8 color = memory::pop();
    s32 height = memory::pop();
@@ -294,22 +287,18 @@ namespace video {
    s32 y = memory::pop();
    s32 x = memory::pop();
    video::rect(x, y, width, height, color, fill);
-   OPDONE;
-  }
+  })
 
-  addr circle(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(5)
+  OPCODE(circle, {
    bool fill = memory::pop();
    u8 color = memory::pop();
    s32 radius = memory::pop();
    s32 y = memory::pop();
    s32 x = memory::pop();
    video::circle(x, y, radius, color, fill);
-   OPDONE;
-  }
+  })
 
-  addr blit(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(9)
+  OPCODE(blit, {
    u8 rotation = memory::pop();
    s32 dst_h = memory::pop();
    s32 dst_w = memory::pop();
@@ -320,37 +309,30 @@ namespace video {
    s32 src_y = memory::pop();
    s32 src_x = memory::pop();
    video::blit(src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w, dst_h, rotation);
-   OPDONE;
-  }
+  })
 
-  addr text(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(5)
+  OPCODE(text, {
    u8 background = memory::pop();
    u8 color = memory::pop();
-   addr address = memory::pop();
+   code_address address = memory::pop().a();
    s32 y = memory::pop();
    s32 x = memory::pop();
    video::text(x, y, utility::string_pick(address), color, background);
-   OPDONE;
-  }
+  })
 
-  addr color(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
+  OPCODE(color, {
    u8 target = memory::pop();
    u8 index = memory::pop();
    using namespace memory::vm::ram_global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x80) | (cast(u8, target) & 0xF);
-   OPDONE;
-  }
+  })
 
-  addr alpha(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(2)
+  OPCODE(alpha, {
    bool toggle = memory::pop();
    u8 index = memory::pop();
    using namespace memory::vm::ram_global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x7F) | (toggle ? 0x80 : 0);
-   OPDONE;
-  }
+  })
  }
 
  MODULE(

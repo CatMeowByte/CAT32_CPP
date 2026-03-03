@@ -21,7 +21,7 @@ namespace symbol {
 
  struct Data {
   string name;
-  addr address;
+  code_address address;
   Type type;
   fpu value;
   u8 args_count;
@@ -46,17 +46,17 @@ namespace scope {
 
  struct Frame {
   Type type;
-  addr jump_operand;
-  addr header_start;
+  code_address jump_operand;
+  code_address header_start;
   u32 symbol_start;
-  vector<addr> break_unpatched;
+  vector<code_address> break_unpatched;
   vector<u16> space;
  };
 
  extern vector<Frame> stack;
  extern u8 previous;
 
- extern addr last_jump_operand;
- extern addr last_line_start; // for while loop
+ extern code_address last_jump_operand;
+ extern code_address last_line_start; // for while loop
  extern Type last_line_scope_set;
 }

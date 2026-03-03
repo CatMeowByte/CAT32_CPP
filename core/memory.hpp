@@ -13,37 +13,37 @@ namespace memory {
  // only for development convenience
 
  #define region(region_name,region_address,region_size,...) \
-  static constexpr addr region_name##_address = region_address; \
+  static constexpr u32 region_name##_address = region_address; \
   static constexpr u32 region_name##_size = region_size; \
-  static constexpr addr region_name##_next = region_name##_address+region_name##_size; \
+  static constexpr u32 region_name##_next = region_name##_address+region_name##_size; \
   MAYBE_UNUSED static octo* region_name##_octo = cast(octo*, memory::raw+region_name##_address); \
   MAYBE_UNUSED static fpu* region_name##_fpu = cast(fpu*, cast(void*, memory::raw+region_name##_address)); \
   namespace region_name { \
    __VA_ARGS__ \
   }
 
- #define iocto(item_name,item_address) static constexpr addr item_name##_address = item_address; \
+ #define iocto(item_name,item_address) static constexpr u32 item_name##_address = item_address; \
   static constexpr u32 item_name##_length = 1; \
   static constexpr u32 item_name##_size = sizeof(octo); \
-  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static constexpr u32 item_name##_next = item_name##_address+item_name##_size; \
   static octo& item_name = *cast(octo*, memory::raw+item_name##_address);
 
- #define ifpu(item_name,item_address) static constexpr addr item_name##_address = item_address; \
+ #define ifpu(item_name,item_address) static constexpr u32 item_name##_address = item_address; \
   static constexpr u32 item_name##_length = 1; \
   static constexpr u32 item_name##_size = sizeof(fpu); \
-  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static constexpr u32 item_name##_next = item_name##_address+item_name##_size; \
   static fpu& item_name = *cast(fpu*, cast(void*, memory::raw+item_name##_address));
 
- #define bocto(item_name,item_address,item_length) static constexpr addr item_name##_address = item_address; \
+ #define bocto(item_name,item_address,item_length) static constexpr u32 item_name##_address = item_address; \
   static constexpr u32 item_name##_length = item_length; \
   static constexpr u32 item_name##_size = sizeof(octo)*item_length; \
-  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static constexpr u32 item_name##_next = item_name##_address+item_name##_size; \
   MAYBE_UNUSED static octo* item_name = cast(octo*, memory::raw+item_name##_address);
 
- #define bfpu(item_name,item_address,item_length) static constexpr addr item_name##_address = item_address; \
+ #define bfpu(item_name,item_address,item_length) static constexpr u32 item_name##_address = item_address; \
   static constexpr u32 item_name##_length = item_length; \
   static constexpr u32 item_name##_size = sizeof(fpu)*item_length; \
-  static constexpr addr item_name##_next = item_name##_address+item_name##_size; \
+  static constexpr u32 item_name##_next = item_name##_address+item_name##_size; \
   MAYBE_UNUSED static fpu* item_name = cast(fpu*, cast(void*, memory::raw+item_name##_address));
 
  #define check(region_name,item_name) static_assert(item_name##_next <= region_name##_next, "region overflow");
@@ -103,8 +103,8 @@ namespace memory {
      ifpu(writer, slotter_next) // points to after last bytecode
      ifpu(counter, writer_next) // bytecode execution pointer
      ifpu(sleeper, counter_next) // wait countdown on ticks
-     ifpu(framer, sleeper_next) // call adress pointer
-     bfpu(frames, framer_next, 121) // call adress stack
+     ifpu(framer, sleeper_next) // call address pointer
+     bfpu(frames, framer_next, 121) // call address stack
      bocto(sprite, frames_next, 8192) // 128x128 4bpp sprite data
      bfpu(field, sprite_next, 6016) // free space. last few bytes is used as stack
     )
@@ -128,8 +128,11 @@ namespace memory {
 
  // internal
  inline fpu pop() {using namespace vm::process::app::ram_local; return field[stacker++.i()];}
+ inline void push(fpu value) {using namespace vm::process::app::ram_local; field[(--stacker).i()] = value;}
 
  // unaligned
+ inline u16 unaligned_16_read(octo* ptr) {return cast(u16, ptr[0]) | (cast(u16, ptr[1]) << 8);}
+ inline void unaligned_16_write(octo* ptr, u16 value) {ptr[0] = cast(octo, value & 0xFF); ptr[1] = cast(octo, (value >> 8) & 0xFF);}
  inline s32 unaligned_32_read(octo* ptr) {return cast(s32, ptr[0]) | (cast(s32, ptr[1]) << 8) | (cast(s32, ptr[2]) << 16) | (cast(s32, ptr[3]) << 24);}
  inline void unaligned_32_write(octo* ptr, s32 value) {ptr[0] = cast(octo, value & 0xFF); ptr[1] = cast(octo, (value >> 8) & 0xFF); ptr[2] = cast(octo, (value >> 16) & 0xFF); ptr[3] = cast(octo, (value >> 24) & 0xFF);}
 }

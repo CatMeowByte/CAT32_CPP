@@ -103,7 +103,7 @@ namespace utility {
   return s;
  }
 
- string string_pick(addr address) {
+ string string_pick(code_address address) {
   using namespace memory::vm::process::app;
   string out;
   for (s32 i = 0; i < ram_local_fpu[address].i(); i++) {
@@ -132,8 +132,7 @@ namespace utility {
  }
 
  namespace wrap {
-  addr see(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(1)
+  OPCODE(see, {
    fpu literal_value = memory::pop();
 
    // format hex
@@ -152,15 +151,12 @@ namespace utility {
    string decimal_string = utility::string_no_trailing(literal_value.d());
 
    cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << literal_value.r() << "" << endl;
-   OPDONE;
-  }
+  })
 
-  addr wait(fpu value) {
+  OPCODE(wait, {
    using namespace memory::vm::process::app::ram_local;
-   BAIL_UNLESS_STACK_ATLEAST(1)
    sleeper = memory::pop();
-   OPDONE;
-  }
+  })
  }
 
  MODULE(

@@ -4,78 +4,89 @@
 
 #define OPCODES \
  /* stack */ \
- OPI(0x11, push) \
+ OPV(0x11, push) \
  /* memory */ \
- OPI(0x13, takefrom) \
- OPI(0x14, storeto) \
- OPI(0x1A, get) \
- OPI(0x1B, set) \
- OPC(0x1C, peek8, 1) \
- OPC(0x1D, poke8, 2) \
- OPC(0x1E, peek32, 1) \
- OPC(0x1F, poke32, 2) \
+ OPA(0x13, takefrom) \
+ OPA(0x14, storeto) \
+ OP (0x1A, get) \
+ OP (0x1B, set) \
  /* counter */ \
- OPI(0x2A, subgo) \
- OPI(0x2B, subret) \
- OPI(0x2D, jump) \
- OPI(0x2E, jumz) \
- OPI(0x2F, junz) \
+ OPA(0x2A, subgo) \
+ OP (0x2B, subret) \
+ OPA(0x2D, jump) \
+ OPA(0x2E, jumz) \
+ OPA(0x2F, junz) \
  /* math */ \
- OPC(0x31, add, 2) \
- OPC(0x32, sub, 2) \
- OPC(0x33, mul, 2) \
- OPC(0x34, div, 2) \
- OPC(0x35, mod, 2) \
- OPC(0x36, neg, 1) \
+ OP (0x31, add) \
+ OP (0x32, sub) \
+ OP (0x33, mul) \
+ OP (0x34, div) \
+ OP (0x35, mod) \
+ OP (0x36, neg) \
  /* logic */ \
- OPC(0x41, eq, 2) \
- OPC(0x42, neq, 2) \
- OPC(0x43, gt, 2) \
- OPC(0x44, lt, 2) \
- OPC(0x45, geq, 2) \
- OPC(0x46, leq, 2) \
- OPC(0x47, land, 2) \
- OPC(0x48, lor, 2) \
- OPC(0x49, lnot, 1) \
+ OP (0x41, eq) \
+ OP (0x42, neq) \
+ OP (0x43, gt) \
+ OP (0x44, lt) \
+ OP (0x45, geq) \
+ OP (0x46, leq) \
+ OP (0x47, land) \
+ OP (0x48, lor) \
+ OP (0x49, lnot) \
  /* bit */ \
- OPC(0x4A, band, 2) \
- OPC(0x4B, bor, 2) \
- OPC(0x4C, bnot, 1) \
- OPC(0x4D, bshl, 2) \
- OPC(0x4E, bshr, 2) \
+ OP (0x4A, band) \
+ OP (0x4B, bor) \
+ OP (0x4C, bnot) \
+ OP (0x4D, bshl) \
+ OP (0x4E, bshr) \
  /* marker */ \
- OPI(0xAA, prime) \
+ OP (0xAA, prime) \
  /* module */ \
- OPI(0xFF, call) \
+ OPV(0xFF, call) \
  /* nop */ \
- OPI(0x00, nop)
+ OP (0x00, nop)
 
 namespace op {
- #define OPI(hex, name) constexpr octo name = hex;
- #define OPC(hex, name, args) constexpr octo name = hex;
+ #define OP(hex, name) constexpr octo name = hex;
+ #define OPA(hex, name) constexpr octo name = hex;
+ #define OPV(hex, name) constexpr octo name = hex;
  OPCODES
- #undef OPI
- #undef OPC
+ #undef OP
+ #undef OPA
+ #undef OPV
 }
 
-namespace opfunc {
- #define OPI(hex, name) addr name(fpu value);
- #define OPC(hex, name, args) addr name(fpu value);
+namespace op_call {
+ #define OP(hex, name) code_address name();
+ #define OPA(hex, name) code_address name();
+ #define OPV(hex, name) code_address name();
  OPCODES
- #undef OPI
- #undef OPC
+ #undef OP
+ #undef OPA
+ #undef OPV
 }
 
 namespace opcode {
  u8 get(string cmd);
- u8 args_count(string cmd);
  bool exist(string cmd);
  string name(u8 value);
 }
 
-// return
-#define OPDONE return memory::vm::ram_global::constant::sentinel
+#define OPCODE(name, ...) \
+ code_address name() { \
+ __VA_ARGS__ \
+ return memory::vm::process::app::ram_local::counter.a() + 1;}
 
-// boundary check
-#define BAIL_IF_STACK_OVERFLOW {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) <= 0) {OPDONE;}}
-#define BAIL_UNLESS_STACK_ATLEAST(N) {using namespace memory::vm::process::app::ram_local; if (cast(addr, stacker) >= field_address + field_length - (N)) {OPDONE;}}
+#define OPCODE_ADDRESS(name, ...) \
+ code_address name() { \
+ code_address operand = memory::unaligned_16_read(memory::vm::process::app::bytecode + memory::vm::process::app::ram_local::counter.a() + 1); \
+ __VA_ARGS__ \
+ return memory::vm::process::app::ram_local::counter.a() + 3;}
+
+#define OPCODE_VALUE(name, ...) \
+ code_address name() { \
+ fpu operand = fpu::raw(memory::unaligned_32_read(memory::vm::process::app::bytecode + memory::vm::process::app::ram_local::counter.a() + 1)); \
+ __VA_ARGS__ \
+ return memory::vm::process::app::ram_local::counter.a() + 5;}
+
+// newline to supress macro warning "backslash-newline at end of file"

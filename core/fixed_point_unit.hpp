@@ -15,7 +15,7 @@ public:
 
  static constexpr fpu raw(int32_t r) {return fpu(r, true);}
 
- constexpr uint32_t a() const {return static_cast<uint32_t>(value >> WIDTH);}
+ constexpr uint16_t a() const {return static_cast<uint16_t>(value >> WIDTH);}
  constexpr double d() const {return static_cast<double>(value) / (1 << WIDTH);}
  constexpr int16_t i() const {return static_cast<int16_t>(value >> WIDTH);}
  constexpr int32_t r() const {return value;}

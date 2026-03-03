@@ -12,14 +12,12 @@ namespace audio {
  }
 
  namespace wrap {
-  addr tone(fpu value) {
-   BAIL_UNLESS_STACK_ATLEAST(3)
+  OPCODE(tone, {
    float duty = memory::pop();
    float key = memory::pop();
    u8 channel = memory::pop();
    audio::tone(channel, key, duty);
-   OPDONE;
-  }
+  })
  }
 
  MODULE(
