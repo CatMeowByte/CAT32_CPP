@@ -1,4 +1,5 @@
 #include "core/constant.hpp"
+#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -12,7 +13,7 @@ namespace FONT {
 
 namespace video {
  void clear(u8 color) {
-  using namespace memory::vm::ram_global;
+  using namespace memory::vm::global;
   memset(framebuffer, (color & 0xF) << 4 | (color & 0xF), framebuffer_size);
  }
 
@@ -22,7 +23,7 @@ namespace video {
   u16 byte_pos = index / 2;
   u8 shift = (index % 2 == 0) ? 4 : 0;
 
-  using namespace memory::vm::ram_global;
+  using namespace memory::vm::global;
   u8 byte_old = framebuffer[byte_pos];
   u8 color_old = (byte_old >> shift) & 0xF;
   if (~color && palette[color & 0xF] & 0x80) {framebuffer[byte_pos] = (byte_old & ~(0xF << shift)) | ((color & 0xF) << shift);}
@@ -34,7 +35,7 @@ namespace video {
   if (x < 0) {length += x; x = 0;}
   if (x + length > VIDEO::WIDTH) {length = VIDEO::WIDTH - x;}
   if (length <= 0) {return;}
-  using namespace memory::vm::ram_global;
+  using namespace memory::vm::global;
 
   if (!(palette[color & 0xF] & 0x80)) {return;}
 
@@ -153,8 +154,6 @@ namespace video {
   s32 sx_range = (rotation_step & 1) ? src_h : src_w;
   s32 sy_range = (rotation_step & 1) ? src_w : src_h;
 
-  using namespace memory::vm::process::app::ram_local;
-
   s32 px_min = dst_w < 0 ? dst_w : 0;
   s32 py_min = dst_h < 0 ? dst_h : 0;
   s32 px_lo = max(px_min, -dst_x);
@@ -185,7 +184,7 @@ namespace video {
     if (sx < 0 || sy < 0 || sx >= src_w || sy >= src_h) {continue;}
 
     u32 index = (src_y + sy) * 128 + (src_x + sx);
-    u8 color = (sprite[index / 2] >> (index % 2 == 0 ? 4 : 0)) & 0xF;
+    u8 color = (active::local->sprite[index / 2] >> (index % 2 == 0 ? 4 : 0)) & 0xF;
     video::pixel(dst_x + px, dst_y + py, color);
    }
   }
@@ -246,7 +245,7 @@ namespace video {
      s32 screen_y = cursor_y + pixel_y;
      if (screen_x < 0 || screen_x >= VIDEO::WIDTH || screen_y < 0 || screen_y >= VIDEO::HEIGHT) {continue;}
 
-     using namespace memory::vm::ram_global;
+     using namespace memory::vm::global;
      u8 pixel_color = font[bit_position / 8] >> (7 - bit_position % 8) & 1 ? color : background;
      pixel(screen_x, screen_y, pixel_color);
     }
@@ -314,7 +313,7 @@ namespace video {
   OPCODE(text, {
    u8 background = memory::pop();
    u8 color = memory::pop();
-   code_address address = memory::pop().a();
+   address_logic address = memory::pop().a();
    s32 y = memory::pop();
    s32 x = memory::pop();
    video::text(x, y, utility::string_pick(address), color, background);
@@ -323,14 +322,14 @@ namespace video {
   OPCODE(color, {
    u8 target = memory::pop();
    u8 index = memory::pop();
-   using namespace memory::vm::ram_global;
+   using namespace memory::vm::global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x80) | (cast(u8, target) & 0xF);
   })
 
   OPCODE(alpha, {
    bool toggle = memory::pop();
    u8 index = memory::pop();
-   using namespace memory::vm::ram_global;
+   using namespace memory::vm::global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x7F) | (toggle ? 0x80 : 0);
   })
  }

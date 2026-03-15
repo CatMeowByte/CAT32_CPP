@@ -11,15 +11,12 @@ namespace memory {
  void reset() {
   memset(raw, 0, SYSTEM::MEMORY);
 
-  using namespace vm::ram_global;
+  using namespace vm::global;
   using namespace constant;
   zero = 0.0;
   one = 1.0;
   sentinel = SENTINEL;
-  signature = fpu::raw(0xFACADE32); // TODO: new optimized bytecode should render this obsolete
   pi = 3.14159265358979323846;
-  tau = 6.28318530717958647692;
-  euler = 2.71828182845904523536;
 
   for (u32 i = 0; i < 16; i++) {palette[i] = i | 0x80;}
   palette[0] &= 0x7F;
@@ -62,5 +59,20 @@ namespace memory {
 
   using namespace hardware_io;
   for (u32 i = 0; i < 4; i++) {duty[i] = 0.5;}
+ }
+}
+
+namespace active {
+ Process_Logic* logic;
+ Process_Local* local;
+
+ void index(u8 n) {
+  using namespace memory;
+  using namespace vm::global;
+  using namespace vm::process;
+
+  process_index = n;
+  logic = reinterpret(Process_Logic*, raw + p0_address + (process_index.i() * p0_size));
+  local = reinterpret(Process_Local*, raw + p0_address + (process_index.i() * p0_size) + p0::logic_size);
  }
 }

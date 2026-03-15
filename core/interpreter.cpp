@@ -1,4 +1,5 @@
 #include "core/interpreter.hpp"
+#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -73,53 +74,41 @@ namespace interpreter {
   #undef OP
  };
 
- static void debug_opcode(octo opcode, fpu operand, addr ticker) {
+ static void debug_opcode(octo opcode, address_logic position) {
   string name = opcode::name(opcode);
-  if (name.length() < 4) {name += string(4 - name.length(), ' ');}
 
-  bool has_operand = (
-   name == "pop" || name == "push" ||
-   name == "takefrom" || name == "storeto" ||
-   name == "jump" || name == "jumz" || name == "junz" ||
-   name == "subgo" || name == "call"
-  );
-  string value = "";
-  if (has_operand) {
-   if (operand == memory::vm::ram_global::constant::sentinel) {value = "!UNPATCHED!";}
-   else if (operand == memory::vm::ram_global::constant::signature) {value = "(unused)";}
-   else {
-    value = to_string(operand.r());
-    if (name == "push") {
-     value += " (" + utility::string_no_trailing(operand) + ")";
+  enum class OpcodeType : u8 {OP, OPA, OPV};
+  OpcodeType type = OpcodeType::OP;
 
-     // printable ASCII
-     value += " \"";
-     for (u8 i = 0; i < 4; i++) {value += cast(char, (operand.r() >> (i * 8)) & 0xFF);}
-     value += "\"";
-    }
-    else if (name == "takefrom" || name == "storeto") {
-     for (u32 i = 0; i < symbol::table.size(); i++) {
-      if (symbol::table[i].address == cast(addr, operand)) {
-       value += " (" + symbol::table[i].name + ")";
-       break;
-      }
-     }
-    }
-    else if (name == "call") {
-     value += " (" + module::get_name(operand.r()) + ")";
-    }
-    else if (name == "subgo") {
-     for (s32 i = symbol::table.size() - 1; i >= 0; i--) {
-      if (symbol::table[i].type == symbol::Type::Function && symbol::table[i].address == cast(addr, operand)) {
-       value += " (" + symbol::table[i].name + ")";
-       break;
-      }
-     }
-    }
-   }
+  switch (opcode) {
+   #define OP(hex, name_macro) case hex: type = OpcodeType::OP; break;
+   #define OPA(hex, name_macro) case hex: type = OpcodeType::OPA; break;
+   #define OPV(hex, name_macro) case hex: type = OpcodeType::OPV; break;
+   OPCODES
+   #undef OP
+   #undef OPA
+   #undef OPV
   }
 
-  cout << "[" << ticker << "] " << name << "\t[" << ticker + 1 << "] " << value << endl;
+  switch (type) {
+   case OpcodeType::OP: {
+    cout << "[" << position << "] " << name << endl;
+    break;
+   }
+   case OpcodeType::OPA: {
+    address_logic operand = memory::unaligned_16_read(active::logic->code_octo + position + 1);
+    cout << "[" << position << "] " << name << " to " << operand << endl;
+    break;
+   }
+   case OpcodeType::OPV: {
+    fpu operand = fpu::raw(memory::unaligned_32_read(active::logic->code_octo + position + 1));
+    string ascii = "\"";
+    for (u8 i = 0; i < 4; i++) {ascii += cast(char, (operand.r() >> (i * 8)) & 0xFF);}
+    ascii += "\"";
+    cout << "[" << position << "] " << name << " : " << operand.r() << " (" << utility::string_no_trailing(operand) << ") " << ascii << endl;
+    break;
+   }
+  }
  }
 
  void bytecode_append(octo opcode, fpu operand) {
@@ -290,8 +279,8 @@ namespace interpreter {
     OP(add, a + b)
     OP(sub, a - b)
     OP(mul, a * b)
-    OP(div, b ? a / b : memory::vm::ram_global::constant::sentinel)
-    OP(mod, b ? a - fpu(floor(cast(double, a / b))) * b : memory::vm::ram_global::constant::sentinel)
+    OP(div, b ? a / b : memory::vm::global::constant::sentinel)
+    OP(mod, b ? a - fpu(floor(cast(double, a / b))) * b : memory::vm::global::constant::sentinel)
     OP(lt, a < b ? 1 : 0)
     OP(gt, a > b ? 1 : 0)
     OP(land, (a && b) ? 1 : 0)
@@ -1076,27 +1065,22 @@ namespace interpreter {
  }
 
  void step() {
-  using namespace memory::vm::process::app;
-  using namespace ram_local;
+  if (active::logic->counter >= active::logic->writer) {return;}
 
-  if (counter >= writer) {return;}
-
-  octo opcode = bytecode[counter.i()];
-  fpu operand = fpu::raw(memory::unaligned_32_read(bytecode + counter.i() + 1));
-  addr result = memory::vm::ram_global::constant::sentinel;
-
-  // debug_opcode(opcode, operand, counter);
+  octo opcode = active::logic->code_octo[active::logic->counter.a()];
+  address_logic result;
 
   switch (opcode) {
-   #define OPI(hex, name) case op::name: result = opfunc::name(operand); break;
-   #define OPC(hex, name, args) case op::name: result = opfunc::name(operand); break;
+   #define OP(hex, name) case op::name: result = op_call::name(); break;
+   #define OPA(hex, name) case op::name: result = op_call::name(); break;
+   #define OPV(hex, name) case op::name: result = op_call::name(); break;
    OPCODES
-   #undef OPI
-   #undef OPC
+   #undef OP
+   #undef OPA
+   #undef OPV
   }
 
-  if (result == cast(addr, memory::vm::ram_global::constant::sentinel)) {counter += 5;}
-  else {counter = result;}
+  active::logic->counter = fpu::raw(result);
  }
 
  void reset() {
@@ -1104,8 +1088,8 @@ namespace interpreter {
 
    scope::stack.clear();
    scope::previous = 0;
-   scope::last_jump_operand = memory::vm::ram_global::constant::sentinel;
-   scope::last_line_start = memory::vm::ram_global::constant::sentinel;
+   scope::last_jump_operand = memory::vm::global::constant::sentinel;
+   scope::last_line_start = memory::vm::global::constant::sentinel;
    scope::last_line_scope_set = scope::Type::Generic;
 
    // base scope frame
@@ -1138,7 +1122,7 @@ namespace scope {
  vector<Frame> stack;
  u8 previous = 0;
 
- addr last_jump_operand = memory::vm::ram_global::constant::sentinel;
- addr last_line_start = memory::vm::ram_global::constant::sentinel;
+ address_logic last_jump_operand = memory::vm::global::constant::sentinel;
+ address_logic last_line_start = memory::vm::global::constant::sentinel;
  Type last_line_scope_set = Type::Generic;
 }

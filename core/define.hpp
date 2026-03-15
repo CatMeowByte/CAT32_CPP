@@ -27,10 +27,12 @@ using s32 = int32_t;
 using u64 = uint64_t;
 using s64 = int64_t;
 
-using octo = u8;
+using octo = u8; // byte
 
-using code_address = u16;
-using opcode_call = code_address(*)();
+using address = u32; // vm memory
+using address_logic = u16; // per process logic region
+using address_local = u16; // per process local region
+using opcode_call = address_logic(*)();
 
 using str = const char*;
 

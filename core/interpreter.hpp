@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/constant.hpp" // IWYU pragma: keep
+#include "core/define.hpp"
 
 
 namespace interpreter {
@@ -21,7 +22,7 @@ namespace symbol {
 
  struct Data {
   string name;
-  code_address address;
+  address_logic address;
   Type type;
   fpu value;
   u8 args_count;
@@ -46,17 +47,17 @@ namespace scope {
 
  struct Frame {
   Type type;
-  code_address jump_operand;
-  code_address header_start;
+  address_logic jump_operand;
+  address_logic header_start;
   u32 symbol_start;
-  vector<code_address> break_unpatched;
+  vector<address_logic> break_unpatched;
   vector<u16> space;
  };
 
  extern vector<Frame> stack;
  extern u8 previous;
 
- extern code_address last_jump_operand;
- extern code_address last_line_start; // for while loop
+ extern address_logic last_jump_operand;
+ extern address_logic last_line_start; // for while loop
  extern Type last_line_scope_set;
 }

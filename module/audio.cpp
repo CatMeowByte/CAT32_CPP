@@ -6,9 +6,9 @@
 namespace audio {
  void tone(u8 channel, float key = SENTINEL, float duty = SENTINEL) {
   if (channel > 3) {return;}
-  using namespace memory::vm::ram_global;
-  hardware_io::frequency[channel] = (key == cast(float, constant::sentinel)) ? 0 : 440 * pow(2, (key - 69) / 12);
-  if (duty != cast(float, constant::sentinel)) {hardware_io::duty[channel] = duty;}
+  using namespace memory::vm::global;
+  hardware_io::frequency[channel] = (key == constant::sentinel) ? 0 : 440 * pow(2, (key - 69) / 12);
+  if (duty != constant::sentinel) {hardware_io::duty[channel] = duty;}
  }
 
  namespace wrap {

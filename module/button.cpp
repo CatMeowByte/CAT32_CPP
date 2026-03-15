@@ -6,7 +6,7 @@
 #include "module/button.hpp"
 
 namespace button {
- using namespace memory::vm::ram_global;
+ using namespace memory::vm::global;
  constexpr u8 KEY_COUNT = 8;
  constexpr u8 KEY_ALT = 4;
 
@@ -26,8 +26,8 @@ namespace button {
    bool pressed = false;
    for (u8 j = 0; j < KEY_ALT && keymap[i].keys[j]; j++) {if (sdl::is_key_pressed(keymap[i].keys[j])) {pressed = true; break;}}
    if (pressed) {keymap[i].memory++;}
-   else if (keymap[i].memory > constant::zero) {keymap[i].memory = -1;}
-   else if (keymap[i].memory == -constant::one) {keymap[i].memory = 0;}
+   else if (keymap[i].memory > constant::zero) {keymap[i].memory = -constant::one;}
+   else if (keymap[i].memory == -constant::one) {keymap[i].memory = constant::zero;}
   }
  }
 

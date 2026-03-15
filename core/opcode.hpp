@@ -57,9 +57,9 @@ namespace op {
 }
 
 namespace op_call {
- #define OP(hex, name) code_address name();
- #define OPA(hex, name) code_address name();
- #define OPV(hex, name) code_address name();
+ #define OP(hex, name) address_logic name();
+ #define OPA(hex, name) address_logic name();
+ #define OPV(hex, name) address_logic name();
  OPCODES
  #undef OP
  #undef OPA
@@ -73,20 +73,20 @@ namespace opcode {
 }
 
 #define OPCODE(name, ...) \
- code_address name() { \
+ address_logic name() { \
  __VA_ARGS__ \
- return memory::vm::process::app::ram_local::counter.a() + 1;}
+ return active::logic->counter.a() + 1;}
 
 #define OPCODE_ADDRESS(name, ...) \
- code_address name() { \
- code_address operand = memory::unaligned_16_read(memory::vm::process::app::bytecode + memory::vm::process::app::ram_local::counter.a() + 1); \
+ address_logic name() { \
+ address_logic operand = memory::unaligned_16_read(active::logic->code_octo + active::logic->counter.a() + 1); \
  __VA_ARGS__ \
- return memory::vm::process::app::ram_local::counter.a() + 3;}
+ return active::logic->counter.a() + 3;}
 
 #define OPCODE_VALUE(name, ...) \
- code_address name() { \
- fpu operand = fpu::raw(memory::unaligned_32_read(memory::vm::process::app::bytecode + memory::vm::process::app::ram_local::counter.a() + 1)); \
+ address_logic name() { \
+ fpu operand = fpu::raw(memory::unaligned_32_read(active::logic->code_octo + active::logic->counter.a() + 1)); \
  __VA_ARGS__ \
- return memory::vm::process::app::ram_local::counter.a() + 5;}
+ return active::logic->counter.a() + 5;}
 
 // newline to supress macro warning "backslash-newline at end of file"
