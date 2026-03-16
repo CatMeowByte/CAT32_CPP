@@ -111,13 +111,9 @@ namespace interpreter {
   }
  }
 
- void bytecode_append(octo opcode, fpu operand) {
-  using namespace memory::vm::process::app;
-  using namespace ram_local;
-  debug_opcode(opcode, operand, writer);
-  bytecode[writer.i()] = opcode;
-  memory::unaligned_32_write(bytecode + writer.i() + 1, operand.r());
-  writer += 5;
+ void code_add(u8 size, s32 value) {
+  for (u8 i = 0; i < size; i++) {active::logic->code_octo[active::logic->writer.a() + i] = (value >> (i * 8)) & 0xFF;}
+  active::logic->writer += size;
  }
 
  static vector<vector<string>> breakdown(const string& line) {

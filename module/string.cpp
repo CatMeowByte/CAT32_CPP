@@ -1,3 +1,4 @@
+#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -90,67 +91,55 @@ namespace string_ops {
 
  namespace wrap {
   OPCODE(differ, {
-   code_address address_b = memory::pop().a();
-   code_address address_a = memory::pop().a();
+   address_logic address_b = memory::pop().a();
+   address_logic address_a = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
    memory::push(string_ops::differ(text_a, text_b));
   })
 
   OPCODE(order, {
-   code_address address_b = memory::pop().a();
-   code_address address_a = memory::pop().a();
+   address_logic address_b = memory::pop().a();
+   address_logic address_a = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
    memory::push(string_ops::order(text_a, text_b));
   })
 
   OPCODE(to_n, {
-   code_address address = memory::pop().a();
+   address_logic address = memory::pop().a();
    string string_text = utility::string_pick(address);
    double result = string_ops::to_n(string_text);
    memory::push(result);
   })
 
   OPCODE(from_n, {
-   using namespace memory::vm::process::app;
    double number = memory::pop();
-   code_address destination = memory::pop().a();
+   address_logic destination = memory::pop().a();
    string number_text = utility::string_no_trailing(number);
-   vector<fpu> packed_pascal = utility::string_to_pascal(number_text);
-   s32 buffer_size = ram_local_fpu[destination - 1];
-   u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
-   for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
+   utility::string_put(destination, number_text);
    memory::push(destination);
   })
 
   OPCODE(add, {
-   using namespace memory::vm::process::app;
-   code_address address_b = memory::pop().a();
-   code_address address_a = memory::pop().a();
-   code_address destination = memory::pop().a();
+   address_logic address_b = memory::pop().a();
+   address_logic address_a = memory::pop().a();
+   address_logic destination = memory::pop().a();
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
    string result = text_a + text_b;
-   vector<fpu> packed_pascal = utility::string_to_pascal(result);
-   s32 buffer_size = ram_local_fpu[destination - 1];
-   u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
-   for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
+   utility::string_put(destination, result);
    memory::push(destination);
   })
 
   OPCODE(sub, {
-   using namespace memory::vm::process::app;
    s32 length = memory::pop();
    s32 start = memory::pop();
-   code_address source = memory::pop().a();
-   code_address destination = memory::pop().a();
+   address_logic source = memory::pop().a();
+   address_logic destination = memory::pop().a();
    string text = utility::string_pick(source);
    string result = text.substr(start, length);
-   vector<fpu> packed_pascal = utility::string_to_pascal(result);
-   s32 buffer_size = ram_local_fpu[destination - 1];
-   u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
-   for (u32 i = 0; i < limit; i++) {ram_local_fpu[destination + i] = packed_pascal[i];}
+   utility::string_put(destination, result);
    memory::push(destination);
   })
  }

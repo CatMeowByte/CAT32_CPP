@@ -38,65 +38,53 @@ namespace opcode {
 namespace op_call {
  /* stack */
  OPCODE_VALUE(push, {
-  using namespace memory::vm::process::app::ram_local;
-  field[(--stacker).i()] = operand;
+  memory::push(operand);
  })
 
  /* memory */
  OPCODE_ADDRESS(takefrom, {
-  using namespace memory::vm::process::app;
-  using namespace ram_local;
-  field[(--stacker).i()] = ram_local_fpu[operand];
+  memory::push(active::logic->code_fpu[operand]);
  })
 
  OPCODE_ADDRESS(storeto, {
-  using namespace memory::vm::process::app;
   fpu value = memory::pop();
-  ram_local_fpu[operand] = value;
+  active::logic->code_fpu[operand] = value;
  })
 
  OPCODE(get, {
-  using namespace memory::vm::process::app;
-  code_address address = memory::pop();
-  memory::push(ram_local_fpu[address]);
+  address_logic address = memory::pop().a();
+  memory::push(active::logic->code_fpu[address]);
  })
 
  OPCODE(set, {
-  using namespace memory::vm::process::app;
   fpu value = memory::pop();
-  code_address address = memory::pop();
-  ram_local_fpu[address] = value;
+  address_logic address = memory::pop().a();
+  active::logic->code_fpu[address] = value;
  })
 
  /* counter */
  OPCODE_ADDRESS(subgo, {
-  using namespace memory::vm::process::app::ram_local;
-  if (cast(u32, framer.i()) >= frames_length) {return counter.a() + 3;}
-  frames[(framer++).i()] = counter;
+  if (cast(u32, active::logic->framer.i()) >= memory::vm::process::p0::logic::frames_length) {return active::logic->counter.a() + 3;}
+  active::logic->frames[(active::logic->framer++).i()] = active::logic->counter;
   return operand;
  })
 
  OPCODE(subret, {
-  using namespace memory::vm;
-  using namespace ram_global::constant;
-  using namespace process::app::ram_local;
-  if (framer == zero) {return writer.a();} // end kernel event loop
-  return frames[(--framer).i()].a() + 3;
+  if (active::logic->framer == memory::vm::global::constant::zero) {return active::logic->writer.a();} // end kernel event loop
+  return active::logic->frames[(--active::logic->framer).i()].a() + 3;
  })
 
  OPCODE_ADDRESS(jump, {
-  if (operand == 0xFFFF) {return memory::vm::process::app::ram_local::writer.a();} // end of code_address
+  if (operand == 0xFFFF) {return active::logic->writer.a();} // end of code_address
   return operand;
  })
 
  OPCODE_ADDRESS(jumz, {
-  using namespace memory::vm::process::app::ram_local;
   fpu check = memory::pop();
   if (!check) {return operand;}
  })
 
  OPCODE_ADDRESS(junz, {
-  using namespace memory::vm::process::app::ram_local;
   fpu check = memory::pop();
   if (check) {return operand;}
  })
@@ -123,13 +111,13 @@ namespace op_call {
  OPCODE(div, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(b ? a / b : memory::vm::ram_global::constant::sentinel);
+  memory::push(b ? a / b : memory::vm::global::constant::sentinel);
  })
 
  OPCODE(mod, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(b ? a - fpu(floor(a / b)) * b : memory::vm::ram_global::constant::sentinel);
+  memory::push(b ? a - fpu(floor(a / b)) * b : memory::vm::global::constant::sentinel);
  })
 
  OPCODE(neg, {
@@ -223,8 +211,7 @@ namespace op_call {
 
  /* marker */
  OPCODE(prime, {
-  using namespace memory::vm::process::app::ram_local;
-  stacker = field_length;
+  active::logic->stacker = active::logic->slotter;
  })
 
  /* module */

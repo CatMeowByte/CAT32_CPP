@@ -23,5 +23,7 @@ namespace utility {
 
  string string_pick(address_logic address);
 
+ void string_put(address_logic address, const string& text);
+
  vector<fpu> string_to_pascal(const string& text);
 }

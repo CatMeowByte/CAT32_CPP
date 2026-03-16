@@ -128,10 +128,6 @@ namespace memory {
  // reset
  void reset();
 
- // internal
- inline fpu pop() {return memory::vm::process::p0::logic::code_fpu[memory::vm::process::p0::logic::stacker++.i()];}
- inline void push(fpu value) {memory::vm::process::p0::logic::code_fpu[(--memory::vm::process::p0::logic::stacker).i()] = value;}
-
  // unaligned
  inline u16 unaligned_16_read(octo* ptr) {return cast(u16, ptr[0]) | (cast(u16, ptr[1]) << 8);}
  inline void unaligned_16_write(octo* ptr, u16 value) {ptr[0] = cast(octo, value & 0xFF); ptr[1] = cast(octo, (value >> 8) & 0xFF);}
@@ -164,6 +160,12 @@ namespace active {
  extern Process_Local* local;
 
  void index(u8 n);
+}
+
+namespace memory {
+ // internal
+ inline fpu pop() {return active::logic->code_fpu[active::logic->stacker++.a()];}
+ inline void push(fpu value) {active::logic->code_fpu[(--active::logic->stacker).a()] = value;}
 }
 
 #undef MAYBE_UNUSED

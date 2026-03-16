@@ -1,3 +1,4 @@
+#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -103,13 +104,19 @@ namespace utility {
   return s;
  }
 
- string string_pick(code_address address) {
-  using namespace memory::vm::process::app;
+ string string_pick(address_logic address) {
   string out;
-  for (s32 i = 0; i < ram_local_fpu[address].i(); i++) {
-   out += cast(char, (ram_local_fpu[address + 1 + i / 4].r() >> ((i % 4) * 8)) & 0xFF);
+  for (s32 i = 0; i < active::logic->code_fpu[address].i(); i++) {
+   out += cast(char, (active::logic->code_fpu[address + 1 + i / 4].r() >> ((i % 4) * 8)) & 0xFF);
   }
   return out;
+ }
+
+ void string_put(address_logic address, const string& text) {
+  vector<fpu> packed_pascal = string_to_pascal(text);
+  u32 buffer_size = active::logic->code_fpu[address - 1].i();
+  u32 limit = min(cast(u32, packed_pascal.size()), buffer_size);
+  for (u32 i = 0; i < limit; i++) {active::logic->code_fpu[address + i] = packed_pascal[i];}
  }
 
  vector<fpu> string_to_pascal(const string& text) {
@@ -152,15 +159,9 @@ namespace utility {
 
    cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << literal_value.r() << "" << endl;
   })
-
-  OPCODE(wait, {
-   using namespace memory::vm::process::app::ram_local;
-   sleeper = memory::pop();
-  })
  }
 
  MODULE(
   module::add("", "see", wrap::see, 1);
-  module::add("", "wait", wrap::wait, 1);
  )
 }
