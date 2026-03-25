@@ -1,3 +1,4 @@
+#include "core/constant.hpp"
 #include "core/module.hpp"
 #include "core/memory.hpp"
 #include "core/opcode.hpp"
@@ -42,6 +43,7 @@ namespace op_call {
  })
 
  /* memory */
+ // all memory opcodes use slot index
  OPCODE_ADDRESS(takefrom, {
   memory::push(active::logic->code_fpu[operand]);
  })
@@ -70,12 +72,12 @@ namespace op_call {
  })
 
  OPCODE(subret, {
-  if (active::logic->framer == memory::vm::global::constant::zero) {return active::logic->writer.a();} // end kernel event loop
+  if (active::logic->framer == fpu(0)) {return active::logic->writer.a();} // end kernel event loop
   return active::logic->frames[(--active::logic->framer).i()].a() + 3;
  })
 
  OPCODE_ADDRESS(jump, {
-  if (operand == 0xFFFF) {return active::logic->writer.a();} // end of code_address
+  if (operand == FARLAND) {return active::logic->writer.a();} // end of code_address
   return operand;
  })
 
@@ -111,13 +113,13 @@ namespace op_call {
  OPCODE(div, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(b ? a / b : memory::vm::global::constant::sentinel);
+  memory::push(b ? a / b : SENTINEL);
  })
 
  OPCODE(mod, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(b ? a - fpu(floor(a / b)) * b : memory::vm::global::constant::sentinel);
+  memory::push(b ? a - fpu(floor(a / b)) * b : SENTINEL);
  })
 
  OPCODE(neg, {

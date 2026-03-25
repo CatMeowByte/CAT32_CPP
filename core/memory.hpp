@@ -96,14 +96,14 @@ namespace memory {
   region(process, global_next, 98304, // process region
    region(p0, process_address, 98304, // process 0
 
-    region(logic, p0_address, 65536, // bytecode and execution memory
-     ifpu(stacker, logic_address) // stack pointer. starts from end of allocator memory. grow backward
-     ifpu(slotter, stacker_next) // variable allocator. starts from end of logic memory. grow backward. only increment on compile
-     ifpu(writer, slotter_next) // points to after last bytecode
-     ifpu(counter, writer_next) // bytecode execution pointer
-     ifpu(framer, counter_next) // call address pointer
-     bfpu(frames, framer_next, 121) // call address stack
-     bocto(code, frames_next, logic_next - frames_next) // bytecode
+    region(logic, p0_address, 65536, // bytecode and execution memory. defined in backward order for code block dynamic size
+     bfpu(frames, logic_next - sizeof(fpu) * 121, 121) // call address stack
+     ifpu(framer, frames_address - sizeof(fpu)) // call address pointer
+     ifpu(counter, framer_address - sizeof(fpu)) // bytecode execution pointer
+     ifpu(writer, counter_address - sizeof(fpu)) // points to after last bytecode
+     ifpu(slotter, writer_address - sizeof(fpu)) // variable allocator. starts from end of logic memory. grow backward. only increment on compile
+     ifpu(stacker, slotter_address - sizeof(fpu)) // stack pointer. starts from end of allocator memory. grow backward
+     bocto(code, logic_address, stacker_address - logic_address) // bytecode
     )
     check(logic, logic::code)
 
@@ -140,16 +140,16 @@ namespace active {
  // need to synchronize with the tree
  using namespace memory::vm::process::p0;
  struct Process_Logic {
+  union {
+   octo code_octo[logic::code_length];
+   fpu code_fpu[logic::code_length / sizeof(fpu)];
+  };
   fpu stacker;
   fpu slotter;
   fpu writer;
   fpu counter;
   fpu framer;
   fpu frames[121];
-  union {
-   octo code_octo[logic_next - logic::frames_next];
-   fpu code_fpu[(logic_next - logic::frames_next) / sizeof(fpu)];
-  };
  };
 
  struct Process_Local {

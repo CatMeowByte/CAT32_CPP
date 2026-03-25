@@ -1,5 +1,6 @@
 
 #include "core/constant.hpp"
+#include "core/define.hpp"
 #include "core/interpreter.hpp"
 #include <sys/stat.h>
 #if defined(_WIN32)
@@ -192,12 +193,13 @@ namespace filesystem {
   }
  }
 
- void load(const string& path) {
+ void run(const string& path, u8 index) {
   cout << "\n\nLoad: " << path << endl;
-  using namespace memory::vm::process::app;
+  cout << "as process " << index << endl;
+  active::index(index);
 
-  memset(bytecode, 0, bytecode_size);
-  memset(ram_local_octo, 0, ram_local_size);
+  // clear
+  {using namespace memory::vm::process; memset(memory::raw + p0_address + (index * p0_size), 0, p0_size);}
 
   // TODO:
   // temporary spritesheet
@@ -331,17 +333,14 @@ namespace filesystem {
    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
   };
-  memcpy(memory::vm::process::app::ram_local::sprite, sprite_data, 8192);
+  memcpy(active::local->sprite, sprite_data, 8192);
 
-  using namespace ram_local;
-  stacker = field_length;
-  slotter = cast(u32, (field_address - ram_local_address) / sizeof(fpu));
-  writer = 15;
+  active::logic->writer = cast(u8, kernel::Event::Load);
+  active::logic->slotter = memory::vm::process::p0::logic::code_length / sizeof(fpu); // last of code (in slot)
 
-  memory::unaligned_32_write(bytecode + 1, memory::vm::ram_global::constant::sentinel.r());
-  memory::unaligned_32_write(bytecode + 6, memory::vm::ram_global::constant::sentinel.r());
-  memory::unaligned_32_write(bytecode + 11, memory::vm::ram_global::constant::sentinel.r());
-
+  memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Init) + 1, FARLAND);
+  memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Step) + 1, FARLAND);
+  memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Draw) + 1, FARLAND);
 
   interpreter::reset();
 
@@ -355,127 +354,117 @@ namespace filesystem {
    interpreter::compile(tokens);
   }
 
+  // FIXME:
   // dedent hack
-  interpreter::compile(interpreter::tokenize("return"));
+  // required to close all scope and unpatched jump
+  // currently doesnt know the best method for it
+  // interpreter::compile(interpreter::tokenize("return"));
+  // active::logic->code_octo[active::logic->writer++.a()] = op::subret;
 
-  using namespace ram_local;
-  u32 rom_net = cast(u32, writer) - 15;
-  u32 ram_net = cast(u32, slotter) - cast(u32, (field_address - ram_local_address) / sizeof(fpu));
-  cout << "ROM: " << rom_net << " bytes (" << (rom_net * 100 / bytecode_size) << "%) [" << (bytecode_size - cast(s32, writer)) << " bytes free]" << endl;
-  cout << "RAM: " << ram_net << " slots (" << (ram_net * 100 / field_length) << "%) [" << (field_length - ram_net) << " slots free]" << endl;
+  active::logic->stacker = active::logic->slotter; // after slotter filled
 
-  // block event
-  bytecode[cast(u8, kernel::Event::Init)] = op::subret;
-  bytecode[cast(u8, kernel::Event::Step)] = op::subret;
-  bytecode[cast(u8, kernel::Event::Draw)] = op::subret;
- }
+  // statistic
+  u32 code_total = memory::vm::process::p0::logic::code_length;
+  u32 slot_total = code_total / sizeof(fpu);
+  u32 rom_used = cast(u32, active::logic->writer.a()) - cast(u8, kernel::Event::Load);
+  u32 rom_free = code_total - cast(u32, active::logic->writer.a());
+  u32 ram_used = slot_total - cast(u32, active::logic->slotter.i());
+  u32 ram_free = slot_total - ram_used;
+  cout << "ROM: " << rom_used << " bytes (" << (rom_used * 100 / code_total) << "%) [" << rom_free << " bytes free]" << endl;
+  cout << "RAM: " << ram_used << " slots (" << (ram_used * 100 / slot_total) << "%) [" << ram_free << " slots free]" << endl;
 
- void run() {
-  cout << "\n\nRun" << endl;
-  using namespace memory::vm::process::app;
-  bytecode[cast(u8, kernel::Event::Init)] = op::jump;
-  bytecode[cast(u8, kernel::Event::Step)] = op::jump;
-  bytecode[cast(u8, kernel::Event::Draw)] = op::jump;
+  active::logic->code_octo[cast(u8, kernel::Event::Init)] = op::jump;
+  active::logic->code_octo[cast(u8, kernel::Event::Step)] = op::jump;
+  active::logic->code_octo[cast(u8, kernel::Event::Draw)] = op::jump;
+
+  cout << "\n\nRun:" << endl;
   kernel::run_event(kernel::Event::Load);
   kernel::run_event(kernel::Event::Init);
  }
 
  namespace wrap {
   OPCODE(read, {
-   using namespace memory::vm::process::app;
    u32 length = memory::pop();
    u32 offset = memory::pop();
-   code_address address_path = memory::pop().a();
-   code_address address_destination = memory::pop().a();
+   address_logic address_path = memory::pop().a();
+   address_logic address_destination = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    vector<octo> data = filesystem::read(string_path, offset, length);
-   s32 buffer_size = ram_local_fpu[address_destination - 1];
+   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
    u32 byte_capacity = buffer_size * sizeof(fpu);
    u32 bytes_to_copy = min(cast(u32, data.size()), byte_capacity);
-   memcpy(&ram_local_fpu[address_destination], data.data(), bytes_to_copy);
+   memcpy(&active::logic->code_fpu[address_destination], data.data(), bytes_to_copy);
   })
 
   OPCODE(write, {
-   using namespace memory::vm::process::app;
-   code_address address_source = memory::pop().a();
+   address_logic address_source = memory::pop().a();
    u32 offset = memory::pop();
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
-   s32 source_size = ram_local_fpu[address_source - 1];
+   s32 source_size = active::logic->code_fpu[address_source - 1].i();
    u32 byte_count = source_size * sizeof(fpu);
    vector<octo> data(byte_count);
-   memcpy(data.data(), &ram_local_fpu[address_source], byte_count);
+   memcpy(data.data(), &active::logic->code_fpu[address_source], byte_count);
    filesystem::write(string_path, offset, data);
   })
 
   OPCODE(list_count, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    u32 count = filesystem::list_count(string_path);
    memory::push(count);
   })
 
   OPCODE(list_index, {
-   using namespace memory::vm::process::app;
    u32 index = memory::pop();
-   code_address address_path = memory::pop().a();
-   code_address address_destination = memory::pop().a();
+   address_logic address_path = memory::pop().a();
+   address_logic address_destination = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    string result = filesystem::list_index(string_path, index);
    vector<fpu> packed_pascal = utility::string_to_pascal(result);
-   s32 buffer_size = ram_local_fpu[address_destination - 1];
+   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
-   for (u32 i = 0; i < limit; i++) {ram_local_fpu[address_destination + i] = packed_pascal[i];}
+   for (u32 i = 0; i < limit; i++) {active::logic->code_fpu[address_destination + i] = packed_pascal[i];}
   })
 
   OPCODE(exist, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    bool result = filesystem::exist(string_path);
    memory::push(result);
   })
 
   OPCODE(is_dir, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    bool result = filesystem::is_dir(string_path);
    memory::push(result);
   })
 
   OPCODE(size, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    u32 result = filesystem::size(string_path);
    memory::push(result);
   })
 
   OPCODE(make_dir, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    filesystem::make_dir(string_path);
   })
 
   OPCODE(remove, {
-   code_address address_path = memory::pop().a();
+   address_logic address_path = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    filesystem::remove(string_path);
   })
 
-  OPCODE(load, {
-   code_address address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   filesystem::load(string_path);
-  })
-
   OPCODE(run, {
-   using namespace memory::vm::process::app;
-   using namespace memory::vm::ram_global::constant;
-   code_address address_path = memory::pop().a();
-   if (address_path) {
-    string string_path = utility::string_pick(address_path);
-    filesystem::load(string_path);
-   }
-   filesystem::run();
+   u8 index = memory::pop().i();
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   filesystem::run(string_path, index);
   })
  }
 
@@ -489,7 +478,6 @@ namespace filesystem {
   module::add("filesystem", "size", wrap::size, 1);
   module::add("filesystem", "make_dir", wrap::make_dir, 1);
   module::add("filesystem", "remove", wrap::remove, 1);
-  module::add("", "load", wrap::load, 1);
-  module::add("", "run", wrap::run, 1, {0});
+  module::add("", "run", wrap::run, 2, {0});
  )
 }

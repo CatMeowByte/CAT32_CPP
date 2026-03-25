@@ -9,7 +9,10 @@ sources = [
 'CAT32.cpp',
 
 # core
-'core/interpreter.cpp',
+'core/tokenizer.cpp',
+'core/compiler.cpp',
+'core/executor.cpp',
+
 'core/memory.cpp',
 'core/module.cpp',
 'core/opcode.cpp',

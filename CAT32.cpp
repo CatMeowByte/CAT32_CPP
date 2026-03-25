@@ -17,8 +17,7 @@ namespace kernel {
 
 static void boot() {
  memory::reset();
- filesystem::load("/app/file_manager.app");
- filesystem::run();
+ filesystem::run("/app/file_manager.app");
 }
 
 static void tick() {

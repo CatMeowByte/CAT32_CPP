@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/define.hpp"
+#include "core/define.hpp" // IWYU pragma: export
 
 namespace SYSTEM {
  constexpr str NAME = "CAT-32";
@@ -27,3 +27,4 @@ namespace TICK {
 }
 
 constexpr fpu SENTINEL = fpu::raw(0x80000000);
+constexpr address_logic FARLAND = 0xFFFF;

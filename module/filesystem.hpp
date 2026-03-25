@@ -12,6 +12,5 @@ namespace filesystem {
  u32 size(const string& path);
  void make_dir(const string& path);
  void remove(const string& path);
- void load(const string& path);
- void run();
+ void run(const string& path, u8 index = 0);
 }

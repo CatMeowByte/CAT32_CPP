@@ -1,3 +1,4 @@
+#include "core/constant.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
@@ -7,8 +8,8 @@ namespace audio {
  void tone(u8 channel, float key = SENTINEL, float duty = SENTINEL) {
   if (channel > 3) {return;}
   using namespace memory::vm::global;
-  hardware_io::frequency[channel] = (key == constant::sentinel) ? 0 : 440 * pow(2, (key - 69) / 12);
-  if (duty != constant::sentinel) {hardware_io::duty[channel] = duty;}
+  hardware_io::frequency[channel] = (key == SENTINEL) ? 0 : 440 * pow(2, (key - 69) / 12);
+  if (duty != SENTINEL) {hardware_io::duty[channel] = duty;}
  }
 
  namespace wrap {

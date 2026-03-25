@@ -29,9 +29,13 @@ using s64 = int64_t;
 
 using octo = u8; // byte
 
-using address = u32; // vm memory
-using address_logic = u16; // per process logic region
-using address_local = u16; // per process local region
+// vm memory
+using address = u32;
+
+// per process
+using address_logic = u16; // logic in byte
+using address_local = u16; // local in byte
+using slot_logic = u16; // logic in slot
 using opcode_call = address_logic(*)();
 
 using str = const char*;
