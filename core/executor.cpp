@@ -5,7 +5,7 @@
 
 namespace interpreter {
  void step() {
-  if (active::logic->counter >= active::logic->writer) {return;}
+  if (active::logic->counter > active::logic->writer) {return;}
 
   octo opcode = active::logic->code_octo[active::logic->counter.a()];
   address_logic result;

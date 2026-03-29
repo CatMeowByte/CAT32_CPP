@@ -164,8 +164,8 @@ namespace active {
 
 namespace memory {
  // internal
- inline fpu pop() {return active::logic->code_fpu[active::logic->stacker++.a()];}
- inline void push(fpu value) {active::logic->code_fpu[(--active::logic->stacker).a()] = value;}
+ inline fpu pop() {return active::logic->code_fpu[active::logic->stacker++.i()];}
+ inline void push(fpu value) {active::logic->code_fpu[(--active::logic->stacker).i()] = value;}
 }
 
 #undef MAYBE_UNUSED

@@ -6,7 +6,7 @@
 
 namespace interpreter {
  static void code_add(u8 size, s32 value) {
-  for (u8 i = 0; i < size; i++) {active::logic->code_octo[active::logic->writer.a() + i] = (value >> (i * 8)) & 0xFF;}
+  for (u8 i = 0; i < size; i++) {active::logic->code_octo[active::logic->writer.a() + 1 + i] = (value >> (i * 8)) & 0xFF;}
   active::logic->writer += size;
  }
 
@@ -58,7 +58,7 @@ namespace interpreter {
     cout << ">>>>" << endl;
 
     if (scope::previous::type != scope::Type::Function) { // if, while, and else
-     const octo last_opcode = active::logic->code_octo[active::logic->writer.a() - 3];
+     const octo last_opcode = active::logic->code_octo[active::logic->writer.a() - 2];
 
      if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
       cout << "caution: last opcode before indent is not jump/jumz/junz" << endl;
@@ -89,7 +89,7 @@ namespace interpreter {
 
      code_add(1, op::jump);
      code_add(2, FARLAND);
-     scope::previous::skip_operand = active::logic->writer.a() - 2;
+     scope::previous::skip_operand = active::logic->writer.a() - 1;
      scope::previous::type = scope::Type::Else;
     }
 
@@ -100,12 +100,12 @@ namespace interpreter {
     switch (frame.type) {
      case scope::Type::While: {
       code_add(1, op::jump);
-      code_add(2, frame.line); // next opcode
+      code_add(2, frame.line + 1); // next opcode
 
       // patch break
       for (address_logic patch_addr : frame.break_operands) {
-       memory::unaligned_16_write(active::logic->code_octo + patch_addr, active::logic->writer.a());
-       cout << "patching break at " << patch_addr << " to " << active::logic->writer.a() << endl;
+       memory::unaligned_16_write(active::logic->code_octo + patch_addr, active::logic->writer.a() + 1);
+       cout << "patching break at " << patch_addr << " to " << active::logic->writer.a() + 1 << endl;
       }
       break;
      }
@@ -119,8 +119,8 @@ namespace interpreter {
      default: {break;}
     }
 
-    memory::unaligned_16_write(active::logic->code_octo + frame.skip_operand, active::logic->writer.a());
-    cout << "patching jump operand at " << frame.skip_operand << " to address " << active::logic->writer.a() << endl;
+    memory::unaligned_16_write(active::logic->code_octo + frame.skip_operand, active::logic->writer.a() + 1);
+    cout << "patching jump operand at " << frame.skip_operand << " to address " << active::logic->writer.a() + 1 << endl;
 
     scope::stack.pop_back();
    }
@@ -128,7 +128,7 @@ namespace interpreter {
   scope::previous::indent = indent;
 
   // set to current line after used on indent
-  scope::previous::line = active::logic->writer.a();
+  scope::previous::line = active::logic->writer.a() + 1;
 
   // set header
   {
@@ -149,7 +149,7 @@ namespace interpreter {
     if (tokens[0][0] == "break") {
      code_add(1, op::jump);
      code_add(2, FARLAND);
-     address_logic patch_address = active::logic->writer.a() - 2;
+     address_logic patch_address = active::logic->writer.a() - 1;
      scope::stack[i].break_operands.push_back(patch_address);
      cout << "break stores unpatched jump at " << patch_address << endl;
     }
@@ -570,7 +570,7 @@ namespace interpreter {
   if (header_type == HeaderType::If) {
    code_add(1, op::jumz);
    code_add(2, FARLAND);
-   scope::previous::skip_operand = active::logic->writer.a() - 2;
+   scope::previous::skip_operand = active::logic->writer.a() - 1;
    scope::previous::type = scope::Type::If;
   }
 
@@ -578,7 +578,7 @@ namespace interpreter {
   if (header_type == HeaderType::While) {
    code_add(1, op::jumz);
    code_add(2, FARLAND);
-   scope::previous::skip_operand = active::logic->writer.a() - 2;
+   scope::previous::skip_operand = active::logic->writer.a() - 1;
    scope::previous::type = scope::Type::While;
   }
 

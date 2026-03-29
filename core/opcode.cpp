@@ -54,30 +54,30 @@ namespace op_call {
  })
 
  OPCODE(get, {
-  address_logic address = memory::pop().a();
-  memory::push(active::logic->code_fpu[address]);
+  slot_logic slot = memory::pop().i();
+  memory::push(active::logic->code_fpu[slot]);
  })
 
  OPCODE(set, {
   fpu value = memory::pop();
-  address_logic address = memory::pop().a();
-  active::logic->code_fpu[address] = value;
+  slot_logic slot = memory::pop().i();
+  active::logic->code_fpu[slot] = value;
  })
 
  /* counter */
  OPCODE_ADDRESS(subgo, {
   if (cast(u32, active::logic->framer.i()) >= memory::vm::process::p0::logic::frames_length) {return active::logic->counter.a() + 3;}
-  active::logic->frames[(active::logic->framer++).i()] = active::logic->counter;
+  active::logic->frames[(++active::logic->framer).i()] = active::logic->counter;
   return operand;
  })
 
  OPCODE(subret, {
-  if (active::logic->framer == fpu(0)) {return active::logic->writer.a();} // end kernel event loop
-  return active::logic->frames[(--active::logic->framer).i()].a() + 3;
+  if (active::logic->framer == fpu(0)) {return active::logic->writer.a() + 1;}
+  return active::logic->frames[active::logic->framer--.i()].a() + 3;
  })
 
  OPCODE_ADDRESS(jump, {
-  if (operand == FARLAND) {return active::logic->writer.a();} // end of code_address
+  if (operand == FARLAND) {return active::logic->writer.a() + 1;}
   return operand;
  })
 
