@@ -1,8 +1,40 @@
 #include "core/constant.hpp"
 #include "core/interpreter.hpp"
+#include "core/kernel.hpp"
 #include "core/memory.hpp"
+#include "core/module.hpp"
 #include "core/opcode.hpp"
 #include "core/utility.hpp"
+
+namespace symbol {
+ vector<Data> table;
+
+ s32 get_index_reverse(const string& name) {
+  for (u32 i = table.size(); i-- > 0;) {
+   if (table[i].name == name) {return i;}
+  }
+  return -1;
+ }
+
+ bool exist(const string& name) {
+  return get_index_reverse(name) >= 0;
+ }
+
+ Data& get(const string& name) {
+  return table[get_index_reverse(name)];
+ }
+}
+
+namespace scope {
+ vector<Frame> stack;
+
+ namespace previous {
+  u8 indent;
+  Type type;
+  address_logic line;
+  address_logic skip_operand;
+ }
+}
 
 namespace interpreter {
  static void code_add(u8 size, s32 value) {
@@ -19,13 +51,13 @@ namespace interpreter {
   // debug print formatted token
   {
    for (u32 i = 0; i < tokens.size(); i++) {
+    if (i) {cout << " ";}
     cout << "[";
     for (u32 j = 0; j < tokens[i].size(); j++) {
+     if (j) {cout << " ";}
      cout << "'" << tokens[i][j] << "'";
-     if (j < tokens[i].size() - 1) {cout << " ";}
     }
     cout << "]";
-    if (i < tokens.size() - 1) {cout << " ";}
    }
    cout << endl;
   }
@@ -43,9 +75,15 @@ namespace interpreter {
   enum class SetStyle : u8 {None, Variable, Stripe};
   SetStyle set_style = SetStyle::None;
 
+  // generic expression mode
   bool is_expression = true;
-  for (const vector<string>& token : tokens) {
-   if (find(token.begin(), token.end(), "=") != token.end()) {is_expression = false; break;}
+
+  // start as assignment mode
+  for (const vector<string>& subtokens : tokens) {
+   for (const string& token : subtokens) {
+    if (token == "=") {is_expression = false; break;}
+   }
+   if (!is_expression) {break;}
   }
 
   bool is_return = tokens[0][0] == "return";
@@ -238,330 +276,350 @@ namespace interpreter {
   code_add(1, op::prime);
 
   // token processing
-  // for (u32 i = 0; i < tokens.size(); i++) {
-  //  const vector<string>& expression = tokens[i];
-  //  if (expression.size() == 1 && expression[0] == "=") {is_expression = true; continue;}
+  for (u32 i = 0; i < tokens.size(); i++) {
+   const vector<string>& expression = tokens[i];
 
-  //  // skip constant declaration value
-  //  if (i == 3 && declare_style == DeclareStyle::Constant) {continue;}
+   // right hand side is generic expression mode
+   if (expression.size() == 1 && expression[0] == "=") {is_expression = true; continue;}
 
-  //  // skip stripe declaration identifier
-  //  if (i == 1 && declare_style == DeclareStyle::Stripe) {continue;}
+   // skip constant declaration value
+   if (i == 3 && declare_style == DeclareStyle::Constant) {continue;}
 
-  //  // check recursive
-  //  s32 recursive_index = -1;
-  //  for (const string& token : expression) {
-  //   u64 callable_tag_pos = token.find(tag::callable_args);
-  //   if (!callable_tag_pos || callable_tag_pos == string::npos) {continue;}
+   // skip stripe declaration identifier
+   if (i == 1 && declare_style == DeclareStyle::Stripe) {continue;}
 
-  //   string name = token.substr(0, callable_tag_pos);
-  //   if (!symbol::exist(name) || symbol::get(name).type != symbol::Type::Function) {break;}
+   // check recursive
+   s32 recursive_index = -1;
+   for (const string& token : expression) {
+    u64 callable_tag_pos = token.find(tag::callable_args);
+    if (!callable_tag_pos || callable_tag_pos == string::npos) {continue;}
 
-  //   // find current function scope
-  //   for (s32 k = scope::stack.size() - 1; k >= 0; k--) {
-  //    if (scope::stack[k].type != scope::Type::Function) {continue;}
-  //    if (scope::stack[k].header_start + 5 != symbol::get(name).address) {break;}
+    string name = token.substr(0, callable_tag_pos);
+    if (!symbol::exist(name) || symbol::get(name).type != symbol::Type::Function) {break;}
 
-  //    recursive_index = k;
-  //    // stash recursive argument
-  //    for (u32 m = scope::stack[k].symbol_start - symbol::get(name).args_count; m < scope::stack[k].symbol_start; m++) {
-  //     bytecode_append(op::takefrom, symbol::table[m].address);
-  //    }
-  //    break;
-  //   }
-  //   break;
-  //  }
+    // find current function scope
+    for (s32 k = scope::stack.size() - 1; k >= 0; k--) {
+     if (scope::stack[k].type != scope::Type::Function) {continue;}
 
-  //  for (u32 j = 0; j < expression.size(); j++) {
-  //   const string& token = expression[j];
-  //   const u64 callable_tag_pos = token.find(tag::callable_args);
+     // skip the skip jump to get the name
+     if (scope::stack[k].line + 3 != symbol::get(name).function.address) {break;}
 
-  //   if (false) {}
+     recursive_index = k;
+     // stash recursive argument
+     for (u32 m = scope::stack[k].symbol_boundary - symbol::get(name).function.args_count; m < scope::stack[k].symbol_boundary; m++) {
+      code_add(1, op::takefrom);
+      code_add(2, symbol::table[m].variable.slot);
+     }
+     break;
+    }
+    break;
+   }
 
-  //   // function
-  //   // run once early in specific condition to process the whole function declaration header and skip procesing the rest of token
-  //   else if (header_type == HeaderType::Function && i == 1 && j == 0) {
-  //    scope::last_jump_operand = cast(addr, writer) + 1;
-  //    bytecode_append(op::jump, memory::vm::ram_global::constant::sentinel);
-  //    scope::last_line_scope_set = scope::Type::Function;
+   for (u32 j = 0; j < expression.size(); j++) {
+    const string& token = expression[j];
+    const u64 callable_tag_pos = token.find(tag::callable_args);
 
-  //    string name_tagged = expression.back();
-  //    u64 declare_tag_pos = name_tagged.find(tag::callable_args);
-  //    string name = name_tagged.substr(0, declare_tag_pos);
-  //    addr address = cast(addr, writer);
+    if (false) {}
 
-  //    // event loop
-  //    if (name == "init") {memory::unaligned_32_write(bytecode + 1, fpu(address).r()); cout << "event loop init is written at bytecode [" << address << "]" << endl;}
-  //    else if (name == "step") {memory::unaligned_32_write(bytecode + 6, fpu(address).r()); cout << "event loop step is written at bytecode [" << address << "]" << endl;}
-  //    else if (name == "draw") {memory::unaligned_32_write(bytecode + 11, fpu(address).r()); cout << "event loop draw is written at bytecode [" << address << "]" << endl;}
+    // function
+    // run once early in specific condition to process the whole function declaration header and skip procesing the rest of token
+    else if (header_type == HeaderType::Function && i == 1 && j == 0) {
+     code_add(1, op::jump);
+     code_add(2, FARLAND);
+     scope::previous::skip_operand = active::logic->writer.a() - 1;
+     scope::previous::type = scope::Type::Function;
 
-  //    // symbol
-  //    symbol::Data function_symbol;
-  //    function_symbol.name = name;
-  //    function_symbol.address = address;
-  //    function_symbol.type = symbol::Type::Function;
-  //    function_symbol.args_count = 0;
-  //    symbol::table.push_back(function_symbol);
-  //    cout << name << " function is written at bytecode [" << address << "]" << endl;
-  //    const u32 function_symbol_index = symbol::table.size() - 1; // prevent invalidation
+     string name_tagged = expression.back();
+     u64 declare_tag_pos = name_tagged.find(tag::callable_args);
+     string name = name_tagged.substr(0, declare_tag_pos);
+     address_logic address = active::logic->writer.a() + 1;
 
-  //    // arguments
-  //    address = cast(addr, slotter);
-  //    const u8 args_count = declare_tag_pos == string::npos ? 0 : stoi(name_tagged.substr(declare_tag_pos + strlen(tag::callable_args)));
-  //    s32 slot = args_count - 1;
-  //    string last_required = "";
+     // event loop
+     {
+      kernel::Event event_type =
+       name == "init" ? kernel::Event::Init :
+       name == "step" ? kernel::Event::Step :
+       name == "draw" ? kernel::Event::Draw :
+       kernel::Event::Load;
+      if (event_type != kernel::Event::Load) {
+       memory::unaligned_16_write(active::logic->code_octo + cast(u8, event_type) + 1, address);
+       cout << "event loop " << name << " is written at bytecode [" << address << "]" << endl;
+      }
+     }
 
-  //    for (s32 i = cast(s32, expression.size()) - 2; i >= 0; i--) {
-  //     const string& token = expression[i];
+     // symbol
+     symbol::Data function_symbol;
+     function_symbol.type = symbol::Type::Function;
+     function_symbol.name = name;
+     function_symbol.function.address = address;
+     function_symbol.function.args_count = 0;
+     symbol::table.push_back(function_symbol);
+     cout << name << " function is written at bytecode [" << address << "]" << endl;
+     const u32 function_symbol_index = symbol::table.size() - 1; // prevent invalidation
 
-  //     // skip constant, must preceded by separator
-  //     if (utility::is_number(token)) {
-  //      if (i - 1 < 0 || expression[i - 1] != ARGUMENT_OPTIONAL) {
-  //       cout << "error: constant without assignment in argument list" << endl;
-  //       return;
-  //      }
-  //      continue;
-  //     }
+     // arguments
+     const u8 args_count = declare_tag_pos == string::npos ? 0 : stoi(name_tagged.substr(declare_tag_pos + strlen(tag::callable_args)));
+     slot_logic slot_base = active::logic->slotter.i();
+     u8 slot_offset = args_count - 1;
+     string last_required = "";
 
-  //     // skip separator, must preceded by name
-  //     if (token == ARGUMENT_OPTIONAL) {
-  //      if (i - 1 < 0 || utility::is_number(expression[i - 1]) || expression[i - 1] == ARGUMENT_OPTIONAL || math_opcodes.count(expression[i - 1])) {
-  //       cout << "error: assignment without name" << endl;
-  //       return;
-  //      }
-  //      continue;
-  //     }
+     for (s32 i = cast(s32, expression.size()) - 2; i >= 0; i--) {
+      const string& token = expression[i];
 
-  //     // reject operator
-  //     if (math_opcodes.count(token)) {cout << "error: invalid expression" << endl; return;}
+      // skip constant, must preceded by separator
+      if (utility::is_number(token)) {
+       if (i - 1 < 0 || expression[i - 1] != ":") {
+        cout << "error: constant without assignment in argument list" << endl;
+        return;
+       }
+       continue;
+      }
 
-  //     // name
-  //     if (i + 1 < cast(s32, expression.size()) && expression[i + 1] == ARGUMENT_OPTIONAL) {
-  //      // optional
-  //      if (i + 2 >= cast(s32, expression.size())) {cout << "error: assignment without default value" << endl; return;}
-  //      if (!utility::is_number(expression[i + 2])) {cout << "error: default value must be constant expression" << endl; return;}
-  //      if (!last_required.empty()) {cout << "error: optional " << token << " after required " << last_required << " is not allowed" << endl; return;}
+      // skip separator, must preceded by name
+      if (token == ":") {
+       if (i - 1 < 0 || utility::is_number(expression[i - 1]) || expression[i - 1] == ":" || metic::operations.count(expression[i - 1])) {
+        cout << "error: assignment without name" << endl;
+        return;
+       }
+       continue;
+      }
 
-  //      fpu default_value = stod(expression[i + 2]);
-  //      symbol::table[function_symbol_index].args_default.insert(symbol::table[function_symbol_index].args_default.begin(), default_value);
-  //      symbol::table[function_symbol_index].args_count++;
-  //     }
-  //     else {
-  //      // required
-  //      last_required = token;
-  //      symbol::table[function_symbol_index].args_count++;
-  //     }
+      // reject operator
+      if (metic::operations.count(token)) {cout << "error: invalid expression" << endl; return;}
 
-  //     const addr args_slot = address + slot;
-  //     symbol::Data arg_symbol;
-  //     arg_symbol.name = token;
-  //     arg_symbol.address = args_slot;
-  //     arg_symbol.type = symbol::Type::Number;
-  //     symbol::table.push_back(arg_symbol);
-  //     bytecode_append(op::storeto, args_slot);
-  //     cout << token << " is stored in " << args_slot << endl;
-  //     slot--;
-  //    }
+      // name
+      if (i + 1 < cast(s32, expression.size()) && expression[i + 1] == ":") {
+       // optional
+       if (i + 2 >= cast(s32, expression.size())) {cout << "error: assignment without default value" << endl; return;}
+       if (!utility::is_number(expression[i + 2])) {cout << "error: default value must be constant expression" << endl; return;}
+       if (!last_required.empty()) {cout << "error: optional " << token << " after required " << last_required << " is not allowed" << endl; return;}
 
-  //    slotter = address + args_count;
-  //    break; // ensure no further token in line is processed
-  //   }
+       fpu default_value = stod(expression[i + 2]);
+       symbol::table[function_symbol_index].args_default.insert(symbol::table[function_symbol_index].args_default.begin(), default_value);
+       symbol::table[function_symbol_index].function.args_count++;
+      }
+      else {
+       // required
+       last_required = token;
+       symbol::table[function_symbol_index].function.args_count++;
+      }
 
-  //   // tagged callable
-  //   else if (callable_tag_pos && callable_tag_pos != string::npos) { // ensure the tag is not prefix
-  //    string name = token.substr(0, callable_tag_pos);
-  //    u8 args_provided = stoi(token.substr(callable_tag_pos + strlen(tag::callable_args)));
+      slot_logic args_slot = slot_base + slot_offset;
+      symbol::Data arg_symbol;
+      arg_symbol.type = symbol::Type::Number;
+      arg_symbol.name = token;
+      arg_symbol.variable.slot = args_slot;
+      symbol::table.push_back(arg_symbol);
+      code_add(1, op::storeto);
+      code_add(2, args_slot);
+      cout << token << " is stored in " << args_slot << endl;
+      slot_offset--;
+     }
 
-  //    string space_name = "";
-  //    string function_name = name;
-  //    u64 dot_pos = name.find('.');
+     active::logic->slotter -= args_count;
+     break; // ensure no further token in line is processed
+    }
 
-  //    if (dot_pos != string::npos) {
-  //     space_name = name.substr(0, dot_pos);
-  //     function_name = name.substr(dot_pos + 1);
-  //    }
+    // tagged callable
+    else if (callable_tag_pos && callable_tag_pos != string::npos) { // ensure the tag is not prefix
+     string name = token.substr(0, callable_tag_pos);
+     u8 args_provided = stoi(token.substr(callable_tag_pos + strlen(tag::callable_args)));
 
-  //    u16 function_name_hash = utility::hash(function_name.c_str()) & 0xFFFF;
-  //    u32 module_hash = 0;
+     string space_name = "";
+     string function_name = name;
+     u64 dot_pos = name.find('.');
 
-  //    // unqualified
-  //    if (dot_pos == string::npos) {
-  //     for (s32 i = scope::stack.size() - 1; i >= 0 && !module_hash; i--) {
-  //      for (u32 j = 0; j < scope::stack[i].space.size() && !module_hash; j++) {
-  //       module_hash = (scope::stack[i].space[j] << 16) | function_name_hash;
-  //       if (!module::exist(module_hash)) {module_hash = 0;}
-  //      }
-  //     }
-  //    }
+     if (dot_pos != string::npos) {
+      space_name = name.substr(0, dot_pos);
+      function_name = name.substr(dot_pos + 1);
+     }
 
-  //    // qualified or fallback
-  //    if (!module_hash) {
-  //     module_hash = ((utility::hash(space_name.c_str()) & 0xFFFF) << 16) | function_name_hash;
-  //     if (!module::exist(module_hash)) {module_hash = 0;}
-  //    }
+     u16 function_name_hash = utility::hash(function_name.c_str()) & 0xFFFF;
+     u32 module_hash = 0;
 
-  //    u8 args_total;
-  //    const vector<fpu>* args_default;
-  //    octo emit_opcode = op::nop;
-  //    fpu emit_operand;
+     // unqualified
+     if (dot_pos == string::npos) {
+      for (s32 i = scope::stack.size() - 1; i >= 0 && !module_hash; i--) {
+       for (u32 j = 0; j < scope::stack[i].space.size() && !module_hash; j++) {
+        module_hash = (scope::stack[i].space[j] << 16) | function_name_hash;
+        if (!module::exist(module_hash)) {module_hash = 0;}
+       }
+      }
+     }
 
-  //    // resolve priority
-  //    // function first
-  //    if (symbol::exist(name) && symbol::get(name).type == symbol::Type::Function) {
-  //     const symbol::Data& function_symbol = symbol::get(name);
-  //     args_total = function_symbol.args_count;
-  //     args_default = &function_symbol.args_default;
-  //     emit_opcode = op::subgo;
-  //     emit_operand = function_symbol.address;
-  //    }
-  //    // module second
-  //    else if (module_hash) {
-  //     const module::Module& registered_module = module::table[module_hash];
-  //     args_total = registered_module.args_count;
-  //     args_default = &registered_module.args_default;
-  //     emit_opcode = op::call;
-  //     emit_operand = fpu::raw(module_hash);
-  //    }
-  //    // opcode last
-  //    else if (opcode::exist(name)) {
-  //     args_total = opcode::args_count(name);
-  //     static const vector<fpu> opcode_no_defaults = {};
-  //     args_default = &opcode_no_defaults;
-  //     emit_opcode = opcode::get(name);
-  //     emit_operand = memory::vm::ram_global::constant::signature;
-  //    }
+     // qualified or fallback
+     if (!module_hash) {
+      module_hash = ((utility::hash(space_name.c_str()) & 0xFFFF) << 16) | function_name_hash;
+      if (!module::exist(module_hash)) {module_hash = 0;}
+     }
 
-  //    if (emit_opcode == op::nop) {cout << "error: function \"" << name << "\" not found" << endl; return;}
-  //    if (args_provided < args_total - args_default->size()) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, args_total - args_default->size()) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
-  //    if (args_provided > args_total) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, args_total) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
+     u8 args_total;
+     const vector<fpu>* args_default;
+     octo emit_opcode = op::nop;
+     s32 emit_operand;
 
-  //    for (u8 i = args_provided; i < args_total; i++) {bytecode_append(op::push, (*args_default)[i - (args_total - args_default->size())]);}
+     // resolve priority
+     // function first
+     if (symbol::exist(name) && symbol::get(name).type == symbol::Type::Function) {
+      const symbol::Data& function_symbol = symbol::get(name);
+      args_total = function_symbol.function.args_count;
+      args_default = &function_symbol.args_default;
+      emit_opcode = op::subgo;
+      emit_operand = cast(s32, function_symbol.function.address); // to fit variable
+     }
+     // module second
+     else if (module_hash) {
+      const module::Module& registered_module = module::table[module_hash];
+      args_total = registered_module.args_count;
+      args_default = &registered_module.args_default;
+      emit_opcode = op::call;
+      emit_operand = module_hash;
+     }
 
-  //    bytecode_append(emit_opcode, emit_operand);
+     if (emit_opcode == op::nop) {cout << "error: function \"" << name << "\" not found" << endl; return;}
+     if (args_provided < args_total - args_default->size()) {cout << "error: too few arguments for " << name << " (expected at least " << cast(u32, args_total - args_default->size()) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
+     if (args_provided > args_total) {cout << "error: too many arguments for " << name << " (expected at most " << cast(u32, args_total) << ", got " << cast(u32, args_provided) << ")" << endl; return;}
 
-  //    // pop recursive argument
-  //    if (recursive_index != -1) {
-  //     for (s32 j = scope::stack[recursive_index].symbol_start - 1; j >= cast(s32, scope::stack[recursive_index].symbol_start - args_total); j--) {
-  //      bytecode_append(op::storeto, symbol::table[j].address);
-  //     }
-  //    }
-  //   }
+     // emit default argument
+     for (u8 i = args_provided; i < args_total; i++) {
+      code_add(1, op::push);
+      code_add(4, (*args_default)[i - (args_total - args_default->size())].r());
+     }
 
-  //   // string
-  //   else if (token.front() == '"' && token.back() == '"') {
-  //    // skip declare
-  //    if (declare_style == DeclareStyle::Stripe && i == 3 && tokens[3].size() == 1) {continue;}
+     // emit opcode
+     code_add(1, emit_opcode);
+     if (emit_opcode == op::subgo) {code_add(2, cast(u16, emit_operand));} else {code_add(4, emit_operand);}
 
-  //    string content = token.substr(1, token.size() - 2); // strip quotes
-  //    string name = SYMBOL_STRING_PREFIX + content;
-  //    if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;}
-  //    else {
-  //     addr address = slotter;
-  //     vector<fpu> pascal_data = utility::string_to_pascal(content);
-  //     addr slot_after = cast(addr, slotter) + pascal_data.size();
-  //     if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
-  //      address = symbol::get(tokens[0][0]).address;
-  //      slot_after = slotter;
-  //     }
+     // pop recursive argument
+     if (recursive_index != -1) {
+      for (s32 j = scope::stack[recursive_index].symbol_boundary - 1; j >= cast(s32, scope::stack[recursive_index].symbol_boundary - args_total); j--) {
+       code_add(1, op::storeto);
+       code_add(2, symbol::table[j].variable.slot);
+      }
+     }
+    }
 
-  //     for (u32 i = 0; i < pascal_data.size(); i++) {bytecode_append(op::push, pascal_data[i]);}
-  //     for (s32 i = pascal_data.size() - 1; i >= 0; i--) {bytecode_append(op::storeto, address + i);}
+    // string
+    // TODO:
+    // migrate to phase 5
+    else if (token.front() == '"' && token.back() == '"') {
+     // skip declare
+     if (declare_style == DeclareStyle::Stripe && i == 3 && tokens[3].size() == 1) {continue;}
 
-  //     // hidden declare
-  //     if (slot_after != cast(addr, slotter)) {
-  //      symbol::Data string_symbol;
-  //      string_symbol.name = name;
-  //      string_symbol.address = slotter;
-  //      string_symbol.type = symbol::Type::Stripe;
-  //      symbol::table.push_back(string_symbol);
-  //      cout << "string hidden declare in " << symbol::get(name).address << " is written \"" << content << "\"" << endl;
+     string content = token.substr(1, token.size() - 2); // strip quotes
+     string name = "str:" + content;
+     if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;}
+     else {
+      slot_logic slotter_before = active::logic->slotter.i();
+      vector<fpu> pascal_data = utility::string_to_pascal(content);
+      slot_logic slot = 0;
 
-  //      slotter = slot_after;
-  //     }
-  //    }
+      if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
+       slot = symbol::get(tokens[0][0]).variable.slot;
+      }
+      else {
+       active::logic->slotter -= pascal_data.size();
+       slot = active::logic->slotter.i();
+      }
 
-  //    if (
-  //     (declare_style == DeclareStyle::Stripe && tokens.size() == 4 && tokens[3].size() == 1)
-  //     || (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset)
-  //    ) {continue;}
+      for (u32 i = 0; i < pascal_data.size(); i++) {
+       code_add(1, op::push);
+       code_add(4, pascal_data[i].r());
+      }
+      for (s32 i = pascal_data.size() - 1; i >= 0; i--) {
+       code_add(1, op::storeto);
+       code_add(2, slot + i);
+      }
 
-  //    bytecode_append(op::push, symbol::get(name).address);
-  //   }
+      // hidden declare
+      if (active::logic->slotter.i() != slotter_before) {
+       symbol::Data string_symbol;
+       string_symbol.type = symbol::Type::Stripe;
+       string_symbol.name = name;
+       string_symbol.variable.slot = slot;
+       symbol::table.push_back(string_symbol);
 
-  //   // number
-  //   else if (utility::is_number(token)) {
-  //    // preserve fractional
-  //    double decimal = stod(token);
-  //    // scale to fixed point unit
-  //    double scaled = decimal * (1 << fpu::WIDTH);
-  //    // round instead of truncate to zero
-  //    double rounded = round(scaled);
-  //    // pick the lower 32 bit
-  //    u32 bits = cast(s64, rounded) & 0xFFFFFFFF;
-  //    // reinterpret as s32
-  //    s32 raw;
-  //    memcpy(&raw, &bits, 4);
-  //    bytecode_append(op::push, fpu::raw(raw));
-  //   }
+       --active::logic->slotter;
+       code_add(1, op::push);
+       code_add(4, fpu(pascal_data.size()).r());
+       code_add(1, op::storeto);
+       code_add(2, active::logic->slotter.i());
 
-  //   // addressof
-  //   else if (token[0] == ADDRESS_OF[0]) {
-  //    string symbol_name = token.substr(1);
-  //    if (!symbol::exist(symbol_name)) {
-  //     cout << "error: symbol \"" << symbol_name << "\" not found" << endl;
-  //     continue;
-  //    }
-  //    bytecode_append(op::push, symbol::get(symbol_name).address);
-  //   }
+       cout << "string hidden declare in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;
+      }
+     }
 
-  //   // symbol
-  //   else if (symbol::exist(token)) {
-  //    const symbol::Data& symbol = symbol::get(token);
-  //    switch (symbol.type) {
-  //     case symbol::Type::Number: {
-  //      if (assign_type == AssignType::Set && set_style == SetStyle::Variable && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
-  //      bytecode_append(op::takefrom, symbol.address);
-  //      break;
-  //     }
-  //     case symbol::Type::Stripe: {
-  //      if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]) {break;}
-  //      bytecode_append(op::push, symbol.address);
-  //      break;
-  //     }
-  //     case symbol::Type::Function: {break;} // handled by tagged callable
-  //     default: {break;}
-  //    }
-  //   }
+     if (
+      (declare_style == DeclareStyle::Stripe && tokens.size() == 4 && tokens[3].size() == 1)
+      || (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset)
+     ) {continue;}
 
-  //   // stripe offset
-  //   else if (token == tag::offset || token == tag::offset_at) {
-  //    bytecode_append(op::add, memory::vm::ram_global::constant::signature);
-  //    if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression.size() - 1) {continue;} // stripe assignment handles storage internally
-  //   if (token == tag::offset_at) {continue;} // address semantics require raw address
-  //    bytecode_append(op::get, memory::vm::ram_global::constant::signature);
-  //   }
+     code_add(1, op::push);
+     code_add(4, fpu(symbol::get(name).variable.slot).r());
+    }
 
-  //   // math operations
-  //   else if (math_opcodes.count(token)) {
-  //    bytecode_append(math_opcodes.at(token), memory::vm::ram_global::constant::signature);
-  //   }
+    // number
+    // NOTICE:
+    // this exact conversion sequence guarantees correct fpu representation
+    else if (utility::is_number(token)) {
+     // preserve fractional
+     double decimal = stod(token);
+     // scale to fixed point unit
+     double scaled = decimal * (1 << fpu::WIDTH);
+     // round instead of truncate to zero
+     double rounded = round(scaled);
+     // pick the lower 32 bit
+     u32 bits = cast(s64, rounded) & 0xFFFFFFFF;
+     // reinterpret as s32
+     s32 raw;
+     memcpy(&raw, &bits, 4);
+     code_add(1, op::push);
+     code_add(4, raw);
+    }
 
-  //   // invalid
-  //   // terrible code, need proper non-keyword check
-  //   // unfortunately, it seems like this is important and had to be this way
-  //   // please reconsider
-  //   else if (true
-  //    && !keywords_declaration.count(token)
-  //    && !keywords_control.count(token)
-  //    && !(assign_type == AssignType::Declare && i == 1)
-  //    && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe)
-  //    && !(assign_type == AssignType::Set && i == 0 && j == 0)
-  //   )
-  //   {
-  //    cout << "error: invalid identifier \"" << token << "\"" << endl;
-  //   }
-  //  }
-  // }
+    // symbol
+    else if (symbol::exist(token)) {
+     const symbol::Data& symbol = symbol::get(token);
+     bool is_not_assignment_target = !(assign_type == AssignType::Set && !is_expression && tokens[0].size() == 1 && token == tokens[0][0]);
+
+     if (symbol.type == symbol::Type::Number && (is_not_assignment_target || set_style != SetStyle::Variable)) {
+      code_add(1, op::takefrom);
+      code_add(2, symbol.variable.slot);
+     }
+     else if (symbol.type == symbol::Type::Stripe && (is_not_assignment_target || set_style != SetStyle::Stripe)) {
+      code_add(1, op::push);
+      code_add(4, fpu(symbol.variable.slot).r());
+     }
+    }
+
+    // stripe offset
+    else if (token == tag::offset) {
+     code_add(1, op::add);
+
+     if (assign_type == AssignType::Set && set_style == SetStyle::Stripe && !is_expression && j == expression.size() - 1) {continue;} // not to get value, handled by assignment closure
+     code_add(1, op::get);
+    }
+
+    // math operations
+    else if (metic::operations.count(token)) {
+     code_add(1, metic::opcodes.at(token));
+    }
+
+    // invalid
+    // terrible code, need proper non-keyword check
+    // unfortunately, it seems like this is important and had to be this way
+    // please reconsider
+    else if (true
+     && !keywords_declaration.count(token) && !keywords_control.count(token) // not a keyword
+     && !(assign_type == AssignType::Declare && i == 1) // not identifier name in declaration
+     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe) // not equal sign in stripe declaration // TODO: forgot the reason why
+     && !(assign_type == AssignType::Set && i == 0 && j == 0) // not target assignment, handled by assignment closure
+    )
+    {
+     cout << "error: invalid identifier \"" << token << "\"" << endl;
+    }
+   }
+  }
 
   // return
   if (is_return) {code_add(1, op::subret);}

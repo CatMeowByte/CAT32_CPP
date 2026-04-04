@@ -20,7 +20,7 @@ namespace interpreter {
    #undef OPV
   }
 
-  active::logic->counter = fpu::raw(result);
+  active::logic->counter = result;
  }
 
  void reset() {

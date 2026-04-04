@@ -335,8 +335,8 @@ namespace filesystem {
   };
   memcpy(active::local->sprite, sprite_data, 8192);
 
-  active::logic->writer = cast(u8, kernel::Event::Load);
-  active::logic->slotter = memory::vm::process::p0::logic::code_length / sizeof(fpu); // last of code (in slot)
+  active::logic->writer = cast(u8, kernel::Event::Load) - 1;
+  active::logic->slotter = cast(double, memory::vm::process::p0::logic::code_length) / sizeof(fpu); // last of code (in slot)
 
   memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Init) + 1, FARLAND);
   memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Step) + 1, FARLAND);
@@ -354,24 +354,24 @@ namespace filesystem {
    interpreter::compile(tokens);
   }
 
-  // FIXME:
   // dedent hack
   // required to close all scope and unpatched jump
-  // currently doesnt know the best method for it
-  // interpreter::compile(interpreter::tokenize("return"));
-  // active::logic->code_octo[active::logic->writer++.a()] = op::subret;
+  // which happen in dedent logic
+  interpreter::compile(interpreter::tokenize("return"));
 
   active::logic->stacker = active::logic->slotter; // after slotter filled
 
   // statistic
   u32 code_total = memory::vm::process::p0::logic::code_length;
   u32 slot_total = code_total / sizeof(fpu);
-  u32 rom_used = cast(u32, active::logic->writer.a()) - cast(u8, kernel::Event::Load);
-  u32 rom_free = code_total - cast(u32, active::logic->writer.a());
-  u32 ram_used = slot_total - cast(u32, active::logic->slotter.i());
-  u32 ram_free = slot_total - ram_used;
-  cout << "ROM: " << rom_used << " bytes (" << (rom_used * 100 / code_total) << "%) [" << rom_free << " bytes free]" << endl;
-  cout << "RAM: " << ram_used << " slots (" << (ram_used * 100 / slot_total) << "%) [" << ram_free << " slots free]" << endl;
+  u32 slotter_index = cast(u32, active::logic->slotter.i());
+  u32 bytecode_bytes = cast(u32, active::logic->writer.a());
+  u32 allocated_bytes = (slot_total - slotter_index) * sizeof(fpu);
+  u32 gap_bytes = slotter_index * sizeof(fpu) - bytecode_bytes;
+  cout << endl;
+  cout << "Bytecode: " << bytecode_bytes << " bytes (" << (bytecode_bytes * 100 / code_total) << "%)" << endl;
+  cout << "Allocated: " << (allocated_bytes / sizeof(fpu)) << " slots (" << (allocated_bytes * 100 / code_total) << "%)" << endl;
+  cout << "Available: " << gap_bytes << " bytes / " << (gap_bytes / sizeof(fpu)) << " slots (" << (gap_bytes * 100 / code_total) << "%)" << endl;
 
   active::logic->code_octo[cast(u8, kernel::Event::Init)] = op::jump;
   active::logic->code_octo[cast(u8, kernel::Event::Step)] = op::jump;
