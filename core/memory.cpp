@@ -1,4 +1,5 @@
 #include "core/memory.hpp"
+#include "core/interpreter.hpp"
 
 const u32 font_special[32] = {
  0x20, 0x2591, 0x2592, 0x2593, 0x2588, 0x2500, 0x2502, 0x250C, 0x2510, 0x2514, 0x2518, 0x251C, 0x2524, 0x252C, 0x2534, 0x253C,
@@ -10,6 +11,9 @@ namespace memory {
 
  void reset() {
   memset(raw, 0, SYSTEM::MEMORY);
+
+  // initialize interpreter
+  interpreter::reset();
 
   using namespace vm::global;
   using namespace constant;

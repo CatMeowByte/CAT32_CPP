@@ -93,7 +93,7 @@ namespace memory {
   )
   check(global, global::process_index)
 
-  region(process, global_next, 98304, // process region
+  region(process, global_next, 98304 * SYSTEM::PROCESS, // process region
    region(p0, process_address, 98304, // process 0
 
     region(logic, p0_address, 65536, // bytecode and execution memory. defined in backward order for code block dynamic size

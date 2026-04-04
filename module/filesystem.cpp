@@ -342,8 +342,6 @@ namespace filesystem {
   memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Step) + 1, FARLAND);
   memory::unaligned_16_write(active::logic->code_octo + cast(u8, kernel::Event::Draw) + 1, FARLAND);
 
-  interpreter::reset();
-
   string full_path = get_root() + path;
   ifstream file(full_path);
   if (!file) {cerr << "Failed to open file." << endl; return;}
@@ -360,6 +358,9 @@ namespace filesystem {
   interpreter::compile(interpreter::tokenize("return"));
 
   active::logic->stacker = active::logic->slotter; // after slotter filled
+
+  // cleanup
+  interpreter::reset();
 
   // statistic
   u32 code_total = memory::vm::process::p0::logic::code_length;

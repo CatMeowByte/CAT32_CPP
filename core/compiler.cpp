@@ -500,9 +500,13 @@ namespace interpreter {
     }
 
     // string
-    // TODO:
-    // migrate to phase 5
-    else if (token.front() == '"' && token.back() == '"') {
+    // currently do deduplication by comparing content with the str:content at the symbol table
+    // defer to hash map lookup efficiency but store the entire content string as the symbol name eventhough only compile time
+    // alternatively, make separate list to store each hidden string declaration storing the slot address only
+    // then iterate it by doing fast check: compare size, last few n, and first few n characters
+    // if the fast check pass then do a full comparison of the string with the data in memory
+    // consider implementing if symbol table becomes a problem
+    else if (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
      // skip declare
      if (declare_style == DeclareStyle::Stripe && i == 3 && tokens[3].size() == 1) {continue;}
 
@@ -512,40 +516,30 @@ namespace interpreter {
      else {
       slot_logic slotter_before = active::logic->slotter.i();
       vector<fpu> pascal_data = utility::string_to_pascal(content);
-      slot_logic slot = 0;
+      slot_logic slot_base = 0;
 
       if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
-       slot = symbol::get(tokens[0][0]).variable.slot;
+       slot_base = symbol::get(tokens[0][0]).variable.slot;
       }
       else {
        active::logic->slotter -= pascal_data.size();
-       slot = active::logic->slotter.i();
+       slot_base = active::logic->slotter.i();
       }
 
-      for (u32 i = 0; i < pascal_data.size(); i++) {
-       code_add(1, op::push);
-       code_add(4, pascal_data[i].r());
-      }
-      for (s32 i = pascal_data.size() - 1; i >= 0; i--) {
-       code_add(1, op::storeto);
-       code_add(2, slot + i);
-      }
+      memcpy(active::logic->code_fpu + slot_base, pascal_data.data(), pascal_data.size() * sizeof(fpu));
 
       // hidden declare
       if (active::logic->slotter.i() != slotter_before) {
        symbol::Data string_symbol;
        string_symbol.type = symbol::Type::Stripe;
        string_symbol.name = name;
-       string_symbol.variable.slot = slot;
+       string_symbol.variable.slot = slot_base;
        symbol::table.push_back(string_symbol);
 
        --active::logic->slotter;
-       code_add(1, op::push);
-       code_add(4, fpu(pascal_data.size()).r());
-       code_add(1, op::storeto);
-       code_add(2, active::logic->slotter.i());
+       active::logic->code_fpu[active::logic->slotter.i()] = pascal_data.size();
 
-       cout << "string hidden declare in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;
+       cout << "string hidden declare in " << slot_base << " is written \"" << content << "\"" << endl;
       }
      }
 
@@ -720,14 +714,7 @@ namespace interpreter {
      if (tokens.size() == 4) {
       if (is_single_text) {
        vector<fpu> pascal_data = utility::string_to_pascal(tokens[3][0].substr(1, tokens[3][0].size() - 2));
-       for (u32 i = 0; i < pascal_data.size(); i++) {
-        code_add(1, op::push);
-        code_add(4, pascal_data[i].r());
-       }
-       for (s32 i = pascal_data.size() - 1; i >= 0; i--) {
-        code_add(1, op::storeto);
-        code_add(2, slot + i);
-       }
+       memcpy(active::logic->code_fpu + slot, pascal_data.data(), pascal_data.size() * sizeof(fpu));
       }
       else {
        for (s32 i = tokens[3].size() - 1; i >= 0; i--) {
@@ -739,10 +726,7 @@ namespace interpreter {
 
      // store size at index -1
      --active::logic->slotter;
-     code_add(1, op::push);
-     code_add(4, fpu(size).r());
-     code_add(1, op::storeto);
-     code_add(2, active::logic->slotter.i());
+     active::logic->code_fpu[active::logic->slotter.i()] = size;
 
      cout << name << " stripe is stored in " << slot << " with size " << size << endl;
      break;
