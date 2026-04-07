@@ -37,7 +37,72 @@ namespace scope {
 }
 
 namespace interpreter {
+ static void debug_code(u8 size, s32 value) {
+  address_logic address_current = active::logic->writer.a() + 1;
+
+  if (size == 1) {
+   octo opcode_byte = cast(octo, value);
+   string opcode_name = opcode::name(opcode_byte);
+   u8 padding = 8 - min(cast(u8, opcode_name.length()), cast(u8, 8));
+   cout << "[" << address_current << "] " << opcode_name;
+
+   switch (opcode_byte) {
+    #define OP(hex, name) case op::name: cout << endl; break;
+    #define OPA(hex, name) case op::name: cout << string(padding, ' ') << " "; break;
+    #define OPV(hex, name) case op::name: cout << string(padding, ' ') << " "; break;
+    OPCODES
+    #undef OP
+    #undef OPA
+    #undef OPV
+   }
+  }
+  else {
+   octo opcode_previous = active::logic->code_octo[active::logic->writer.a()];
+
+   cout << "[" << address_current << "] ";
+
+   if (size == 2) {
+    u16 operand_address = cast(u16, value);
+    cout << operand_address;
+
+    if (opcode_previous == op::takefrom || opcode_previous == op::storeto) {
+     for (u32 i = 0; i < symbol::table.size(); i++) {
+      if (symbol::table[i].variable.slot == operand_address) {
+       cout << " (" << symbol::table[i].name << ")";
+       break;
+      }
+     }
+    }
+    else if (opcode_previous == op::subgo) {
+     for (s32 i = symbol::table.size() - 1; i >= 0; i--) {
+      if (symbol::table[i].type == symbol::Type::Function && symbol::table[i].function.address == operand_address) {
+       cout << " (" << symbol::table[i].name << ")";
+       break;
+      }
+     }
+    }
+    else if (operand_address == FARLAND) {
+     cout << " (FARLAND)";
+    }
+   }
+   else if (size == 4) {
+    if (opcode_previous == op::push) {
+     cout << value << " (" << utility::string_no_trailing(fpu::raw(value)) << ")";
+    }
+    else if (opcode_previous == op::call) {
+     cout << value << " (" << module::get_name(value) << ")";
+    }
+    else {
+     cout << value;
+    }
+   }
+
+   cout << endl;
+  }
+ }
+
  static void code_add(u8 size, s32 value) {
+  debug_code(size, value);
   for (u8 i = 0; i < size; i++) {active::logic->code_octo[active::logic->writer.a() + 1 + i] = (value >> (i * 8)) & 0xFF;}
   active::logic->writer += size;
  }
@@ -359,6 +424,9 @@ namespace interpreter {
 
      // arguments
      const u8 args_count = declare_tag_pos == string::npos ? 0 : stoi(name_tagged.substr(declare_tag_pos + strlen(tag::callable_args)));
+
+     active::logic->slotter -= args_count;
+
      slot_logic slot_base = active::logic->slotter.i();
      u8 slot_offset = args_count - 1;
      string last_required = "";
@@ -415,8 +483,6 @@ namespace interpreter {
       cout << token << " is stored in " << args_slot << endl;
       slot_offset--;
      }
-
-     active::logic->slotter -= args_count;
      break; // ensure no further token in line is processed
     }
 
@@ -507,9 +573,6 @@ namespace interpreter {
     // if the fast check pass then do a full comparison of the string with the data in memory
     // consider implementing if symbol table becomes a problem
     else if (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
-     // skip declare
-     if (declare_style == DeclareStyle::Stripe && i == 3 && tokens[3].size() == 1) {continue;}
-
      string content = token.substr(1, token.size() - 2); // strip quotes
      string name = "str:" + content;
      if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;}
@@ -542,11 +605,6 @@ namespace interpreter {
        cout << "string hidden declare in " << slot_base << " is written \"" << content << "\"" << endl;
       }
      }
-
-     if (
-      (declare_style == DeclareStyle::Stripe && tokens.size() == 4 && tokens[3].size() == 1)
-      || (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset)
-     ) {continue;}
 
      code_add(1, op::push);
      code_add(4, fpu(symbol::get(name).variable.slot).r());
@@ -713,8 +771,8 @@ namespace interpreter {
      // fill
      if (tokens.size() == 4) {
       if (is_single_text) {
-       vector<fpu> pascal_data = utility::string_to_pascal(tokens[3][0].substr(1, tokens[3][0].size() - 2));
-       memcpy(active::logic->code_fpu + slot, pascal_data.data(), pascal_data.size() * sizeof(fpu));
+       code_add(1, op::stampto);
+       code_add(2, slot);
       }
       else {
        for (s32 i = tokens[3].size() - 1; i >= 0; i--) {
@@ -753,21 +811,19 @@ namespace interpreter {
 
     case SetStyle::Stripe: {
      // stripe full
-     if (
-      tokens[0].size() == 1
-      && !( // not a string, already handled by hidden declare
-       tokens[2].size() == 1
-       && tokens[2][0].size() >= 2
-       && tokens[2][0].front() == '"'
-       && tokens[2][0].back() == '"'
-      )
-     ) {
+     if (tokens[0].size() == 1) {
       string name = tokens[0][0];
       slot_logic slot = symbol::get(name).variable.slot;
 
-      for (s32 i = tokens[2].size() - 1; i >= 0; i--) {
-       code_add(1, op::storeto);
-       code_add(2, slot + i);
+      if (tokens[2].size() == 1 && tokens[2][0].size() >= 2 && tokens[2][0].front() == '"' && tokens[2][0].back() == '"') {
+       code_add(1, op::stampto);
+       code_add(2, slot);
+      }
+      else {
+       for (s32 i = tokens[2].size() - 1; i >= 0; i--) {
+        code_add(1, op::storeto);
+        code_add(2, slot + i);
+       }
       }
      }
 

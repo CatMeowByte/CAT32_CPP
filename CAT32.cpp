@@ -18,6 +18,7 @@ namespace kernel {
 static void boot() {
  memory::reset();
  filesystem::run("/app/file_manager.app");
+ filesystem::run("/app/input_bar.app", 1);
 }
 
 static void tick() {
@@ -46,7 +47,7 @@ static void tick() {
   }
 
   if (draw_time >= frame_interval) {
-   for (s8 i = SYSTEM::PROCESS - 1; i >= 0; i--) {
+   for (s8 i = 0; i < SYSTEM::PROCESS; i++) {
     active::index(i);
     run_event(kernel::Event::Draw);
    }

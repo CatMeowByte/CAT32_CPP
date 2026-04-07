@@ -53,6 +53,14 @@ namespace op_call {
   active::logic->code_fpu[operand] = value;
  })
 
+ OPCODE_ADDRESS(stampto, {
+  slot_logic source = memory::pop().i();
+  slot_logic destination = operand;
+  u16 length = active::logic->code_fpu[source].i() + 1;
+  u16 capacity = active::logic->code_fpu[destination - 1].i();
+  memcpy(active::logic->code_fpu + destination, active::logic->code_fpu + source, min(length, capacity) * sizeof(fpu));
+ })
+
  OPCODE(get, {
   slot_logic slot = memory::pop().i();
   memory::push(active::logic->code_fpu[slot]);

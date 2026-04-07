@@ -195,7 +195,7 @@ namespace filesystem {
 
  void run(const string& path, u8 index) {
   cout << "\n\nLoad: " << path << endl;
-  cout << "as process " << index << endl;
+  cout << "as process " << cast(u32, index) << endl;
   active::index(index);
 
   // clear

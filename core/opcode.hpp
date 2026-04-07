@@ -8,6 +8,7 @@
  /* memory */ \
  OPA(0x13, takefrom) \
  OPA(0x14, storeto) \
+ OPA(0x16, stampto) \
  OP (0x1A, get) \
  OP (0x1B, set) \
  /* counter */ \
