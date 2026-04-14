@@ -14,6 +14,7 @@ sources = [
 'core/executor.cpp',
 
 'core/memory.cpp',
+'core/kernel.cpp',
 'core/module.cpp',
 'core/opcode.cpp',
 'core/utility.cpp',

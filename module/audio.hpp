@@ -3,5 +3,5 @@
 #include "core/constant.hpp" // IWYU pragma: keep
 
 namespace audio {
- void tone(u8 channel, float key, float duty);
+ void tone(u8 channel, float key = SENTINEL, float duty = SENTINEL);
 }

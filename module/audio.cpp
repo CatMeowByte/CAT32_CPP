@@ -5,7 +5,7 @@
 #include "module/audio.hpp"
 
 namespace audio {
- void tone(u8 channel, float key = SENTINEL, float duty = SENTINEL) {
+ void tone(u8 channel, float key, float duty) {
   if (channel > 3) {return;}
   using namespace memory::vm::global;
   hardware_io::frequency[channel] = (key == SENTINEL) ? 0 : 440 * pow(2, (key - 69) / 12);

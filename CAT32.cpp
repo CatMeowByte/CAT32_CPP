@@ -1,24 +1,13 @@
 #include "core/constant.hpp"
-#include "core/interpreter.hpp"
 #include "core/kernel.hpp"
 #include "core/memory.hpp"
 #include "module/button.hpp"
-#include "module/filesystem.hpp"
 #include "library/sdl.hpp"
-
-
-namespace kernel {
- void run_event(Event handler) {
-  using namespace memory::vm::global::constant;
-  active::logic->counter = cast(u8, handler);
-  while (active::logic->counter < active::logic->writer) {interpreter::step();}
- }
-}
 
 static void boot() {
  memory::reset();
- filesystem::run("/app/file_manager.app");
- filesystem::run("/app/input_bar.app", 1);
+ kernel::run("/app/file_manager.app");
+ kernel::run("/app/input_bar.app", 1);
 }
 
 static void tick() {
