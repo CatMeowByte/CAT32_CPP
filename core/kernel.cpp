@@ -167,10 +167,53 @@ namespace kernel {
   ifstream file(full_path);
   if (!file) {cerr << "Failed to open file." << endl; return;}
 
+  bool in_quote = false;
+  string line_buffer;
+  bool is_clean = false;
+
   string line;
   while (getline(file, line)) {
-   vector<vector<string>> tokens = interpreter::tokenize(line);
-   interpreter::compile(tokens);
+   bool just_opened = false;
+   if (in_quote) {is_clean = true;}
+
+   for (char c : line) {
+    if (c == '"') {
+     u32 backslash_count = 0;
+     for (s32 i = line_buffer.size() - 1; i >= 0 && line_buffer[i] == '\\'; i--) {backslash_count++;}
+     if (backslash_count % 2 == 0) {
+      if (!in_quote) {
+       in_quote = true;
+       is_clean = true;
+       just_opened = true;
+      }
+      else {
+       while (is_clean && line_buffer.size() >= 2) {
+        if (line_buffer.back() == 'n' && line_buffer[line_buffer.size()-2] == '\\') {
+         line_buffer.pop_back();
+         line_buffer.pop_back();
+         break;
+        }
+        line_buffer.pop_back();
+       }
+       in_quote = false;
+      }
+     }
+    }
+    else if (c != ' ' && c != '\t') {is_clean = false;}
+    line_buffer += c;
+   }
+
+   if (in_quote) {
+    if (is_clean && just_opened) {
+     while (!line_buffer.empty() && (line_buffer.back() == ' ' || line_buffer.back() == '\t')) {line_buffer.pop_back();}
+    }
+    else {line_buffer += "\\n";}
+   }
+   else {
+    vector<vector<string>> tokens = interpreter::tokenize(line_buffer);
+    interpreter::compile(tokens);
+    line_buffer.clear();
+   }
   }
 
   // dedent hack
