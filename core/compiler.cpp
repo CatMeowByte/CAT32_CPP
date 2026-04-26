@@ -107,6 +107,13 @@ namespace interpreter {
   active::logic->writer += size;
  }
 
+ static bool is_token_quote(const string& token) {
+  return token.size() >= 3
+   && (token[0] == 's' || token[0] == 'b' || token[0] == 'x')
+   && token[1] == '"'
+   && token.back() == '"';
+ }
+
  void compile(const vector<vector<string>>& line_tokens) {
   u8 indent = stoi(line_tokens[0][0]);
   vector<vector<string>> tokens(line_tokens.begin() + 1, line_tokens.end());
@@ -572,42 +579,60 @@ namespace interpreter {
     // then iterate it by doing fast check: compare size, last few n, and first few n characters
     // if the fast check pass then do a full comparison of the string with the data in memory
     // consider implementing if symbol table becomes a problem
-    else if (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
-     string content = token.substr(1, token.size() - 2); // strip quotes
-     string name = "str:" + content;
-     if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;}
-     else {
-      slot_logic slotter_before = active::logic->slotter.i();
-      vector<fpu> pascal_data = utility::string_to_pascal(content);
-      slot_logic slot_base = 0;
+    else if (is_token_quote(token)) {
+     string content = token.substr(2, token.size() - 3); // strip prefix and quotes
 
-      if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
-       slot_base = symbol::get(tokens[0][0]).variable.slot;
+     switch (token[0]) {
+      case 's': {
+       string name = "str:" + content;
+       if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;}
+       else {
+        slot_logic slotter_before = active::logic->slotter.i();
+        vector<fpu> pascal_data = utility::string_to_pascal(content);
+        slot_logic slot_base = 0;
+
+        if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
+         slot_base = symbol::get(tokens[0][0]).variable.slot;
+        }
+        else {
+         active::logic->slotter -= pascal_data.size();
+         slot_base = active::logic->slotter.i();
+        }
+
+        memcpy(active::logic->code_fpu + slot_base, pascal_data.data(), pascal_data.size() * sizeof(fpu));
+
+        // hidden declare
+        if (active::logic->slotter.i() != slotter_before) {
+         symbol::Data string_symbol;
+         string_symbol.type = symbol::Type::Stripe;
+         string_symbol.name = name;
+         string_symbol.variable.slot = slot_base;
+         symbol::table.push_back(string_symbol);
+
+         --active::logic->slotter;
+         active::logic->code_fpu[active::logic->slotter.i()] = pascal_data.size();
+
+         cout << "string hidden declare in " << slot_base << " is written \"" << content << "\"" << endl;
+        }
+       }
+
+       code_add(1, op::push);
+       code_add(4, fpu(symbol::get(name).variable.slot).r());
+       break;
       }
-      else {
-       active::logic->slotter -= pascal_data.size();
-       slot_base = active::logic->slotter.i();
+
+      case 'b': {
+       cout << "binary rawdata: " << content << endl;
+       break;
       }
 
-      memcpy(active::logic->code_fpu + slot_base, pascal_data.data(), pascal_data.size() * sizeof(fpu));
-
-      // hidden declare
-      if (active::logic->slotter.i() != slotter_before) {
-       symbol::Data string_symbol;
-       string_symbol.type = symbol::Type::Stripe;
-       string_symbol.name = name;
-       string_symbol.variable.slot = slot_base;
-       symbol::table.push_back(string_symbol);
-
-       --active::logic->slotter;
-       active::logic->code_fpu[active::logic->slotter.i()] = pascal_data.size();
-
-       cout << "string hidden declare in " << slot_base << " is written \"" << content << "\"" << endl;
+      case 'x': {
+       cout << "hex rawdata: " << content << endl;
+       break;
       }
+
+      default: {cout << "error: invalid quote prefix \"" << token[0] << "\" in \"" << token << "\"" << endl; return;}
      }
-
-     code_add(1, op::push);
-     code_add(4, fpu(symbol::get(name).variable.slot).r());
     }
 
     // number
@@ -731,9 +756,7 @@ namespace interpreter {
 
      bool is_single_text = tokens.size() == 4
       && tokens[3].size() == 1
-      && tokens[3][0].size() >= 2
-      && tokens[3][0].front() == '"'
-      && tokens[3][0].back() == '"';
+      && is_token_quote(tokens[3][0]);
 
      // explicit size
      if (tokens[1].back() == tag::offset && tokens[1].size() > 2) { // has offset value
@@ -815,7 +838,7 @@ namespace interpreter {
       string name = tokens[0][0];
       slot_logic slot = symbol::get(name).variable.slot;
 
-      if (tokens[2].size() == 1 && tokens[2][0].size() >= 2 && tokens[2][0].front() == '"' && tokens[2][0].back() == '"') {
+      if (tokens[2].size() == 1 && is_token_quote(tokens[2][0])) {
        code_add(1, op::stampto);
        code_add(2, slot);
       }

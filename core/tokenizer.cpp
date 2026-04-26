@@ -128,6 +128,9 @@ namespace interpreter {
     if (symbol::exist(token) && symbol::get(token).type == symbol::Type::Constant) {
      token = utility::string_no_trailing(symbol::get(token).constant.value);
     }
+
+    // default quote to string quote
+    if (token[0] == '"') {token = "s" + token;}
    }
   }
  }
