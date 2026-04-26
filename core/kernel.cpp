@@ -187,7 +187,7 @@ namespace kernel {
        just_opened = true;
       }
       else {
-       while (is_clean && line_buffer.size() >= 2) {
+       while (is_clean && !just_opened && line_buffer.size() >= 2) {
         if (line_buffer.back() == 'n' && line_buffer[line_buffer.size()-2] == '\\') {
          line_buffer.pop_back();
          line_buffer.pop_back();
