@@ -573,65 +573,124 @@ namespace interpreter {
     }
 
     // string
-    // currently do deduplication by comparing content with the str:content at the symbol table
-    // defer to hash map lookup efficiency but store the entire content string as the symbol name eventhough only compile time
-    // alternatively, make separate list to store each hidden string declaration storing the slot address only
-    // then iterate it by doing fast check: compare size, last few n, and first few n characters
-    // if the fast check pass then do a full comparison of the string with the data in memory
-    // consider implementing if symbol table becomes a problem
     else if (is_token_quote(token)) {
-     string content = token.substr(2, token.size() - 3); // strip prefix and quotes
+     enum class DataType : u8 {Unknown, String, Binary, Hexadecimal};
+     DataType data_type = DataType::Unknown;
+     u8 unit_per_pack = 0;
 
-     switch (token[0]) {
-      case 's': {
-       string name = "str:" + content;
-       if (symbol::exist(name)) {cout << "string already exist in " << symbol::get(name).variable.slot << " is written \"" << content << "\"" << endl;}
-       else {
-        slot_logic slotter_before = active::logic->slotter.i();
-        vector<fpu> pascal_data = utility::string_to_pascal(content);
-        slot_logic slot_base = 0;
+     char prefix = token[0];
+     switch (prefix) {
+      case 's': {data_type = DataType::String; unit_per_pack = 4; break;}
+      case 'b': {data_type = DataType::Binary; unit_per_pack = 32; break;}
+      case 'x': {data_type = DataType::Hexadecimal; unit_per_pack = 8; break;}
+      default: {cout << "error: invalid str prefix \"" << prefix << "\"" << endl; return;}
+     }
 
-        if (set_style == SetStyle::Stripe && tokens[0].back() != tag::offset) {
-         slot_base = symbol::get(tokens[0][0]).variable.slot;
-        }
-        else {
-         active::logic->slotter -= pascal_data.size();
-         slot_base = active::logic->slotter.i();
-        }
+     string content = token.substr(2, token.size() - 3); // strip prefix and quote
 
-        memcpy(active::logic->code_fpu + slot_base, pascal_data.data(), pascal_data.size() * sizeof(fpu));
+     u32 id = cast(u32, prefix);
 
-        // hidden declare
-        if (active::logic->slotter.i() != slotter_before) {
-         symbol::Data string_symbol;
-         string_symbol.type = symbol::Type::Stripe;
-         string_symbol.name = name;
-         string_symbol.variable.slot = slot_base;
-         symbol::table.push_back(string_symbol);
+     vector<fpu> slot_data;
+     slot_data.reserve(1 + (content.size() + unit_per_pack - 1) / unit_per_pack); // does not affect size()
+     slot_data.push_back(0); // for length
 
-         --active::logic->slotter;
-         active::logic->code_fpu[active::logic->slotter.i()] = pascal_data.size();
+     u32 unit_pushed = 0;
 
-         cout << "string hidden declare in " << slot_base << " is written \"" << content << "\"" << endl;
-        }
+     // process character
+     for (u32 i = 0; i < content.size(); i++) {
+      char c = content[i];
+
+      if (data_type == DataType::Binary || data_type == DataType::Hexadecimal) {
+       // skip whitespace
+       if (c == ' ' || c == '\t') {continue;}
+       // skip newline escape
+       if (c == '\\' && i + 1 < content.size() && content[i + 1] == 'n') {i++; continue;}
+      }
+
+      u32 slot_index = 1 + (unit_pushed / unit_per_pack); // skip index 0
+
+      // append when full
+      if (unit_pushed % unit_per_pack == 0) {slot_data.push_back(0);}
+
+      u8 value = 0;
+      u8 bit_shift = 0;
+
+      switch (data_type) {
+       case DataType::String: {
+        value = c;
+        bit_shift = (unit_pushed & 3) << 3; // 4 character per slot. little end
+        break;
        }
-
-       code_add(1, op::push);
-       code_add(4, fpu(symbol::get(name).variable.slot).r());
-       break;
+       case DataType::Binary: {
+        if (c != '0' && c != '1') {cout << "error: invalid binary character \"" << c << "\"" << endl; return;}
+        value = c - '0';
+        bit_shift = ((unit_pushed >> 3) & 3) << 3 | (7 - (unit_pushed & 7)); // 32 bit per slot. msb. little end
+        break;
+       }
+       case DataType::Hexadecimal: {
+        if (c >= '0' && c <= '9') {value = c - '0';}
+        else if (c >= 'a' && c <= 'f') {value = c - 'a' + 10;}
+        else if (c >= 'A' && c <= 'F') {value = c - 'A' + 10;}
+        else {cout << "error: invalid hex character \"" << c << "\"" << endl; return;}
+        bit_shift = ((unit_pushed >> 1) & 3) << 3 | ((unit_pushed & 1) ? 0 : 4); // 8 nibble per slot. high nibble first. little end
+        break;
+       }
+       case DataType::Unknown: {break;}
       }
 
-      case 'b': {
-       cout << "binary rawdata: " << content << endl;
-       break;
-      }
+      // merge value to slot
+      slot_data[slot_index] = slot_data[slot_index] | fpu::raw(cast(u32, value) << bit_shift);
 
-      case 'x': {
-       cout << "hex rawdata: " << content << endl;
-       break;
-      }
+      unit_pushed++;
 
-      default: {cout << "error: invalid quote prefix \"" << token[0] << "\" in \"" << token << "\"" << endl; return;}
+      // hash
+      id ^= value;
+      id *= 16777619;
+     }
+
+     // fill index 0 with length count
+     slot_data[0] = unit_pushed;
+     if (data_type == DataType::Binary || data_type == DataType::Hexadecimal) {
+      u8 unit_per_type = (data_type == DataType::Binary) ? 8 : 2;
+      if (unit_pushed % unit_per_type != 0) {
+       cout << "error: " << (data_type == DataType::Binary ? "binary" : "hex") << " str requires complete bytes. currently " << unit_pushed
+        << " which is " << unit_pushed / unit_per_type << " bytes with " << unit_pushed % unit_per_type << " remainder" << endl;
+       return;
+      }
+      slot_data[0] /= unit_per_type;
+     }
+
+     string id_str = to_string(id);
+     string name = "str:"; name += prefix; name += ":"; name += id_str;
+
+     if (symbol::exist(name)) {
+      const symbol::Data& existing = symbol::get(name);
+      cout << "stripe already exist in " << existing.variable.slot << " with hash " << id_str << endl;
+      code_add(1, op::push);
+      code_add(4, fpu(existing.variable.slot).r());
+     }
+     else {
+      slot_logic slot_base = 0;
+
+      // hidden declare
+      active::logic->slotter -= slot_data.size();
+      slot_base = active::logic->slotter.i();
+
+      memcpy(active::logic->code_fpu + slot_base, slot_data.data(), slot_data.size() * sizeof(fpu));
+
+      symbol::Data stripe_symbol;
+      stripe_symbol.type = symbol::Type::Stripe;
+      stripe_symbol.name = name;
+      stripe_symbol.variable.slot = slot_base;
+      symbol::table.push_back(stripe_symbol);
+
+      --active::logic->slotter;
+      active::logic->code_fpu[active::logic->slotter.i()] = slot_data.size();
+
+      cout << "stripe hidden declare in " << slot_base << " with hash " << id_str << endl;
+
+      code_add(1, op::push);
+      code_add(4, fpu(slot_base).r());
      }
     }
 
