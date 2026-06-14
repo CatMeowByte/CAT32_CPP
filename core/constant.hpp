@@ -13,6 +13,7 @@ namespace VIDEO {
  constexpr u16 WIDTH = 120;
  constexpr u16 HEIGHT = 160;
  constexpr u8 SCALE = 3;
+ constexpr u16 SPRITESHEET = 128;
 }
 
 namespace AUDIO {

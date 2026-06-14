@@ -159,9 +159,21 @@ namespace utility {
 
    cout << "SEE(" << decimal_string << ") = " << fixed_hex << " | " << literal_value.r() << "" << endl;
   })
+
+  OPCODE(sin, {
+   using namespace memory::vm::global::constant;
+
+   s32 input_fractional = memory::pop().r() & 0xFFFF;
+   fpu pos =  (4 * (sin_length + 1)) * fpu::raw(0x4000 - abs((input_fractional & 0x7FFF) - 0x4000));
+   u8 i = pos.i();
+   fpu result = (&zero)[i] + (pos - fpu(i)) * ((&zero)[i + 1] - (&zero)[i]);
+
+   memory::push(input_fractional & 0x8000 ? -result : result);
+  })
  }
 
  MODULE(
   module::add("", "see", wrap::see, 1);
+  module::add("", "sin", wrap::sin, 1);
  )
 }

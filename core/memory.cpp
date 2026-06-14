@@ -17,8 +17,8 @@ namespace memory {
 
   using namespace vm::global;
   using namespace constant;
-  zero = 0.0;
-  one = 1.0;
+  // zero, sin, one
+  for (u8 i = 0; i <= sin_length + 1; i++) {(&zero)[i] = std::sin((i / (sin_length + 1.0)) * (M_PI / 2.0));}
   sentinel = SENTINEL;
   pi = 3.14159265358979323846;
 

@@ -235,7 +235,7 @@ namespace kernel {
   u32 gap_bytes = slotter_index * sizeof(fpu) - bytecode_bytes;
   cout << endl;
   cout << "Bytecode: " << bytecode_bytes << " bytes (" << (bytecode_bytes * 100 / code_total) << "%)" << endl;
-  cout << "Allocated: " << (allocated_bytes / sizeof(fpu)) << " slots (" << (allocated_bytes * 100 / code_total) << "%)" << endl;
+  cout << "Allocate: " << (allocated_bytes / sizeof(fpu)) << " slots (" << (allocated_bytes * 100 / code_total) << "%)" << endl;
   cout << "Available: " << gap_bytes << " bytes / " << (gap_bytes / sizeof(fpu)) << " slots (" << (gap_bytes * 100 / code_total) << "%)" << endl;
 
   active::logic->code_octo[cast(u8, kernel::Event::Init)] = op::jump;

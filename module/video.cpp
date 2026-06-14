@@ -64,7 +64,7 @@ namespace video {
  }
 
  void line(s32 ax, s32 ay, s32 bx, s32 by, u8 color) {
-  if (ay == by) {
+  if (ay == by && ax <= bx) {
    lineh(ax, ay, bx - ax + (bx >= ax ? 1 : -1), color);
    return;
   }

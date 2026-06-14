@@ -53,15 +53,16 @@ namespace memory {
 
  region(vm, 0, SYSTEM::MEMORY, // map of the entire memory
   region(global, vm_address, 32768, // presistent memory
-   region(constant, global_address, 32, // populated at startup. should be unchanged
+   region(constant, global_address, 512, // populated at startup. should be unchanged
     ifpu(zero, constant_address) // runtime zero reference
-    ifpu(one, zero_next) // runtime one reference
+    bfpu(sin, zero_next, 124) // 124 lookup table. exclude zero and one as it aleady neigbor value
+    ifpu(one, sin_next) // runtime one reference
     ifpu(sentinel, one_next) // runtime sentinel reference. not to be confused with compile time SENTINEL
     ifpu(pi, sentinel_next) // pi
    )
    check(constant, constant::pi)
 
-   bocto(framebuffer, constant_next, 9600) // 120*160 4bpp pixel data
+   bocto(framebuffer, constant_next, (VIDEO::WIDTH * VIDEO::HEIGHT) / 2) // 120*160 4bpp pixel data
 
    bocto(palette, framebuffer_next, 16) // 16 color remap to hardware color index. bit 7 sets visibility, 0-3 sets target index
 
@@ -85,8 +86,8 @@ namespace memory {
     ifpu(magnetometer_x, gyroscope_z_next) // right
     ifpu(magnetometer_y, magnetometer_x_next) // up
     ifpu(magnetometer_z, magnetometer_y_next) // front
-    bfpu(frequency, magnetometer_z_next, 4) // 4 channel frequencies in hertz
-    bfpu(duty, frequency_next, 4) // 4 channel duties from 0.0 to 1.0
+    bfpu(frequency, magnetometer_z_next, AUDIO::CHANNEL) // 4 channel frequencies in hertz
+    bfpu(duty, frequency_next, AUDIO::CHANNEL) // 4 channel duties from 0.0 to 1.0
    )
    check(hardware_io, hardware_io::duty)
    ifpu(process_index, hardware_io_next) // current active process index
@@ -108,7 +109,7 @@ namespace memory {
     check(logic, logic::code)
 
     region(local, logic_next, 32768, // data memory
-     bocto(sprite, local_address, 8192) // 128x128 4bpp sprite data
+     bocto(sprite, local_address, (VIDEO::SPRITESHEET * VIDEO::SPRITESHEET) / 2) // 128x128 4bpp sprite data
     )
     check(local, local::sprite)
    )
