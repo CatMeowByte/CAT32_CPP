@@ -17,11 +17,17 @@ namespace memory {
 
   using namespace vm::global;
   using namespace constant;
-  // zero, sin, one
+  // zero, quarter sin table, one
   for (u8 i = 0; i <= sin_length + 1; i++) {(&zero)[i] = std::sin((i / (sin_length + 1.0)) * (M_PI / 2.0));}
   sentinel = SENTINEL;
+
+  // atan2 cordic table
+  epsilon = fpu::raw(1);
+  for (u8 i = 0; i < cordic_length; i++) {cordic[i] = std::atan(std::ldexp(1.0, -(cordic_length - 1 - i)));}
+
   pi = 3.14159265358979323846;
 
+  // palette
   for (u32 i = 0; i < 16; i++) {palette[i] = i | 0x80;}
   palette[0] &= 0x7F;
 
