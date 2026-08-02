@@ -194,49 +194,15 @@ namespace video {
   s32 cursor_x = x;
   s32 cursor_y = y;
 
-  for (u32 string_index = 0; string_index < text.length();) {
-   u8* bytes = reinterpret(u8*, &text[string_index]);
-   u32 ordinal = bytes[0];
-   s32 byte_length = 1;
+  for (u32 string_index = 0; string_index < text.length(); string_index++) {
+   s32 c = text[string_index];
 
-   if ((bytes[0] & 0xE0) == 0xC0 && (string_index + 1) < text.length()) {
-    ordinal = ((bytes[0] & 0x1F) << 6) | (bytes[1] & 0x3F);
-    byte_length = 2;
-   }
-   else if ((bytes[0] & 0xF0) == 0xE0 && (string_index + 2) < text.length()) {
-    ordinal = ((bytes[0] & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F);
-    byte_length = 3;
-   }
-   else if ((bytes[0] & 0xF8) == 0xF0 && (string_index + 3) < text.length()) {
-    ordinal = ((bytes[0] & 0x07) << 18) | ((bytes[1] & 0x3F) << 12) | ((bytes[2] & 0x3F) << 6) | (bytes[3] & 0x3F);
-    byte_length = 4;
-   }
+   if (cursor_x < -FONT::WIDTH || cursor_x >= VIDEO::WIDTH || cursor_y < -FONT::HEIGHT || cursor_y >= VIDEO::HEIGHT) {cursor_x += FONT::WIDTH; continue;}
 
-   string_index += byte_length;
+   c &= 0x7F;
 
-   if (ordinal == '\n') {
-    cursor_x = x;
-    cursor_y += FONT::HEIGHT;
-    continue;
-   }
-
-   if (cursor_x < -FONT::WIDTH || cursor_x >= VIDEO::WIDTH || cursor_y < -FONT::HEIGHT || cursor_y >= VIDEO::HEIGHT) {
-    cursor_x += FONT::WIDTH;
-    continue;
-   }
-
-   s32 character_index = 0;
-   if (ordinal >= 0x20 && ordinal <= 0x7E) {character_index = ordinal - 0x20 + 32;}
-   else {
-    for (s32 special_index = 0; special_index < 32; special_index++) {
-     if (font_special[special_index] == ordinal) {character_index = special_index; break;}
-    }
-   }
-
-   if (!character_index) {cursor_x += FONT::WIDTH; continue;}
-
-   s32 grid_x = (character_index % 16) * FONT::WIDTH;
-   s32 grid_y = (character_index / 16) * FONT::HEIGHT;
+   s32 grid_x = (c % 16) * FONT::WIDTH;
+   s32 grid_y = (c / 16) * FONT::HEIGHT;
 
    for (s32 pixel_y = 0; pixel_y < FONT::HEIGHT; pixel_y++) {
     for (s32 pixel_x = 0; pixel_x < FONT::WIDTH; pixel_x++) {

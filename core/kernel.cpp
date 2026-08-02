@@ -73,7 +73,21 @@ namespace kernel {
    }
 
    // per character
-   for (char c : line) {
+   for (u32 pos = 0; pos < line.size();) {
+
+    // substitute UTF-8 to CAT-32 character map
+    u8 c = line[pos];
+    u8 advance = 1;
+    if (c >= 0x80) {
+     u32 ordinal = c;
+     if ((c & 0xE0) == 0xC0 && pos + 1 < line.size()) {ordinal = ((c & 0x1F) << 6) | (line[pos+1] & 0x3F); advance = 2;}
+     else if ((c & 0xF0) == 0xE0 && pos + 2 < line.size()) {ordinal = ((c & 0x0F) << 12) | ((line[pos+1] & 0x3F) << 6) | (line[pos+2] & 0x3F); advance = 3;}
+     else if ((c & 0xF8) == 0xF0 && pos + 3 < line.size()) {ordinal = ((c & 0x07) << 18) | ((line[pos+1] & 0x3F) << 12) | ((line[pos+2] & 0x3F) << 6) | (line[pos+3] & 0x3F); advance = 4;}
+     c = 31;
+     for (u8 i = 0; i < 31; i++) {if (font_special[i] == ordinal) {c = i; break;}}
+    }
+    pos += advance;
+
     if (c == '"') {
      u32 backslash_count = 0;
      for (s32 i = line_buffer.size() - 1; i >= 0 && line_buffer[i] == '\\'; i--) {backslash_count++;}
