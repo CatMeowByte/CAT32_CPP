@@ -135,6 +135,23 @@ namespace interpreter {
   }
  }
 
+ static vector<string> mutate(const vector<string>& tokens) {
+  vector<string> output;
+  for (u32 i = 0; i < tokens.size(); i++) {
+   string token = tokens[i];
+
+   // unary "-"
+   if (token == "-" && (i == 0 || metic::operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
+    // merge with number
+    if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {token = "-" + tokens[++i];}
+    else {token = "neg";}
+   }
+
+   output.push_back(token);
+  }
+  return output;
+ }
+
  static void fold(vector<string>& output, vector<string>& stash, const string& incoming_token = "", const string& stop_at = "") {
   while (
    output.size() >= 2
@@ -197,13 +214,6 @@ namespace interpreter {
     }
     if (!paren_args_count.empty()) {paren_args_count.back()++;}
     continue;
-   }
-
-   // unary "-"
-   if (token == "-" && (i == 0 || metic::operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
-    // merge with number
-    if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {token = "-" + tokens[++i];}
-    else {token = "neg";}
    }
 
    // callable
@@ -298,7 +308,10 @@ namespace interpreter {
  vector<vector<string>> tokenize(const string& line) {
   vector<vector<string>> tokens = breakdown(line);
   substitute(tokens);
-  for (vector<string>& token : tokens) {token = postfix(token);}
+  for (vector<string>& token : tokens) {
+   token = mutate(token);
+   token = postfix(token);
+  }
   return tokens;
  }
 }
