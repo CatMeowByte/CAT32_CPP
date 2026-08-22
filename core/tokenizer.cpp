@@ -85,6 +85,9 @@ namespace interpreter {
    // boundary
    else if (boundaries.count(c)) {expression.push_back(string(1, c));}
 
+   // rawint
+   else if (c == '$') {expression.push_back(string(1, c));}
+
    // equal
    else if (c == '=') {
     if (!expression.empty()) {output.push_back(expression); expression.clear();}
@@ -137,18 +140,63 @@ namespace interpreter {
 
  static vector<string> mutate(const vector<string>& tokens) {
   vector<string> output;
+  vector<string> unary_operators;
+  string token_previous = "";
+
   for (u32 i = 0; i < tokens.size(); i++) {
    string token = tokens[i];
 
-   // unary "-"
-   if (token == "-" && (i == 0 || metic::operations.count(tokens[i-1]) || tokens[i-1] == "(" || tokens[i-1] == ",")) {
-    // merge with number
-    if (i + 1 < tokens.size() && utility::is_number(tokens[i + 1])) {token = "-" + tokens[++i];}
-    else {token = "neg";}
+   bool is_unary_symbol = (token == "!" || token == "~" || token == "$");
+
+   // negative check
+   bool has_stacked_unaries = !unary_operators.empty();
+   bool is_at_start = token_previous.empty();
+   bool after_operator = metic::operations.count(token_previous);
+   bool after_separator = (token_previous == "(" || token_previous == ",");
+   bool is_unary_negative = (token == "-") && (has_stacked_unaries || is_at_start || after_operator || after_separator);
+
+   if (is_unary_symbol || is_unary_negative) {unary_operators.push_back(token); continue;}
+
+
+   if (unary_operators.size()) {
+    if (utility::is_number(token)) {
+     // scale to preserve fractional bits
+     s64 rawbits = cast(s64, stod(token) * (1 << fpu::WIDTH));
+
+     // apply right to left
+     for (u8 j = unary_operators.size(); j > 0; j--) {
+      string op = unary_operators[j - 1];
+
+      if (op == "-") {rawbits = -rawbits;}
+      else if (op == "!") {rawbits = rawbits ? 0 : (1 << fpu::WIDTH);}
+      else if (op == "~") {rawbits = ~rawbits;}
+      else if (op == "$") {rawbits >>= fpu::WIDTH;}
+     }
+
+     ostringstream text_decimal;
+     text_decimal << fixed << setprecision(fpu::WIDTH) << (cast(s32, rawbits) / cast(double, 1 << fpu::WIDTH)); // unscale. cast to keep the division in decimal
+     token = text_decimal.str();
+
+     token.erase(token.find_last_not_of('0') + 1, string::npos);
+     if (token.back() == '.') {token.pop_back();}
+
+     unary_operators.clear();
+    }
+    else {
+     // not literal
+     // flush as neg and reset
+     for (u32 j = 0; j < unary_operators.size(); j++) {output.push_back((unary_operators[j] == "-") ? "neg" : unary_operators[j]);}
+     unary_operators.clear();
+    }
    }
 
+   // current token now mutated
    output.push_back(token);
+   token_previous = token;
   }
+
+  // flush at end of tokens
+  for (u32 j = 0; j < unary_operators.size(); j++) {output.push_back((unary_operators[j] == "-") ? "neg" : unary_operators[j]);}
   return output;
  }
 

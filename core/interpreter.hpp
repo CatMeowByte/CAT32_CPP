@@ -83,7 +83,6 @@ namespace metic {
   OP(">=", op::geq, Precedence::Compare) \
   OP("&&", op::band, Precedence::Logic) \
   OP("||", op::bor, Precedence::Logic) \
-  OP("~~", op::bnot, Precedence::Unary) \
   OP("<<", op::bshl, Precedence::Shift) \
   OP(">>", op::bshr, Precedence::Shift) \
   OP("+", op::add, Precedence::Add) \
@@ -95,7 +94,8 @@ namespace metic {
   OP(">", op::gt, Precedence::Compare) \
   OP("&", op::land, Precedence::Logic) \
   OP("|", op::lor, Precedence::Logic) \
-  OP("!", op::lnot, Precedence::Unary)
+  OP("!", op::lnot, Precedence::Unary) \
+  OP("~", op::bnot, Precedence::Unary) \
 
  static const hash_set<string> operations = {
   #define OP(sym, code, prec) sym,
