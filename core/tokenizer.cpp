@@ -36,7 +36,7 @@ namespace interpreter {
 
    // push token
    if (!token.empty() && (
-    c == ' ' || c == '#' || c == '='
+    c == ' ' || c == '#' || c == '=' || c == '$'
     || boundaries.count(c)
     || metic::operations.count(string(1, c))
     || (pos + 1 < line.size() && metic::operations.count(line.substr(pos, 2)))
@@ -140,37 +140,47 @@ namespace interpreter {
 
  static vector<string> mutate(const vector<string>& tokens) {
   vector<string> output;
-  vector<string> unary_operators;
   string token_previous = "";
+  u32 unary_start = 0;
 
   for (u32 i = 0; i < tokens.size(); i++) {
    string token = tokens[i];
 
-   bool is_unary_symbol = (token == "!" || token == "~" || token == "$");
+   bool is_unary_symbol = (token == "!" || token == "~");
 
    // negative check
-   bool has_stacked_unaries = !unary_operators.empty();
    bool is_at_start = token_previous.empty();
    bool after_operator = metic::operations.count(token_previous);
    bool after_separator = (token_previous == "(" || token_previous == ",");
-   bool is_unary_negative = (token == "-") && (has_stacked_unaries || is_at_start || after_operator || after_separator);
+   bool is_unary_negative = (token == "-") && (unary_start != output.size() || is_at_start || after_operator || after_separator);
 
-   if (is_unary_symbol || is_unary_negative) {unary_operators.push_back(token); continue;}
+   if (is_unary_symbol || is_unary_negative) {
+    output.push_back((token == "-") ? "neg" : token); // unary of `-` is `neg`
+    continue;
+   }
 
+   bool has_rawint = (i + 1 < tokens.size() && tokens[i + 1] == "$");
 
-   if (unary_operators.size()) {
+   if (unary_start != output.size() || has_rawint) {
     if (utility::is_number(token)) {
      // scale to preserve fractional bits
      s64 rawbits = cast(s64, stod(token) * (1 << fpu::WIDTH));
 
      // apply right to left
-     for (u8 j = unary_operators.size(); j > 0; j--) {
-      string op = unary_operators[j - 1];
+     for (u32 j = output.size(); j > unary_start; j--) {
+      string op = output[j - 1];
 
-      if (op == "-") {rawbits = -rawbits;}
+      if (op == "neg") {rawbits = -rawbits;}
       else if (op == "!") {rawbits = rawbits ? 0 : (1 << fpu::WIDTH);}
       else if (op == "~") {rawbits = ~rawbits;}
-      else if (op == "$") {rawbits >>= fpu::WIDTH;}
+     }
+
+     output.resize(unary_start);
+
+     // rawint
+     if (has_rawint) {
+      rawbits >>= fpu::WIDTH;
+      i++; // consume the rawint token
      }
 
      ostringstream text_decimal;
@@ -179,24 +189,15 @@ namespace interpreter {
 
      token.erase(token.find_last_not_of('0') + 1, string::npos);
      if (token.back() == '.') {token.pop_back();}
-
-     unary_operators.clear();
-    }
-    else {
-     // not literal
-     // flush as neg and reset
-     for (u32 j = 0; j < unary_operators.size(); j++) {output.push_back((unary_operators[j] == "-") ? "neg" : unary_operators[j]);}
-     unary_operators.clear();
     }
    }
 
    // current token now mutated
    output.push_back(token);
    token_previous = token;
+   unary_start = output.size();
   }
 
-  // flush at end of tokens
-  for (u32 j = 0; j < unary_operators.size(); j++) {output.push_back((unary_operators[j] == "-") ? "neg" : unary_operators[j]);}
   return output;
  }
 
