@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #if defined(_WIN32)
 #include <direct.h>
+#include <io.h>
 #include <windows.h>
 #elif defined(__linux__)
 #include <dirent.h>
@@ -32,6 +33,8 @@ namespace filesystem {
   return root;
  }
 
+ // content
+
  vector<octo> read(const string& path, u32 offset, u32 length) {
   string full_path = get_root() + path;
   vector<octo> data;
@@ -45,16 +48,215 @@ namespace filesystem {
   return data;
  }
 
- void write(const string& path, u32 offset, const vector<octo>& data) {
+ u8 overwrite(const string& path, u32 offset, const vector<octo>& data) {
   string full_path = get_root() + path;
   FILE* file = fopen(full_path.c_str(), "r+b");
-  if (!file) {
-   file = fopen(full_path.c_str(), "wb");
-   if (!file) {return;}
-  }
+  if (!file) {return 1;}
   fseek(file, offset, SEEK_SET);
   fwrite(data.data(), 1, data.size(), file);
   fclose(file);
+  return 0;
+ }
+
+ u8 insert(const string& path, u32 offset, const vector<octo>& data) {
+  string full_path = get_root() + path;
+  FILE* file = fopen(full_path.c_str(), "r+b");
+  if (!file) {return 1;}
+  fseek(file, 0, SEEK_END);
+  u32 file_size = cast(u32, ftell(file));
+  if (offset > file_size) {offset = file_size;}
+  fseek(file, offset, SEEK_SET);
+  u32 tail_size = file_size - offset;
+  vector<octo> tail(tail_size);
+  if (tail_size) {fread(tail.data(), 1, tail_size, file);}
+  fseek(file, offset, SEEK_SET);
+  fwrite(data.data(), 1, data.size(), file);
+  if (tail_size) {fwrite(tail.data(), 1, tail_size, file);}
+  fclose(file);
+  return 0;
+ }
+
+ u8 delete_byte(const string& path, u32 offset, u32 length) {
+  string full_path = get_root() + path;
+  FILE* file = fopen(full_path.c_str(), "r+b");
+  if (!file) {return 1;}
+  fseek(file, 0, SEEK_END);
+  u32 file_size = cast(u32, ftell(file));
+  if (offset > file_size) {offset = file_size;}
+  if (length > file_size - offset) {length = file_size - offset;}
+  u32 tail_start = offset + length;
+  u32 tail_size = file_size - tail_start;
+  vector<octo> tail(tail_size);
+  if (tail_size) {fseek(file, tail_start, SEEK_SET); fread(tail.data(), 1, tail_size, file);}
+  fseek(file, offset, SEEK_SET);
+  if (tail_size) {fwrite(tail.data(), 1, tail_size, file);}
+  #if defined(_WIN32)
+   _chsize(_fileno(file), cast(long, offset + tail_size));
+  #elif defined(__linux__)
+   ftruncate(fileno(file), cast(off_t, offset + tail_size));
+  #else
+   #error "Unsupported platform"
+  #endif
+  fclose(file);
+  return 0;
+ }
+
+ // structure
+
+ u8 type(const string& path) {
+  string full_path = get_root() + path;
+  #if defined(_WIN32)
+   struct _stat buffer;
+   if (_stat(full_path.c_str(), &buffer) != 0) {return 0;}
+   if (buffer.st_mode & _S_IFDIR) {return 2;}
+   return 1;
+  #elif defined(__linux__)
+   struct stat buffer;
+   if (stat(full_path.c_str(), &buffer) != 0) {return 0;}
+   if (S_ISDIR(buffer.st_mode)) {return 2;}
+   return 1;
+  #else
+   #error "Unsupported platform"
+  #endif
+ }
+
+ u32 size(const string& path) {
+  string full_path = get_root() + path;
+  #if defined(_WIN32)
+   struct _stat buffer;
+   if (_stat(full_path.c_str(), &buffer) != 0) {return 0;}
+   return cast(u32, buffer.st_size);
+  #elif defined(__linux__)
+   struct stat buffer;
+   if (stat(full_path.c_str(), &buffer) != 0) {return 0;}
+   return cast(u32, buffer.st_size);
+  #else
+   #error "Unsupported platform"
+  #endif
+ }
+
+ u8 create(const string& path) {
+  string current = get_root();
+  if (!current.empty() && current[current.size()-1] == '/') {current.pop_back();}
+  u32 segment_start = 0;
+  for (u32 i = 0; i <= path.size(); i++) {
+   if (i == path.size() || path[i] == '/') {
+    if (i > segment_start) {
+     current += "/" + path.substr(segment_start, i - segment_start);
+     if (i == path.size()) {
+      #if defined(_WIN32)
+       struct _stat buffer;
+       if (_stat(current.c_str(), &buffer) == 0) {return 1;}
+      #elif defined(__linux__)
+       struct stat buffer;
+       if (stat(current.c_str(), &buffer) == 0) {return 1;}
+      #else
+       #error "Unsupported platform"
+      #endif
+      FILE* file = fopen(current.c_str(), "wb");
+      if (file) {fclose(file);}
+     }
+     else {
+      #if defined(_WIN32)
+       struct _stat buffer;
+       if (_stat(current.c_str(), &buffer) == 0) {
+        if (!(buffer.st_mode & _S_IFDIR)) {return 1;}
+       }
+       else if (_mkdir(current.c_str()) != 0) {return 1;}
+      #elif defined(__linux__)
+       struct stat buffer;
+       if (stat(current.c_str(), &buffer) == 0) {
+        if (!S_ISDIR(buffer.st_mode)) {return 1;}
+       }
+       else if (::mkdir(current.c_str(), 0755) != 0) {return 1;}
+      #else
+       #error "Unsupported platform"
+      #endif
+     }
+    }
+    segment_start = i + 1;
+   }
+  }
+  return 0;
+ }
+
+ u8 move(const string& source, const string& destination, bool duplicate) {
+  constexpr u32 buffer_size = 4 * 1024;
+  string clean_source = source;
+  while (clean_source.size() > 1 && clean_source[clean_source.size()-1] == '/') {clean_source.pop_back();}
+  string clean_destination = destination;
+  while (clean_destination.size() > 1 && clean_destination[clean_destination.size()-1] == '/') {clean_destination.pop_back();}
+  if (clean_source == "/") {return 1;}
+  if (clean_destination.size() > clean_source.size() && clean_destination.compare(0, clean_source.size(), clean_source) == 0 && clean_destination[clean_source.size()] == '/') {return 1;}
+  u8 entry_type = type(clean_source);
+  if (entry_type == 0) {return 1;}
+  if (type(clean_destination) != 0) {return 1;}
+  string full_source = get_root() + clean_source;
+  string full_destination = get_root() + clean_destination;
+  if (duplicate) {
+   if (entry_type == 1) {
+    FILE* src = fopen(full_source.c_str(), "rb");
+    if (!src) {return 1;}
+    FILE* dst = fopen(full_destination.c_str(), "wb");
+    if (!dst) {fclose(src); return 1;}
+    vector<octo> buffer(buffer_size);
+    u32 count;
+    while ((count = cast(u32, fread(buffer.data(), 1, buffer_size, src)))) {fwrite(buffer.data(), 1, count, dst);}
+    fclose(src);
+    fclose(dst);
+    return 0;
+   }
+   if (create(clean_destination + "/")) {return 1;}
+   u32 child_count = list_count(clean_source);
+   for (u32 i = 0; i < child_count; i++) {
+    string name = list_index(clean_source, i);
+    if (move(clean_source + "/" + name, clean_destination + "/" + name, true)) {return 1;}
+   }
+   return 0;
+  }
+  else {
+   if (std::rename(full_source.c_str(), full_destination.c_str()) != 0) {return 1;}
+   return 0;
+  }
+ }
+
+ u8 remove(const string& path) {
+  string clean = path;
+  while (clean.size() > 1 && clean[clean.size()-1] == '/') {clean.pop_back();}
+  u8 entry_type = type(clean);
+  if (entry_type == 0) {return 1;}
+  string full_path = get_root() + clean;
+  if (entry_type == 1) {
+   if (std::remove(full_path.c_str()) != 0) {return 1;}
+   return 0;
+  }
+  #if defined(_WIN32)
+   WIN32_FIND_DATAA find_data;
+   HANDLE handle = FindFirstFileA((full_path + "/*").c_str(), &find_data);
+   if (handle == INVALID_HANDLE_VALUE) {return 1;}
+   do {
+    string name = find_data.cFileName;
+    if (name == "." || name == "..") {continue;}
+    if (remove(clean + "/" + name)) {FindClose(handle); return 1;}
+   } while (FindNextFileA(handle, &find_data));
+   FindClose(handle);
+   if (_rmdir(full_path.c_str()) != 0) {return 1;}
+   return 0;
+  #elif defined(__linux__)
+   DIR* dir = opendir(full_path.c_str());
+   if (!dir) {return 1;}
+   struct dirent* entry;
+   while ((entry = readdir(dir))) {
+    string name = entry->d_name;
+    if (name == "." || name == "..") {continue;}
+    if (remove(clean + "/" + name)) {closedir(dir); return 1;}
+   }
+   closedir(dir);
+   if (rmdir(full_path.c_str()) != 0) {return 1;}
+   return 0;
+  #else
+   #error "Unsupported platform"
+  #endif
  }
 
  u32 list_count(const string& path) {
@@ -120,80 +322,12 @@ namespace filesystem {
   return "";
  }
 
- bool exist(const string& path) {
-  string full_path = get_root() + path;
-  #if defined(_WIN32)
-   struct _stat buffer;
-   return _stat(full_path.c_str(), &buffer) == 0;
-  #elif defined(__linux__)
-   struct stat buffer;
-   return stat(full_path.c_str(), &buffer) == 0;
-  #else
-   #error "Unsupported platform"
-  #endif
- }
-
- bool is_dir(const string& path) {
-  string full_path = get_root() + path;
-  #if defined(_WIN32)
-   struct _stat buffer;
-   if (_stat(full_path.c_str(), &buffer) != 0) {return false;}
-   return (buffer.st_mode & _S_IFDIR) != 0;
-  #elif defined(__linux__)
-   struct stat buffer;
-   if (stat(full_path.c_str(), &buffer) != 0) {return false;}
-   return S_ISDIR(buffer.st_mode);
-  #else
-   #error "Unsupported platform"
-  #endif
- }
-
- u32 size(const string& path) {
-  string full_path = get_root() + path;
-  #if defined(_WIN32)
-   struct _stat buffer;
-   if (_stat(full_path.c_str(), &buffer) != 0) {return 0;}
-   return cast(u32, buffer.st_size);
-  #elif defined(__linux__)
-   struct stat buffer;
-   if (stat(full_path.c_str(), &buffer) != 0) {return 0;}
-   return cast(u32, buffer.st_size);
-  #else
-   #error "Unsupported platform"
-  #endif
- }
-
- void make_dir(const string& path) {
-  string full_path = get_root() + path;
-  #if defined(_WIN32)
-   _mkdir(full_path.c_str());
-  #elif defined(__linux__)
-   ::mkdir(full_path.c_str(), 0755);
-  #else
-   #error "Unsupported platform"
-  #endif
- }
-
- void remove(const string& path) {
-  string full_path = get_root() + path;
-  if (is_dir(path)) {
-   #if defined(_WIN32)
-    _rmdir(full_path.c_str());
-   #elif defined(__linux__)
-    rmdir(full_path.c_str());
-   #else
-    #error "Unsupported platform"
-   #endif
-  }
-  else {
-   std::remove(full_path.c_str());
-  }
- }
-
  namespace wrap {
+  // content
+
   OPCODE(read, {
-   u32 length = memory::pop();
-   u32 offset = memory::pop();
+   u32 length = memory::pop().r();
+   u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_destination = memory::pop().a();
    string string_path = utility::string_pick(address_path);
@@ -204,16 +338,83 @@ namespace filesystem {
    memcpy(&active::logic->code_fpu[address_destination], data.data(), bytes_to_copy);
   })
 
-  OPCODE(write, {
-   address_logic address_source = memory::pop().a();
-   u32 offset = memory::pop();
+  OPCODE(overwrite, {
+   u32 length = memory::pop().r();
+   u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
+   address_logic address_source = memory::pop().a();
    string string_path = utility::string_pick(address_path);
-   s32 source_size = active::logic->code_fpu[address_source - 1].i();
-   u32 byte_count = source_size * sizeof(fpu);
+   s32 buffer_size = active::logic->code_fpu[address_source - 1].i();
+   u32 byte_capacity = buffer_size * sizeof(fpu);
+   u32 byte_count = min(length, byte_capacity);
    vector<octo> data(byte_count);
    memcpy(data.data(), &active::logic->code_fpu[address_source], byte_count);
-   filesystem::write(string_path, offset, data);
+   u8 result = filesystem::overwrite(string_path, offset, data);
+   memory::push(result);
+  })
+
+  OPCODE(insert, {
+   u32 length = memory::pop().r();
+   u32 offset = memory::pop().r();
+   address_logic address_path = memory::pop().a();
+   address_logic address_data = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   s32 data_size = active::logic->code_fpu[address_data - 1].i();
+   u32 byte_capacity = data_size * sizeof(fpu);
+   u32 byte_count = min(length, byte_capacity);
+   vector<octo> data(byte_count);
+   memcpy(data.data(), &active::logic->code_fpu[address_data], byte_count);
+   u8 result = filesystem::insert(string_path, offset, data);
+   memory::push(result);
+  })
+
+  OPCODE(delete_byte, {
+   u32 length = memory::pop().r();
+   u32 offset = memory::pop().r();
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   u8 result = filesystem::delete_byte(string_path, offset, length);
+   memory::push(result);
+  })
+
+  // structure
+
+  OPCODE(type, {
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   u8 result = filesystem::type(string_path);
+   memory::push(result);
+  })
+
+  OPCODE(size, {
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   u32 result = filesystem::size(string_path);
+   memory::push(fpu::raw(result));
+  })
+
+  OPCODE(create, {
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   u8 result = filesystem::create(string_path);
+   memory::push(result);
+  })
+
+  OPCODE(move, {
+   bool duplicate = memory::pop();
+   address_logic address_destination = memory::pop().a();
+   address_logic address_source = memory::pop().a();
+   string string_source = utility::string_pick(address_source);
+   string string_destination = utility::string_pick(address_destination);
+   u8 result = filesystem::move(string_source, string_destination, duplicate);
+   memory::push(result);
+  })
+
+  OPCODE(remove, {
+   address_logic address_path = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   u8 result = filesystem::remove(string_path);
+   memory::push(result);
   })
 
   OPCODE(list_count, {
@@ -234,50 +435,19 @@ namespace filesystem {
    u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
    for (u32 i = 0; i < limit; i++) {active::logic->code_fpu[address_destination + i] = packed_pascal[i];}
   })
-
-  OPCODE(exist, {
-   address_logic address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   bool result = filesystem::exist(string_path);
-   memory::push(result);
-  })
-
-  OPCODE(is_dir, {
-   address_logic address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   bool result = filesystem::is_dir(string_path);
-   memory::push(result);
-  })
-
-  OPCODE(size, {
-   address_logic address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   u32 result = filesystem::size(string_path);
-   memory::push(result);
-  })
-
-  OPCODE(make_dir, {
-   address_logic address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   filesystem::make_dir(string_path);
-  })
-
-  OPCODE(remove, {
-   address_logic address_path = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   filesystem::remove(string_path);
-  })
  }
 
  MODULE(
   module::add("filesystem", "read", wrap::read, 4);
-  module::add("filesystem", "write", wrap::write, 3);
+  module::add("filesystem", "overwrite", wrap::overwrite, 4);
+  module::add("filesystem", "insert", wrap::insert, 4);
+  module::add("filesystem", "delete", wrap::delete_byte, 3);
+  module::add("filesystem", "type", wrap::type, 1);
+  module::add("filesystem", "size", wrap::size, 1);
+  module::add("filesystem", "create", wrap::create, 1);
+  module::add("filesystem", "move", wrap::move, 3);
+  module::add("filesystem", "remove", wrap::remove, 1);
   module::add("filesystem", "list_count", wrap::list_count, 1);
   module::add("filesystem", "list_index", wrap::list_index, 3);
-  module::add("filesystem", "exist", wrap::exist, 1);
-  module::add("filesystem", "is_dir", wrap::is_dir, 1);
-  module::add("filesystem", "size", wrap::size, 1);
-  module::add("filesystem", "make_dir", wrap::make_dir, 1);
-  module::add("filesystem", "remove", wrap::remove, 1);
  )
 }
