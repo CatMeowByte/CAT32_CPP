@@ -338,6 +338,22 @@ namespace filesystem {
    memcpy(&active::logic->code_fpu[address_destination], data.data(), bytes_to_copy);
   })
 
+  OPCODE(readline, {
+   u32 offset = memory::pop().r();
+   address_logic address_path = memory::pop().a();
+   address_logic address_destination = memory::pop().a();
+   string string_path = utility::string_pick(address_path);
+   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
+   u32 byte_capacity = (buffer_size - 1) * sizeof(fpu);
+   vector<octo> data = filesystem::read(string_path, offset, byte_capacity);
+   u32 data_size = cast(u32, data.size());
+   u32 line_length = 0;
+   while (line_length < data_size && data[line_length] != '\n') {line_length = line_length + 1;}
+   memcpy(&active::logic->code_fpu[address_destination + 1], data.data(), data_size);
+   active::logic->code_fpu[address_destination] = fpu(line_length);
+   memory::push(fpu::raw(offset + line_length + (line_length < data_size)));
+  })
+
   OPCODE(overwrite, {
    u32 length = memory::pop().r();
    u32 offset = memory::pop().r();
@@ -439,6 +455,7 @@ namespace filesystem {
 
  MODULE(
   module::add("filesystem", "read", wrap::read, 4);
+  module::add("filesystem", "readline", wrap::readline, 3);
   module::add("filesystem", "overwrite", wrap::overwrite, 4);
   module::add("filesystem", "insert", wrap::insert, 4);
   module::add("filesystem", "delete", wrap::delete_byte, 3);
