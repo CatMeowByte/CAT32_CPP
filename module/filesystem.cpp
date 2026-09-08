@@ -48,17 +48,7 @@ namespace filesystem {
   return data;
  }
 
- u8 overwrite(const string& path, u32 offset, const vector<octo>& data) {
-  string full_path = get_root() + path;
-  FILE* file = fopen(full_path.c_str(), "r+b");
-  if (!file) {return 1;}
-  fseek(file, offset, SEEK_SET);
-  fwrite(data.data(), 1, data.size(), file);
-  fclose(file);
-  return 0;
- }
-
- u8 insert(const string& path, u32 offset, const vector<octo>& data) {
+ u8 write(const string& path, u32 offset, const vector<octo>& data, bool is_replace) {
   string full_path = get_root() + path;
   FILE* file = fopen(full_path.c_str(), "r+b");
   if (!file) {return 1;}
@@ -66,12 +56,16 @@ namespace filesystem {
   u32 file_size = cast(u32, ftell(file));
   if (offset > file_size) {offset = file_size;}
   fseek(file, offset, SEEK_SET);
-  u32 tail_size = file_size - offset;
-  vector<octo> tail(tail_size);
-  if (tail_size) {fread(tail.data(), 1, tail_size, file);}
-  fseek(file, offset, SEEK_SET);
-  fwrite(data.data(), 1, data.size(), file);
-  if (tail_size) {fwrite(tail.data(), 1, tail_size, file);}
+  if (is_replace) {
+    fwrite(data.data(), 1, data.size(), file);
+  } else {
+    u32 tail_size = file_size - offset;
+    vector<octo> tail(tail_size);
+    if (tail_size) {fread(tail.data(), 1, tail_size, file);}
+    fseek(file, offset, SEEK_SET);
+    fwrite(data.data(), 1, data.size(), file);
+    if (tail_size) {fwrite(tail.data(), 1, tail_size, file);}
+  }
   fclose(file);
   return 0;
  }
@@ -354,33 +348,20 @@ namespace filesystem {
    memory::push(fpu::raw(offset + line_length + (line_length < data_size)));
   })
 
-  OPCODE(overwrite, {
+  OPCODE(write, {
+   bool is_replace = memory::pop();
+   bool is_string = memory::pop();
    u32 length = memory::pop().r();
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_source = memory::pop().a();
    string string_path = utility::string_pick(address_path);
    s32 buffer_size = active::logic->code_fpu[address_source - 1].i();
-   u32 byte_capacity = buffer_size * sizeof(fpu);
+   u32 byte_capacity = (buffer_size - is_string) * sizeof(fpu);
    u32 byte_count = min(length, byte_capacity);
    vector<octo> data(byte_count);
-   memcpy(data.data(), &active::logic->code_fpu[address_source], byte_count);
-   u8 result = filesystem::overwrite(string_path, offset, data);
-   memory::push(result);
-  })
-
-  OPCODE(insert, {
-   u32 length = memory::pop().r();
-   u32 offset = memory::pop().r();
-   address_logic address_path = memory::pop().a();
-   address_logic address_data = memory::pop().a();
-   string string_path = utility::string_pick(address_path);
-   s32 data_size = active::logic->code_fpu[address_data - 1].i();
-   u32 byte_capacity = data_size * sizeof(fpu);
-   u32 byte_count = min(length, byte_capacity);
-   vector<octo> data(byte_count);
-   memcpy(data.data(), &active::logic->code_fpu[address_data], byte_count);
-   u8 result = filesystem::insert(string_path, offset, data);
+   memcpy(data.data(), &active::logic->code_fpu[address_source + is_string], byte_count);
+   u8 result = filesystem::write(string_path, offset, data, is_replace);
    memory::push(result);
   })
 
@@ -456,8 +437,7 @@ namespace filesystem {
  MODULE(
   module::add("filesystem", "read", wrap::read, 4);
   module::add("filesystem", "readline", wrap::readline, 3);
-  module::add("filesystem", "overwrite", wrap::overwrite, 4);
-  module::add("filesystem", "insert", wrap::insert, 4);
+  module::add("filesystem", "write", wrap::write, 6, {0, 0});
   module::add("filesystem", "delete", wrap::delete_byte, 3);
   module::add("filesystem", "type", wrap::type, 1);
   module::add("filesystem", "size", wrap::size, 1);
