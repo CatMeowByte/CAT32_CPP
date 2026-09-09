@@ -57,14 +57,24 @@ namespace filesystem {
   if (offset > file_size) {offset = file_size;}
   fseek(file, offset, SEEK_SET);
   if (is_replace) {
-    fwrite(data.data(), 1, data.size(), file);
-  } else {
-    u32 tail_size = file_size - offset;
-    vector<octo> tail(tail_size);
-    if (tail_size) {fread(tail.data(), 1, tail_size, file);}
-    fseek(file, offset, SEEK_SET);
-    fwrite(data.data(), 1, data.size(), file);
-    if (tail_size) {fwrite(tail.data(), 1, tail_size, file);}
+   fwrite(data.data(), 1, data.size(), file);
+  }
+  else {
+   constexpr u32 buffer_size = 4 * 1024;
+   vector<octo> buffer(buffer_size);
+   u32 tail = file_size - offset;
+   while (tail) {
+    u32 chunk = min(buffer_size, tail);
+    u32 read_at = offset + tail - chunk;
+    u32 write_at = read_at + cast(u32, data.size());
+    fseek(file, read_at, SEEK_SET);
+    fread(buffer.data(), 1, chunk, file);
+    fseek(file, write_at, SEEK_SET);
+    fwrite(buffer.data(), 1, chunk, file);
+    tail -= chunk;
+   }
+   fseek(file, offset, SEEK_SET);
+   fwrite(data.data(), 1, data.size(), file);
   }
   fclose(file);
   return 0;
@@ -359,6 +369,7 @@ namespace filesystem {
    s32 buffer_size = active::logic->code_fpu[address_source - 1].i();
    u32 byte_capacity = (buffer_size - is_string) * sizeof(fpu);
    u32 byte_count = min(length, byte_capacity);
+   if (is_string) {byte_count = min(byte_count, cast(u32, active::logic->code_fpu[address_source].i()));}
    vector<octo> data(byte_count);
    memcpy(data.data(), &active::logic->code_fpu[address_source + is_string], byte_count);
    u8 result = filesystem::write(string_path, offset, data, is_replace);
