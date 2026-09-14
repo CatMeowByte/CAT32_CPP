@@ -342,7 +342,7 @@ namespace filesystem {
    memcpy(&active::logic->code_fpu[address_destination], data.data(), bytes_to_copy);
   })
 
-  OPCODE(readline, {
+  OPCODE(read_line, {
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_destination = memory::pop().a();
@@ -447,7 +447,7 @@ namespace filesystem {
 
  MODULE(
   module::add("filesystem", "read", wrap::read, 4);
-  module::add("filesystem", "readline", wrap::readline, 3);
+  module::add("filesystem", "read_line", wrap::read_line, 3);
   module::add("filesystem", "write", wrap::write, 6, {0, 0});
   module::add("filesystem", "delete", wrap::delete_byte, 3);
   module::add("filesystem", "type", wrap::type, 1);

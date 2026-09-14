@@ -142,6 +142,13 @@ namespace string_ops {
    utility::string_put(destination, result);
    memory::push(destination);
   })
+
+  OPCODE(get_char, {
+   u32 index = memory::pop();
+   address_logic address = memory::pop().a();
+   u32 result = active::logic->code_octo[address + sizeof(fpu) + index];
+   memory::push(fpu::raw(result));
+  })
  }
 
  MODULE(
@@ -151,5 +158,6 @@ namespace string_ops {
   module::add("string", "from_n", wrap::from_n, 2);
   module::add("string", "add", wrap::add, 3);
   module::add("string", "sub", wrap::sub, 4);
+  module::add("string", "get_char", wrap::get_char, 2);
  )
 }
