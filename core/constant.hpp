@@ -7,6 +7,7 @@ namespace SYSTEM {
  constexpr str CODENAME = "CAT32";
  constexpr u8 PROCESS = 4;
  constexpr u32 MEMORY = 32768 + (PROCESS * (65536 + 32768)); // global + (process (logic + local)) = 416 KiB
+ constexpr u16 LOG = 1024;
 }
 
 namespace VIDEO {

@@ -92,9 +92,18 @@ namespace memory {
     bfpu(duty, frequency_next, AUDIO::CHANNEL) // 4 channel duties from 0.0 to 1.0
    )
    check(hardware_io, hardware_io::duty)
+
    ifpu(process_index, hardware_io_next) // current active process index
+
+   region(log, process_index_next, (sizeof(fpu) * 3) + SYSTEM::LOG, // log system
+    ifpu(head, log_address) // points to newest character (separator)
+    ifpu(neck, head_next) // points to the first character byte on newest line
+    ifpu(tail, neck_next) // points to the first character byte on oldest line
+    bocto(data, tail_next, SYSTEM::LOG) // circular buffer
+   )
+   check(log, log::data)
   )
-  check(global, global::process_index)
+  check(global, global::log::data)
 
   region(process, global_next, 98304 * SYSTEM::PROCESS, // process region
    region(p0, process_address, 98304, // process 0

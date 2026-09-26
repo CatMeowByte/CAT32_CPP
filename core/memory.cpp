@@ -1,4 +1,6 @@
 #include "core/memory.hpp"
+#include "core/module.hpp"
+#include "core/opcode.hpp"
 #include "core/interpreter.hpp"
 
 const u32 font_special[32] = {
@@ -70,6 +72,49 @@ namespace memory {
   using namespace hardware_io;
   for (u32 i = 0; i < 4; i++) {duty[i] = 0.5;}
  }
+
+ namespace wrap {
+  OPCODE(peek, {
+   u32 address = memory::pop().r();
+   memory::push(fpu::raw(memory::raw[address]));
+  })
+
+  OPCODE(poke, {
+   octo value = memory::pop().r();
+   u32 address = memory::pop().r();
+   memory::raw[address] = value;
+  })
+
+  OPCODE(set, {
+   u32 length = memory::pop().r();
+   octo value = memory::pop().r();
+   u32 address = memory::pop().r();
+   u32 address_safe = min(address, SYSTEM::MEMORY);
+   u32 length_safe = min(length, SYSTEM::MEMORY - address_safe);
+   for (u32 i = 0; i < length_safe; i++) {memory::raw[address_safe + i] = value;}
+  })
+
+  OPCODE(copy, {
+   u32 length = memory::pop().r();
+   u32 destination = memory::pop().r();
+   u32 source = memory::pop().r();
+   u32 source_safe = min(source, SYSTEM::MEMORY);
+   u32 destination_safe = min(destination, SYSTEM::MEMORY);
+   u32 length_safe = min({length, SYSTEM::MEMORY - source_safe, SYSTEM::MEMORY - destination_safe});
+   bool backward = source_safe < destination_safe;
+   for (u32 i = 0; i < length_safe; i++) {
+    u32 offset = backward ? (length_safe - 1 - i) : i;
+    memory::raw[destination_safe + offset] = memory::raw[source_safe + offset];
+   }
+  })
+ }
+
+ MODULE(
+  module::add("memory", "peek", wrap::peek, 1);
+  module::add("memory", "poke", wrap::poke, 2);
+  module::add("memory", "set", wrap::set, 3);
+  module::add("memory", "copy", wrap::copy, 3);
+ )
 }
 
 namespace active {
