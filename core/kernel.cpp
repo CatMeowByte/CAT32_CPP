@@ -168,7 +168,9 @@ namespace kernel {
   OPCODE(run, {
    u8 index = memory::pop().i();
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    kernel::run(string_path, index);
   })
  }

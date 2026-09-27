@@ -17,7 +17,7 @@ namespace video {
   memset(framebuffer, (color & 0xF) << 4 | (color & 0xF), framebuffer_size);
  }
 
- u8 pixel(s32 x, s32 y, s32 color = SENTINEL) {
+ u8 pixel(s32 x, s32 y, u8 color) {
   if (x < 0 || y < 0 || x >= VIDEO::WIDTH || y >= VIDEO::HEIGHT) {return 0;}
   u16 index = y * VIDEO::WIDTH + x;
   u16 byte_pos = index / 2;
@@ -26,7 +26,7 @@ namespace video {
   using namespace memory::vm::global;
   u8 byte_old = framebuffer[byte_pos];
   u8 color_old = (byte_old >> shift) & 0xF;
-  if (~color && palette[color & 0xF] & 0x80) {framebuffer[byte_pos] = (byte_old & ~(0xF << shift)) | ((color & 0xF) << shift);}
+  if (~color & 0xFF && palette[color & 0xF] & 0x80) {framebuffer[byte_pos] = (byte_old & ~(0xF << shift)) | ((color & 0xF) << shift);}
   return color_old;
  }
 
@@ -224,6 +224,7 @@ namespace video {
  namespace wrap {
   OPCODE(clear, {
    u8 color = memory::pop();
+
    video::clear(color);
   })
 
@@ -231,6 +232,7 @@ namespace video {
    u8 color = memory::pop();
    s32 y = memory::pop();
    s32 x = memory::pop();
+
    u8 color_old = video::pixel(x, y, color);
    memory::push(color_old);
   })
@@ -241,6 +243,7 @@ namespace video {
    s32 bx = memory::pop();
    s32 ay = memory::pop();
    s32 ax = memory::pop();
+
    video::line(ax, ay, bx, by, color);
   })
 
@@ -251,6 +254,7 @@ namespace video {
    s32 width = memory::pop();
    s32 y = memory::pop();
    s32 x = memory::pop();
+
    video::rect(x, y, width, height, color, fill);
   })
 
@@ -260,6 +264,7 @@ namespace video {
    s32 radius = memory::pop();
    s32 y = memory::pop();
    s32 x = memory::pop();
+
    video::circle(x, y, radius, color, fill);
   })
 
@@ -273,6 +278,7 @@ namespace video {
    s32 src_w = memory::pop();
    s32 src_y = memory::pop();
    s32 src_x = memory::pop();
+
    video::blit(src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w, dst_h, rotation);
   })
 
@@ -282,12 +288,14 @@ namespace video {
    address_logic address = memory::pop().a();
    s32 y = memory::pop();
    s32 x = memory::pop();
+
    video::text(x, y, utility::string_pick(address), color, background);
   })
 
   OPCODE(color, {
    u8 target = memory::pop();
    u8 index = memory::pop();
+
    using namespace memory::vm::global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x80) | (cast(u8, target) & 0xF);
   })
@@ -295,6 +303,7 @@ namespace video {
   OPCODE(alpha, {
    bool toggle = memory::pop();
    u8 index = memory::pop();
+
    using namespace memory::vm::global;
    palette[index & 0xF] = (palette[index & 0xF] & 0x7F) | (toggle ? 0x80 : 0);
   })

@@ -17,6 +17,7 @@ namespace audio {
    float duty = memory::pop();
    float key = memory::pop();
    u8 channel = memory::pop();
+
    audio::tone(channel, key, duty);
   })
  }

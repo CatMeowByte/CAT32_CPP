@@ -33,8 +33,10 @@ namespace button {
 
  namespace wrap {
   OPCODE(button, {
-   fpu index = memory::pop();
-   memory::push(keymap[cast(u8, index) % KEY_COUNT].memory);
+   u8 index = memory::pop();
+
+   fpu state = keymap[cast(u8, index) % KEY_COUNT].memory;
+   memory::push(state);
   })
  }
 

@@ -195,7 +195,7 @@ namespace utility {
    hex_out << literal_value.r();
    string hex_string = hex_out.str();
 
-   int dot_position = fpu::WIDTH / 4;
+   u8 dot_position = fpu::WIDTH / 4;
    string fixed_hex = hex_string.substr(0, 8 - dot_position) + "." + hex_string.substr(8 - dot_position);
 
    // format float
@@ -215,12 +215,14 @@ namespace utility {
   OPCODE(atan2, {
    s32 y = memory::pop().r();
    s32 x = memory::pop().r();
+
    memory::push(fpu::raw(math_cordic(x, y).first));
   })
 
   OPCODE(hypot, {
    s32 y = memory::pop().r();
    s32 x = memory::pop().r();
+
    memory::push(fpu::raw(math_cordic(x, y).second));
   })
  }

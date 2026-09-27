@@ -57,13 +57,17 @@ namespace log_ops {
  namespace wrap {
   OPCODE(out, {
    address_logic address_text = memory::pop().a();
+
    string string_text = utility::string_pick(address_text);
+
    log_ops::out(string_text);
   })
 
   OPCODE(output, {
    address_logic address_text = memory::pop().a();
+
    string string_text = utility::string_pick(address_text);
+
    log_ops::output(string_text);
   })
  }

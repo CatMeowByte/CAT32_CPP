@@ -33,25 +33,24 @@ namespace string_ops {
    bool digit_b = (char_b >= '0' && char_b <= '9');
 
    if (digit_a && digit_b) {
-    s32 num_a = 0;
-    s32 num_b = 0;
+    while (pos_a < text_a.length() && text_a[pos_a] == '0') {pos_a++;}
+    while (pos_b < text_b.length() && text_b[pos_b] == '0') {pos_b++;}
 
-    while (pos_a < text_a.length()) {
-     u8 c = text_a[pos_a];
-     if (c < '0' || c > '9') {break;}
-     num_a = num_a * 10 + (c - '0');
-     pos_a++;
+    s8 digit_result = 0;
+    while (pos_a < text_a.length() || pos_b < text_b.length()) {
+     bool digit_continue_a = pos_a < text_a.length() && text_a[pos_a] >= '0' && text_a[pos_a] <= '9';
+     bool digit_continue_b = pos_b < text_b.length() && text_b[pos_b] >= '0' && text_b[pos_b] <= '9';
+     if (digit_continue_a && digit_continue_b) {
+      if (!digit_result && text_a[pos_a] != text_b[pos_b]) {digit_result = (text_a[pos_a] < text_b[pos_b]) ? -1 : 1;}
+      pos_a++;
+      pos_b++;
+     }
+     else if (digit_continue_a) {return 1;}
+     else if (digit_continue_b) {return -1;}
+     else {break;}
     }
 
-    while (pos_b < text_b.length()) {
-     u8 c = text_b[pos_b];
-     if (c < '0' || c > '9') {break;}
-     num_b = num_b * 10 + (c - '0');
-     pos_b++;
-    }
-
-    if (num_a < num_b) {return -1;}
-    if (num_a > num_b) {return 1;}
+    if (digit_result) {return digit_result;}
    }
    else {
     if (char_a < char_b) {return -1;}
@@ -93,22 +92,30 @@ namespace string_ops {
   OPCODE(differ, {
    address_logic address_b = memory::pop().a();
    address_logic address_a = memory::pop().a();
+
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
-   memory::push(string_ops::differ(text_a, text_b));
+
+   s8 result = string_ops::differ(text_a, text_b);
+   memory::push(result);
   })
 
   OPCODE(order, {
    address_logic address_b = memory::pop().a();
    address_logic address_a = memory::pop().a();
+
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
-   memory::push(string_ops::order(text_a, text_b));
+
+   s8 result = string_ops::order(text_a, text_b);
+   memory::push(result);
   })
 
   OPCODE(to_n, {
    address_logic address = memory::pop().a();
+
    string string_text = utility::string_pick(address);
+
    double result = string_ops::to_n(string_text);
    memory::push(result);
   })
@@ -116,6 +123,7 @@ namespace string_ops {
   OPCODE(from_n, {
    double number = memory::pop();
    address_logic destination = memory::pop().a();
+
    string number_text = utility::string_no_trailing(number);
    utility::string_put(destination, number_text);
    memory::push(destination);
@@ -125,19 +133,23 @@ namespace string_ops {
    address_logic address_b = memory::pop().a();
    address_logic address_a = memory::pop().a();
    address_logic destination = memory::pop().a();
+
    string text_a = utility::string_pick(address_a);
    string text_b = utility::string_pick(address_b);
+
    string result = text_a + text_b;
    utility::string_put(destination, result);
    memory::push(destination);
   })
 
   OPCODE(sub, {
-   s32 length = memory::pop();
-   s32 start = memory::pop();
+   u32 length = memory::pop();
+   u32 start = memory::pop();
    address_logic source = memory::pop().a();
    address_logic destination = memory::pop().a();
+
    string text = utility::string_pick(source);
+
    string result = text.substr(start, length);
    utility::string_put(destination, result);
    memory::push(destination);
@@ -146,7 +158,8 @@ namespace string_ops {
   OPCODE(get_char, {
    u32 index = memory::pop();
    address_logic address = memory::pop().a();
-   u32 result = active::logic->code_octo[address + sizeof(fpu) + index];
+
+   u8 result = active::logic->code_octo[address + sizeof(fpu) + index];
    memory::push(fpu::raw(result));
   })
  }

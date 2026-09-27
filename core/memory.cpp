@@ -76,16 +76,20 @@ namespace memory {
  namespace wrap {
   OPCODE(peek, {
    u32 address = memory::pop().r();
+
    u32 address_safe = min(address, SYSTEM::MEMORY);
    u32 value = memory::unaligned_32_read(&memory::raw[address_safe]);
+
    u8 overflow = sizeof(fpu) - min(cast(u32, sizeof(fpu)), SYSTEM::MEMORY - address_safe);
    if (overflow) {for (u8 i = 0; i < overflow; i++) {value = value & ~(0xFF << (8 * (sizeof(fpu) - overflow + i)));}}
+
    memory::push(fpu::raw(value));
   })
 
   OPCODE(poke, {
    octo value = memory::pop().r();
    u32 address = memory::pop().r();
+
    u32 address_safe = min(address, SYSTEM::MEMORY - 1);
    memory::raw[address_safe] = value;
   })
@@ -93,8 +97,10 @@ namespace memory {
   OPCODE(poke4, {
    u32 value = memory::pop().r();
    u32 address = memory::pop().r();
+
    u32 address_safe = min(address, SYSTEM::MEMORY);
    u32 valid_byte = SYSTEM::MEMORY - address_safe;
+
    if (valid_byte >= sizeof(fpu)) {memory::unaligned_32_write(&memory::raw[address_safe], value);}
    else {for (u8 i = 0; i < valid_byte; i++) {memory::raw[address_safe + i] = (value >> (8 * i)) & 0xFF;}}
   })
@@ -103,8 +109,10 @@ namespace memory {
    u32 length = memory::pop().r();
    octo value = memory::pop().r();
    u32 address = memory::pop().r();
+
    u32 address_safe = min(address, SYSTEM::MEMORY);
    u32 length_safe = min(length, SYSTEM::MEMORY - address_safe);
+
    for (u32 i = 0; i < length_safe; i++) {memory::raw[address_safe + i] = value;}
   })
 
@@ -112,10 +120,12 @@ namespace memory {
    u32 length = memory::pop().r();
    address_logic data = memory::pop().a();
    u32 destination = memory::pop().r();
+
    s16 data_size = active::logic->code_fpu[data - 1].i();
    u32 byte_capacity = data_size * sizeof(fpu);
    u32 destination_safe = min(destination, SYSTEM::MEMORY);
    u32 length_safe = min({length, byte_capacity, SYSTEM::MEMORY - destination_safe});
+
    memmove(&memory::raw[destination_safe], &active::logic->code_fpu[data], length_safe); // has builtin overlap direction logic
   })
 
@@ -123,9 +133,11 @@ namespace memory {
    u32 length = memory::pop().r();
    u32 destination = memory::pop().r();
    u32 source = memory::pop().r();
+
    u32 source_safe = min(source, SYSTEM::MEMORY);
    u32 destination_safe = min(destination, SYSTEM::MEMORY);
    u32 length_safe = min({length, SYSTEM::MEMORY - source_safe, SYSTEM::MEMORY - destination_safe});
+
    memmove(&memory::raw[destination_safe], &memory::raw[source_safe], length_safe); // has builtin overlap direction logic
   })
  }

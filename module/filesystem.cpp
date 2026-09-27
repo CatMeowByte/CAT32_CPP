@@ -334,11 +334,15 @@ namespace filesystem {
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_destination = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    vector<octo> data = filesystem::read(string_path, offset, length);
-   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
+
+   s16 buffer_size = active::logic->code_fpu[address_destination - 1].i();
    u32 byte_capacity = buffer_size * sizeof(fpu);
    u32 bytes_to_copy = min(cast(u32, data.size()), byte_capacity);
+
    memcpy(&active::logic->code_fpu[address_destination], data.data(), bytes_to_copy);
   })
 
@@ -346,16 +350,23 @@ namespace filesystem {
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_destination = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
-   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
+
+   s16 buffer_size = active::logic->code_fpu[address_destination - 1].i();
    u32 byte_capacity = (buffer_size - 1) * sizeof(fpu);
+
    vector<octo> data = filesystem::read(string_path, offset, byte_capacity);
+
    u32 data_size = cast(u32, data.size());
    u32 line_length = 0;
    while (line_length < data_size && data[line_length] != '\n') {line_length = line_length + 1;}
+
    memcpy(&active::logic->code_fpu[address_destination + 1], data.data(), data_size);
    active::logic->code_fpu[address_destination] = fpu(line_length);
-   memory::push(fpu::raw(offset + line_length + (line_length < data_size)));
+
+   u32 offset_next = offset + line_length + (line_length < data_size);
+   memory::push(fpu::raw(offset_next));
   })
 
   OPCODE(write, {
@@ -365,13 +376,17 @@ namespace filesystem {
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
    address_logic address_source = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
-   s32 buffer_size = active::logic->code_fpu[address_source - 1].i();
+
+   s16 buffer_size = active::logic->code_fpu[address_source - 1].i();
    u32 byte_capacity = (buffer_size - is_string) * sizeof(fpu);
    u32 byte_count = min(length, byte_capacity);
    if (is_string) {byte_count = min(byte_count, cast(u32, active::logic->code_fpu[address_source].i()));}
+
    vector<octo> data(byte_count);
    memcpy(data.data(), &active::logic->code_fpu[address_source + is_string], byte_count);
+
    u8 result = filesystem::write(string_path, offset, data, is_replace);
    memory::push(result);
   })
@@ -380,7 +395,9 @@ namespace filesystem {
    u32 length = memory::pop().r();
    u32 offset = memory::pop().r();
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u8 result = filesystem::delete_byte(string_path, offset, length);
    memory::push(result);
   })
@@ -389,21 +406,27 @@ namespace filesystem {
 
   OPCODE(type, {
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u8 result = filesystem::type(string_path);
    memory::push(result);
   })
 
   OPCODE(size, {
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u32 result = filesystem::size(string_path);
    memory::push(fpu::raw(result));
   })
 
   OPCODE(create, {
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u8 result = filesystem::create(string_path);
    memory::push(result);
   })
@@ -412,22 +435,28 @@ namespace filesystem {
    bool duplicate = memory::pop();
    address_logic address_destination = memory::pop().a();
    address_logic address_source = memory::pop().a();
+
    string string_source = utility::string_pick(address_source);
    string string_destination = utility::string_pick(address_destination);
+
    u8 result = filesystem::move(string_source, string_destination, duplicate);
    memory::push(result);
   })
 
   OPCODE(remove, {
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u8 result = filesystem::remove(string_path);
    memory::push(result);
   })
 
   OPCODE(list_count, {
    address_logic address_path = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    u32 count = filesystem::list_count(string_path);
    memory::push(count);
   })
@@ -436,12 +465,11 @@ namespace filesystem {
    u32 index = memory::pop();
    address_logic address_path = memory::pop().a();
    address_logic address_destination = memory::pop().a();
+
    string string_path = utility::string_pick(address_path);
+
    string result = filesystem::list_index(string_path, index);
-   vector<fpu> packed_pascal = utility::string_to_pascal(result);
-   s32 buffer_size = active::logic->code_fpu[address_destination - 1].i();
-   u32 limit = min(cast(u32, packed_pascal.size()), cast(u32, buffer_size));
-   for (u32 i = 0; i < limit; i++) {active::logic->code_fpu[address_destination + i] = packed_pascal[i];}
+   utility::string_put(address_destination, result);
   })
  }
 
