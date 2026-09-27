@@ -76,13 +76,27 @@ namespace memory {
  namespace wrap {
   OPCODE(peek, {
    u32 address = memory::pop().r();
-   memory::push(fpu::raw(memory::raw[address]));
+   u32 address_safe = min(address, SYSTEM::MEMORY);
+   u32 value = memory::unaligned_32_read(&memory::raw[address_safe]);
+   u8 overflow = sizeof(fpu) - min(cast(u32, sizeof(fpu)), SYSTEM::MEMORY - address_safe);
+   if (overflow) {for (u8 i = 0; i < overflow; i++) {value = value & ~(0xFF << (8 * (sizeof(fpu) - overflow + i)));}}
+   memory::push(fpu::raw(value));
   })
 
   OPCODE(poke, {
    octo value = memory::pop().r();
    u32 address = memory::pop().r();
-   memory::raw[address] = value;
+   u32 address_safe = min(address, SYSTEM::MEMORY - 1);
+   memory::raw[address_safe] = value;
+  })
+
+  OPCODE(poke4, {
+   u32 value = memory::pop().r();
+   u32 address = memory::pop().r();
+   u32 address_safe = min(address, SYSTEM::MEMORY);
+   u32 valid_byte = SYSTEM::MEMORY - address_safe;
+   if (valid_byte >= sizeof(fpu)) {memory::unaligned_32_write(&memory::raw[address_safe], value);}
+   else {for (u8 i = 0; i < valid_byte; i++) {memory::raw[address_safe + i] = (value >> (8 * i)) & 0xFF;}}
   })
 
   OPCODE(set, {
@@ -94,6 +108,17 @@ namespace memory {
    for (u32 i = 0; i < length_safe; i++) {memory::raw[address_safe + i] = value;}
   })
 
+  OPCODE(write, {
+   u32 length = memory::pop().r();
+   address_logic data = memory::pop().a();
+   u32 destination = memory::pop().r();
+   s16 data_size = active::logic->code_fpu[data - 1].i();
+   u32 byte_capacity = data_size * sizeof(fpu);
+   u32 destination_safe = min(destination, SYSTEM::MEMORY);
+   u32 length_safe = min({length, byte_capacity, SYSTEM::MEMORY - destination_safe});
+   memmove(&memory::raw[destination_safe], &active::logic->code_fpu[data], length_safe); // has builtin overlap direction logic
+  })
+
   OPCODE(copy, {
    u32 length = memory::pop().r();
    u32 destination = memory::pop().r();
@@ -101,18 +126,16 @@ namespace memory {
    u32 source_safe = min(source, SYSTEM::MEMORY);
    u32 destination_safe = min(destination, SYSTEM::MEMORY);
    u32 length_safe = min({length, SYSTEM::MEMORY - source_safe, SYSTEM::MEMORY - destination_safe});
-   bool backward = source_safe < destination_safe;
-   for (u32 i = 0; i < length_safe; i++) {
-    u32 offset = backward ? (length_safe - 1 - i) : i;
-    memory::raw[destination_safe + offset] = memory::raw[source_safe + offset];
-   }
+   memmove(&memory::raw[destination_safe], &memory::raw[source_safe], length_safe); // has builtin overlap direction logic
   })
  }
 
  MODULE(
   module::add("memory", "peek", wrap::peek, 1);
   module::add("memory", "poke", wrap::poke, 2);
+  module::add("memory", "poke4", wrap::poke4, 2);
   module::add("memory", "set", wrap::set, 3);
+  module::add("memory", "write", wrap::write, 3);
   module::add("memory", "copy", wrap::copy, 3);
  )
 }
