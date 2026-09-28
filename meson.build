@@ -27,6 +27,7 @@ sources = [
 'module/button.cpp',
 'module/filesystem.cpp',
 'module/log.cpp',
+'module/math.cpp',
 'module/string.cpp',
 'module/video.cpp',
 ]
