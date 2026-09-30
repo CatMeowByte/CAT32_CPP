@@ -90,8 +90,7 @@ namespace memory {
    octo value = memory::pop().r();
    u32 address = memory::pop().r();
 
-   u32 address_safe = min(address, SYSTEM::MEMORY - 1);
-   memory::raw[address_safe] = value;
+   if (address < SYSTEM::MEMORY) {memory::raw[address] = value;}
   })
 
   OPCODE(poke4, {
@@ -113,7 +112,7 @@ namespace memory {
    u32 address_safe = min(address, SYSTEM::MEMORY);
    u32 length_safe = min(length, SYSTEM::MEMORY - address_safe);
 
-   for (u32 i = 0; i < length_safe; i++) {memory::raw[address_safe + i] = value;}
+   memset(&memory::raw[address_safe], value, length_safe);
   })
 
   OPCODE(write, {
