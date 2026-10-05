@@ -1,7 +1,7 @@
-#include "core/constant.hpp"
 #include "core/module.hpp"
 #include "core/memory.hpp"
 #include "core/opcode.hpp"
+#include "core/tool.hpp"
 
 namespace opcode {
  static const hash_map<string, u8> opcode_table = {
@@ -56,9 +56,13 @@ namespace op_call {
  OPCODE_ADDRESS(stampto, {
   slot_logic source = memory::pop().i();
   slot_logic destination = operand;
-  u16 length = active::logic->code_fpu[source].i() + 1;
-  u16 capacity = active::logic->code_fpu[destination - 1].i();
-  memcpy(active::logic->code_fpu + destination, active::logic->code_fpu + source, min(length, capacity) * sizeof(fpu));
+
+  u16 length = tool::stripe::get_len(source);
+  u16 capacity = tool::stripe::get_cap(destination);
+  u16 length_safe = min(cast(size_t, length), capacity * sizeof(fpu));
+
+  memcpy(active::logic->code_fpu + destination, active::logic->code_fpu + source, length_safe);
+  tool::stripe::set_len(destination, length_safe);
  })
 
  OPCODE(get, {

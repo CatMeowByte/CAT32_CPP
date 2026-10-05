@@ -7,8 +7,7 @@ namespace filesystem {
 
  // content
  vector<octo> read(const string& path, u32 offset, u32 length);
- u8 overwrite(const string& path, u32 offset, const vector<octo>& data);
- u8 insert(const string& path, u32 offset, const vector<octo>& data);
+ u8 write(const string& path, u32 offset, const vector<octo>& data, bool is_replace);
  u8 delete_byte(const string& path, u32 offset, u32 length);
 
  // structure

@@ -1,7 +1,6 @@
-#include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include "core/opcode.hpp"
-#include "core/utility.hpp"
+#include "core/tool.hpp"
 
 namespace interpreter {
  static vector<vector<string>> breakdown(const string& line) {
@@ -124,12 +123,12 @@ namespace interpreter {
     string& token = tokens[i][j];
 
     // hex/bin to decimal
-    if (utility::is_hex(token)) {token = to_string(utility::hex_to_number(token));}
-    if (utility::is_bin(token)) {token = to_string(utility::bin_to_number(token));}
+    if (tool::text::is_hex(token)) {token = to_string(tool::convert::hex_to_number(token));}
+    if (tool::text::is_bin(token)) {token = to_string(tool::convert::bin_to_number(token));}
 
     // constant
     if (symbol::exist(token) && symbol::get(token).type == symbol::Type::Constant) {
-     token = utility::string_no_trailing(symbol::get(token).constant.value);
+     token = tool::text::remove_trailing(symbol::get(token).constant.value);
     }
 
     // default quote to string quote
@@ -162,7 +161,7 @@ namespace interpreter {
    bool has_rawint = (i + 1 < tokens.size() && tokens[i + 1] == "$");
 
    if (unary_start != output.size() || has_rawint) {
-    if (utility::is_number(token)) {
+    if (tool::text::is_number(token)) {
      // scale to preserve fractional bits
      s64 rawbits = cast(s64, stod(token) * (1 << fpu::WIDTH));
 
@@ -204,8 +203,8 @@ namespace interpreter {
  static void fold(vector<string>& output, vector<string>& stash, const string& incoming_token = "", const string& stop_at = "") {
   while (
    output.size() >= 2
-   && utility::is_number(output[output.size() - 1])
-   && utility::is_number(output[output.size() - 2])
+   && tool::text::is_number(output[output.size() - 1])
+   && tool::text::is_number(output[output.size() - 2])
    && !stash.empty()
    && (stop_at.empty() || stash.back() != stop_at)
    && (incoming_token.empty() || (metic::precedences.count(stash.back()) && metic::precedences.at(stash.back()) >= metic::precedences.at(incoming_token)))
@@ -240,7 +239,7 @@ namespace interpreter {
    }
    #undef OP
 
-   output.push_back(utility::string_no_trailing(result));
+   output.push_back(tool::text::remove_trailing(result));
   }
  }
 
@@ -266,7 +265,7 @@ namespace interpreter {
    }
 
    // callable
-   if (utility::is_identifier(token) && i + 1 < tokens.size() && tokens[i + 1] == "(") {
+   if (tool::text::is_identifier(token) && i + 1 < tokens.size() && tokens[i + 1] == "(") {
     stash.push_back(token);
     continue;
    }
@@ -285,8 +284,8 @@ namespace interpreter {
       || (metic::precedences.at(stash.back()) == metic::precedences.at(token)
        && (output.empty()
         || i + 1 >= tokens.size()
-        || !utility::is_number(output.back())
-        || !utility::is_number(tokens[i + 1])
+        || !tool::text::is_number(output.back())
+        || !tool::text::is_number(tokens[i + 1])
        )
       )
      )
@@ -299,7 +298,7 @@ namespace interpreter {
 
    else if (token == "(" || token == "[") {
     stash.push_back(token);
-    if (token == "(" && i > 0 && utility::is_identifier(tokens[i-1])) {paren_args_count.push_back(0);}
+    if (token == "(" && i > 0 && tool::text::is_identifier(tokens[i-1])) {paren_args_count.push_back(0);}
    }
 
    else if (token == ")" || token == "]") {
@@ -318,7 +317,7 @@ namespace interpreter {
 
     // tag callable token with the amount of provided argument
     if (token == ")" && !stash.empty()) {
-     if (utility::is_identifier(stash.back())) {
+     if (tool::text::is_identifier(stash.back())) {
       if (!paren_args_count.empty()) {
        output.push_back(stash.back() + tag::callable_args + to_string(cast(u32, paren_args_count.back())));
        paren_args_count.pop_back();

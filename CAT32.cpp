@@ -1,4 +1,3 @@
-#include "core/constant.hpp"
 #include "core/kernel.hpp"
 #include "core/memory.hpp"
 #include "module/button.hpp"

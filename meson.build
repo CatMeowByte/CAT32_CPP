@@ -17,7 +17,7 @@ sources = [
 'core/kernel.cpp',
 'core/module.cpp',
 'core/opcode.cpp',
-'core/utility.cpp',
+'core/tool.cpp',
 
 # library
 'library/sdl.cpp',
@@ -28,7 +28,7 @@ sources = [
 'module/filesystem.cpp',
 'module/log.cpp',
 'module/math.cpp',
-'module/string.cpp',
+'module/stripe.cpp',
 'module/video.cpp',
 ]
 

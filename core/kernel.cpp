@@ -1,10 +1,9 @@
-#include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include "core/kernel.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "core/utility.hpp"
+#include "core/tool.hpp"
 #include "module/filesystem.hpp"
 
 namespace kernel {
@@ -167,9 +166,9 @@ namespace kernel {
  namespace wrap {
   OPCODE(run, {
    u8 index = memory::pop().i();
-   address_logic address_path = memory::pop().a();
+   slot_logic slot_path = memory::pop().a();
 
-   string string_path = utility::string_pick(address_path);
+   string string_path = tool::text::pick(slot_path);
 
    kernel::run(string_path, index);
   })

@@ -1,11 +1,10 @@
-#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "core/utility.hpp"
-#include "module/string.hpp"
+#include "core/tool.hpp"
+#include "module/stripe.hpp"
 
-namespace string_ops {
+namespace stripe_ops {
  s32 differ(const string& text_a, const string& text_b) {
   u32 min_len = (text_a.length() < text_b.length()) ? text_a.length() : text_b.length();
 
@@ -90,87 +89,113 @@ namespace string_ops {
 
  namespace wrap {
   OPCODE(differ, {
-   address_logic address_b = memory::pop().a();
-   address_logic address_a = memory::pop().a();
+   slot_logic slot_b = memory::pop().a();
+   slot_logic slot_a = memory::pop().a();
 
-   string text_a = utility::string_pick(address_a);
-   string text_b = utility::string_pick(address_b);
+   string text_a = tool::text::pick(slot_a);
+   string text_b = tool::text::pick(slot_b);
 
-   s8 result = string_ops::differ(text_a, text_b);
+   s8 result = stripe_ops::differ(text_a, text_b);
    memory::push(result);
   })
 
   OPCODE(order, {
-   address_logic address_b = memory::pop().a();
-   address_logic address_a = memory::pop().a();
+   slot_logic slot_b = memory::pop().a();
+   slot_logic slot_a = memory::pop().a();
 
-   string text_a = utility::string_pick(address_a);
-   string text_b = utility::string_pick(address_b);
+   string text_a = tool::text::pick(slot_a);
+   string text_b = tool::text::pick(slot_b);
 
-   s8 result = string_ops::order(text_a, text_b);
+   s8 result = stripe_ops::order(text_a, text_b);
    memory::push(result);
   })
 
   OPCODE(to_n, {
-   address_logic address = memory::pop().a();
+   slot_logic slot_text = memory::pop().a();
 
-   string string_text = utility::string_pick(address);
+   string string_text = tool::text::pick(slot_text);
 
-   double result = string_ops::to_n(string_text);
+   double result = stripe_ops::to_n(string_text);
    memory::push(result);
   })
 
   OPCODE(from_n, {
    double number = memory::pop();
-   address_logic destination = memory::pop().a();
+   slot_logic slot_destination = memory::pop().a();
 
-   string number_text = utility::string_no_trailing(number);
-   utility::string_put(destination, number_text);
-   memory::push(destination);
+   string number_text = tool::text::remove_trailing(number);
+   tool::text::put(slot_destination, number_text);
+   memory::push(slot_destination);
   })
 
   OPCODE(add, {
-   address_logic address_b = memory::pop().a();
-   address_logic address_a = memory::pop().a();
-   address_logic destination = memory::pop().a();
+   slot_logic slot_b = memory::pop().a();
+   slot_logic slot_a = memory::pop().a();
+   slot_logic slot_destination = memory::pop().a();
 
-   string text_a = utility::string_pick(address_a);
-   string text_b = utility::string_pick(address_b);
+   string text_a = tool::text::pick(slot_a);
+   string text_b = tool::text::pick(slot_b);
 
    string result = text_a + text_b;
-   utility::string_put(destination, result);
-   memory::push(destination);
+   tool::text::put(slot_destination, result);
+   memory::push(slot_destination);
   })
 
   OPCODE(sub, {
    u32 length = memory::pop();
    u32 start = memory::pop();
-   address_logic source = memory::pop().a();
-   address_logic destination = memory::pop().a();
+   slot_logic slot_source = memory::pop().a();
+   slot_logic slot_destination = memory::pop().a();
 
-   string text = utility::string_pick(source);
+   string text = tool::text::pick(slot_source);
 
    string result = text.substr(start, length);
-   utility::string_put(destination, result);
-   memory::push(destination);
+   tool::text::put(slot_destination, result);
+   memory::push(slot_destination);
   })
 
   OPCODE(get_char, {
    u32 index = memory::pop();
-   address_logic address = memory::pop().a();
+   slot_logic slot_text = memory::pop().a();
 
-   u8 result = active::logic->code_octo[address + sizeof(fpu) + index];
+   u8 result = active::logic->code_octo[slot_text * sizeof(fpu) + index];
    memory::push(fpu::raw(result));
+  })
+
+  OPCODE(len, {
+   s16 length = memory::pop().i();
+   slot_logic slot_text = memory::pop().a();
+
+   u16 length_old = tool::stripe::get_len(slot_text);
+   if (length != SENTINEL) {tool::stripe::set_len(slot_text, length);}
+   memory::push(fpu(length_old));
+  })
+
+  OPCODE(cap, {
+   slot_logic slot_text = memory::pop().a();
+
+   u16 capacity = tool::stripe::get_cap(slot_text);
+   memory::push(fpu(capacity));
+  })
+
+  OPCODE(count, {
+   slot_logic slot_text = memory::pop().a();
+
+   u16 count = tool::stripe::get_len(slot_text) / sizeof(fpu);
+   memory::push(fpu(count));
   })
  }
 
  MODULE(
-  module::add("string", "differ", wrap::differ, 2);
-  module::add("string", "order", wrap::order, 2);
-  module::add("string", "to_n", wrap::to_n, 1);
-  module::add("string", "from_n", wrap::from_n, 2);
-  module::add("string", "add", wrap::add, 3);
-  module::add("string", "sub", wrap::sub, 4);
-  module::add("string", "get_char", wrap::get_char, 2);
+  module::add("str", "differ", wrap::differ, 2);
+  module::add("str", "order", wrap::order, 2);
+  module::add("str", "to_n", wrap::to_n, 1);
+  module::add("str", "from_n", wrap::from_n, 2);
+  module::add("str", "add", wrap::add, 3);
+  module::add("str", "sub", wrap::sub, 4);
+  module::add("str", "char", wrap::get_char, 2);
+  module::add("str", "len", wrap::len, 2, {SENTINEL});
+  module::add("str", "cap", wrap::cap, 1);
+  module::add("str", "count", wrap::count, 1);
  )
 }

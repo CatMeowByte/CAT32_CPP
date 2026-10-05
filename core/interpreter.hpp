@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/constant.hpp" // IWYU pragma: keep
-#include "core/opcode.hpp"
+#include "core/opcode.hpp" // IWYU pragma: keep
 
 namespace interpreter {
  static const hash_set<string> keywords_declaration = {"var", "con", "str", "func", "use"};
@@ -9,8 +9,8 @@ namespace interpreter {
 
  // token tagged with this symbol can only be generated internally
  namespace tag {
-  constexpr str offset = "+>"; // v[n]
-  constexpr str callable_args = "=#"; // foo(n)
+  constexpr str offset = "+>"; // var[n]
+  constexpr str callable_args = "=#"; // func(n)
  }
 
  vector<vector<string>> tokenize(const string& line);
@@ -28,6 +28,7 @@ namespace symbol {
   union {
    struct {slot_logic slot;} variable;
    struct {fpu value;} constant;
+   struct {slot_logic slot; u16 capacity;} stripe;
    struct {address_logic address; u8 args_count;} function;
   };
   vector<fpu> args_default;

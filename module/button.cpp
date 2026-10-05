@@ -1,8 +1,7 @@
-#include "core/constant.hpp"  // IWYU pragma: keep
-#include "core/memory.hpp"  // IWYU pragma: keep
+#include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "library/sdl.hpp"  // IWYU pragma: keep
+#include "library/sdl.hpp"
 #include "module/button.hpp"
 
 namespace button {

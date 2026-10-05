@@ -1,9 +1,7 @@
-#include "core/constant.hpp"
-#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "core/utility.hpp"
+#include "core/tool.hpp"
 #include "module/video.hpp"
 
 namespace FONT {
@@ -285,11 +283,11 @@ namespace video {
   OPCODE(text, {
    u8 background = memory::pop();
    u8 color = memory::pop();
-   address_logic address = memory::pop().a();
+   slot_logic slot_text = memory::pop().a();
    s32 y = memory::pop();
    s32 x = memory::pop();
 
-   video::text(x, y, utility::string_pick(address), color, background);
+   video::text(x, y, tool::text::pick(slot_text), color, background);
   })
 
   OPCODE(color, {

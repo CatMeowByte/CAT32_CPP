@@ -1,10 +1,8 @@
-#include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include "core/kernel.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
-#include "core/opcode.hpp"
-#include "core/utility.hpp"
+#include "core/tool.hpp"
 
 namespace symbol {
  vector<Data> table;
@@ -38,12 +36,12 @@ namespace scope {
 
 namespace interpreter {
  static void debug_code(u8 size, s32 value) {
-  address_logic address_current = active::logic->writer.a() + 1;
+  const address_logic address_current = active::logic->writer.a() + 1;
 
   if (size == 1) {
-   octo opcode_byte = cast(octo, value);
-   string opcode_name = opcode::name(opcode_byte);
-   u8 padding = 8 - min(cast(u8, opcode_name.length()), cast(u8, 8));
+   const octo opcode_byte = value;
+   const string opcode_name = opcode::name(opcode_byte);
+   const u8 padding = 8 - min(cast(u8, opcode_name.length()), cast(u8, 8));
    cout << "[" << address_current << "] " << opcode_name;
 
    switch (opcode_byte) {
@@ -57,12 +55,12 @@ namespace interpreter {
    }
   }
   else {
-   octo opcode_previous = active::logic->code_octo[active::logic->writer.a()];
+   const octo opcode_previous = active::logic->code_octo[active::logic->writer.a()];
 
    cout << "[" << address_current << "] ";
 
    if (size == 2) {
-    u16 operand_address = cast(u16, value);
+    const u16 operand_address = value;
     cout << operand_address;
 
     if (opcode_previous == op::takefrom || opcode_previous == op::storeto) {
@@ -87,7 +85,7 @@ namespace interpreter {
    }
    else if (size == 4) {
     if (opcode_previous == op::push) {
-     cout << value << " (" << utility::string_no_trailing(fpu::raw(value)) << ")";
+     cout << value << " (" << tool::text::remove_trailing(fpu::raw(value)) << ")";
     }
     else if (opcode_previous == op::call) {
      cout << value << " (" << module::get_name(value) << ")";
@@ -115,8 +113,8 @@ namespace interpreter {
  }
 
  void compile(const vector<vector<string>>& line_tokens) {
-  u8 indent = stoi(line_tokens[0][0]);
-  vector<vector<string>> tokens(line_tokens.begin() + 1, line_tokens.end());
+  const u8 indent = stoi(line_tokens[0][0]);
+  const vector<vector<string>> tokens(line_tokens.begin() + 1, line_tokens.end());
 
   if (tokens.empty()) {return;}
 
@@ -158,7 +156,7 @@ namespace interpreter {
    if (!is_expression) {break;}
   }
 
-  bool is_return = tokens[0][0] == "return";
+  const bool is_return = tokens[0][0] == "return";
 
   // indent
   if (indent > scope::previous::indent) {
@@ -168,9 +166,9 @@ namespace interpreter {
     cout << ">>>>" << endl;
 
     if (scope::previous::type != scope::Type::Function) { // if, while, and else
-     const octo last_opcode = active::logic->code_octo[active::logic->writer.a() - 2];
+     const octo opcode_previous = active::logic->code_octo[active::logic->writer.a() - 2];
 
-     if (last_opcode != op::jump && last_opcode != op::jumz && last_opcode != op::junz) {
+     if (opcode_previous != op::jump && opcode_previous != op::jumz && opcode_previous != op::junz) {
       cout << "caution: last opcode before indent is not jump/jumz/junz" << endl;
      }
     }
@@ -283,7 +281,7 @@ namespace interpreter {
     if (tokens[i].size() != 1) {cout << "error: invalid spacename" << endl; return;}
 
     string space_name = tokens[i][0];
-    u16 space_hash = utility::hash(space_name.c_str()) & 0xFFFF;
+    u16 space_hash = tool::hash(space_name.c_str()) & 0xFFFF;
     scope::stack.back().space.push_back(space_hash);
     cout << "imported spacename \"" << space_name << "\" with hash " << space_hash << endl;
    }
@@ -442,7 +440,7 @@ namespace interpreter {
       const string& token = expression[i];
 
       // skip constant, must preceded by separator
-      if (utility::is_number(token)) {
+      if (tool::text::is_number(token)) {
        if (i - 1 < 0 || expression[i - 1] != ":") {
         cout << "error: constant without assignment in argument list" << endl;
         return;
@@ -452,7 +450,7 @@ namespace interpreter {
 
       // skip separator, must preceded by name
       if (token == ":") {
-       if (i - 1 < 0 || utility::is_number(expression[i - 1]) || expression[i - 1] == ":" || metic::operations.count(expression[i - 1])) {
+       if (i - 1 < 0 || tool::text::is_number(expression[i - 1]) || expression[i - 1] == ":" || metic::operations.count(expression[i - 1])) {
         cout << "error: assignment without name" << endl;
         return;
        }
@@ -466,7 +464,7 @@ namespace interpreter {
       if (i + 1 < cast(s32, expression.size()) && expression[i + 1] == ":") {
        // optional
        if (i + 2 >= cast(s32, expression.size())) {cout << "error: assignment without default value" << endl; return;}
-       if (!utility::is_number(expression[i + 2])) {cout << "error: default value must be constant expression" << endl; return;}
+       if (!tool::text::is_number(expression[i + 2])) {cout << "error: default value must be constant expression" << endl; return;}
        if (!last_required.empty()) {cout << "error: optional " << token << " after required " << last_required << " is not allowed" << endl; return;}
 
        fpu default_value = stod(expression[i + 2]);
@@ -507,7 +505,7 @@ namespace interpreter {
       function_name = name.substr(dot_pos + 1);
      }
 
-     u16 function_name_hash = utility::hash(function_name.c_str()) & 0xFFFF;
+     u16 function_name_hash = tool::hash(function_name.c_str()) & 0xFFFF;
      u32 module_hash = 0;
 
      // unqualified
@@ -522,7 +520,7 @@ namespace interpreter {
 
      // qualified or fallback
      if (!module_hash) {
-      module_hash = ((utility::hash(space_name.c_str()) & 0xFFFF) << 16) | function_name_hash;
+      module_hash = ((tool::hash(space_name.c_str()) & 0xFFFF) << 16) | function_name_hash;
       if (!module::exist(module_hash)) {module_hash = 0;}
      }
 
@@ -538,7 +536,7 @@ namespace interpreter {
       args_total = function_symbol.function.args_count;
       args_default = &function_symbol.args_default;
       emit_opcode = op::subgo;
-      emit_operand = cast(s32, function_symbol.function.address); // to fit variable
+      emit_operand = function_symbol.function.address; // to fit variable
      }
      // module second
      else if (module_hash) {
@@ -561,7 +559,7 @@ namespace interpreter {
 
      // emit opcode
      code_add(1, emit_opcode);
-     if (emit_opcode == op::subgo) {code_add(2, cast(u16, emit_operand));} else {code_add(4, emit_operand);}
+     if (emit_opcode == op::subgo) {code_add(2, emit_operand);} else {code_add(4, emit_operand);}
 
      // pop recursive argument
      if (recursive_index != -1) {
@@ -588,11 +586,10 @@ namespace interpreter {
 
      string content = token.substr(2, token.size() - 3); // strip prefix and quote
 
-     u32 id = cast(u32, prefix);
+     u32 id = prefix;
 
      vector<fpu> slot_data;
-     slot_data.reserve(1 + (content.size() + unit_per_pack - 1) / unit_per_pack); // does not affect size()
-     slot_data.push_back(0); // for length
+     slot_data.reserve((content.size() + unit_per_pack - 1) / unit_per_pack); // does not affect size()
 
      u32 unit_pushed = 0;
 
@@ -607,7 +604,7 @@ namespace interpreter {
        if (c == '\\' && i + 1 < content.size() && content[i + 1] == 'n') {i++; continue;}
       }
 
-      u32 slot_index = 1 + (unit_pushed / unit_per_pack); // skip index 0
+      u32 slot_index = unit_pushed / unit_per_pack;
 
       // append when full
       if (unit_pushed % unit_per_pack == 0) {slot_data.push_back(0);}
@@ -648,8 +645,8 @@ namespace interpreter {
       id *= 16777619;
      }
 
-     // fill index 0 with length count
-     slot_data[0] = unit_pushed;
+     // count length
+     u16 length = unit_pushed;
      if (data_type == DataType::Binary || data_type == DataType::Hexadecimal) {
       u8 unit_per_type = (data_type == DataType::Binary) ? 8 : 2;
       if (unit_pushed % unit_per_type != 0) {
@@ -657,7 +654,7 @@ namespace interpreter {
         << " which is " << unit_pushed / unit_per_type << " bytes with " << unit_pushed % unit_per_type << " remainder" << endl;
        return;
       }
-      slot_data[0] /= unit_per_type;
+      length /= unit_per_type;
      }
 
      string id_str = to_string(id);
@@ -665,27 +662,30 @@ namespace interpreter {
 
      if (symbol::exist(name)) {
       const symbol::Data& existing = symbol::get(name);
-      cout << "stripe already exist in " << existing.variable.slot << " with hash " << id_str << endl;
+      cout << "stripe already exist in " << existing.stripe.slot << " with hash " << id_str << endl;
       code_add(1, op::push);
-      code_add(4, fpu(existing.variable.slot).r());
+      code_add(4, fpu(existing.stripe.slot).r());
      }
      else {
       slot_logic slot_base = 0;
 
       // hidden declare
-      active::logic->slotter -= slot_data.size();
+      u16 size = slot_data.size();
+      active::logic->slotter -= size;
       slot_base = active::logic->slotter.i();
 
-      memcpy(active::logic->code_fpu + slot_base, slot_data.data(), slot_data.size() * sizeof(fpu));
+      memcpy(active::logic->code_fpu + slot_base, slot_data.data(), size * sizeof(fpu));
 
       symbol::Data stripe_symbol;
       stripe_symbol.type = symbol::Type::Stripe;
       stripe_symbol.name = name;
-      stripe_symbol.variable.slot = slot_base;
+      stripe_symbol.stripe.slot = slot_base;
+      stripe_symbol.stripe.capacity = size;
       symbol::table.push_back(stripe_symbol);
 
       --active::logic->slotter;
-      active::logic->code_fpu[active::logic->slotter.i()] = slot_data.size();
+      tool::stripe::set_len(slot_base, length);
+      tool::stripe::set_cap(slot_base, size);
 
       cout << "stripe hidden declare in " << slot_base << " with hash " << id_str << endl;
 
@@ -697,7 +697,7 @@ namespace interpreter {
     // number
     // NOTICE:
     // this exact conversion sequence guarantees correct fpu representation
-    else if (utility::is_number(token)) {
+    else if (tool::text::is_number(token)) {
      // preserve fractional
      double decimal = stod(token);
      // scale to fixed point unit
@@ -724,7 +724,7 @@ namespace interpreter {
      }
      else if (symbol.type == symbol::Type::Stripe && (is_not_assignment_target || set_style != SetStyle::Stripe)) {
       code_add(1, op::push);
-      code_add(4, fpu(symbol.variable.slot).r());
+      code_add(4, fpu(symbol.stripe.slot).r());
      }
     }
 
@@ -796,7 +796,7 @@ namespace interpreter {
     }
 
     case DeclareStyle::Constant: {
-     if (tokens[3].size() != 1 || !utility::is_number(tokens[3][0])) {
+     if (tokens[3].size() != 1 || !tool::text::is_number(tokens[3][0])) {
       cout << "error: value must be constant expression" << endl;
       break;
      }
@@ -806,12 +806,13 @@ namespace interpreter {
      constant_symbol.name = name;
      constant_symbol.constant.value = value;
      symbol::table.push_back(constant_symbol);
-     cout << name << " constant is " << utility::string_no_trailing(value) << endl;
+     cout << name << " constant is " << tool::text::remove_trailing(value) << endl;
      break;
     }
 
     case DeclareStyle::Stripe: {
      u16 size = 0;
+     u16 length = 0;
 
      bool is_single_text = tokens.size() == 4
       && tokens[3].size() == 1
@@ -819,26 +820,29 @@ namespace interpreter {
 
      // explicit size
      if (tokens[1].back() == tag::offset && tokens[1].size() > 2) { // has offset value
-      if (tokens[1].size() == 3 && utility::is_number(tokens[1][1])) { // offset is constant
-       size = cast(u16, stod(tokens[1][1]));
+      if (tokens[1].size() == 3 && tool::text::is_number(tokens[1][1])) { // offset is constant
+       s32 size_value = stod(tokens[1][1]); // allow negative for guard clause
+       if (size_value < 1) {cout << "error: invalid str capacity" << endl; break;}
+       size = size_value;
       }
-      else {
-       cout << "error: str size must be constant expression" << endl;
-       break;
-      }
+      else {cout << "error: str capacity must be constant expression" << endl; break;}
      }
 
      // implicit from content
      if (tokens.size() == 4) {
       u16 size_value = tokens[3].size();
-      if (is_single_text) {size_value = (tokens[3][0].size() - 2 + 3) / 4 + 1;} // packed pascal count
-      size = max(size, size_value);
+      if (is_single_text) {
+       // previous operand is hidden declare string address
+       const slot_logic operand_previous = fpu::raw(memory::unaligned_32_read(active::logic->code_octo + active::logic->writer.a() - 3));
+       size_value = tool::stripe::get_cap(operand_previous);
+      }
+      else {length = size_value * sizeof(fpu);} // stripe has valid length
+
+      if (!size) {size = size_value;}
+      else if (size_value > size) {cout << "error: " << size_value << " elements is beyond capacity of " << size << endl; break;}
      }
 
-     if (size == 0) {
-      cout << "error: str declaration requires size or initial value" << endl;
-      break;
-     }
+     if (size == 0) {cout << "error: str declaration requires capacity or initial value" << endl; break;}
 
      // jump to base
      active::logic->slotter -= size;
@@ -847,8 +851,16 @@ namespace interpreter {
      symbol::Data stripe_symbol;
      stripe_symbol.type = symbol::Type::Stripe;
      stripe_symbol.name = name;
-     stripe_symbol.variable.slot = slot;
+     stripe_symbol.stripe.slot = slot;
+     stripe_symbol.stripe.capacity = size;
      symbol::table.push_back(stripe_symbol);
+
+     // store capacity and length at index -1
+     // valid length only for stripe, string and storage get length from stampto
+     code_add(1, op::push);
+     code_add(4, (cast(u32, size) << 16) | length);
+     code_add(1, op::storeto);
+     code_add(2, slot - 1);
 
      // fill
      if (tokens.size() == 4) {
@@ -864,9 +876,8 @@ namespace interpreter {
       }
      }
 
-     // store size at index -1
+     // skip header
      --active::logic->slotter;
-     active::logic->code_fpu[active::logic->slotter.i()] = size;
 
      cout << name << " stripe is stored in " << slot << " with size " << size << endl;
      break;
@@ -895,13 +906,20 @@ namespace interpreter {
      // stripe full
      if (tokens[0].size() == 1) {
       string name = tokens[0][0];
-      slot_logic slot = symbol::get(name).variable.slot;
+      slot_logic slot = symbol::get(name).stripe.slot;
 
       if (tokens[2].size() == 1 && is_token_quote(tokens[2][0])) {
        code_add(1, op::stampto);
        code_add(2, slot);
       }
       else {
+       u16 capacity = symbol::get(name).stripe.capacity;
+       u16 length = tokens[2].size() * sizeof(fpu);
+       code_add(1, op::push);
+       code_add(4, (cast(u32, capacity) << 16) | length);
+       code_add(1, op::storeto);
+       code_add(2, slot - 1);
+
        for (s32 i = tokens[2].size() - 1; i >= 0; i--) {
         code_add(1, op::storeto);
         code_add(2, slot + i);

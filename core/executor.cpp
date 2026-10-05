@@ -1,4 +1,3 @@
-#include "core/constant.hpp"
 #include "core/interpreter.hpp"
 #include "core/memory.hpp"
 #include "core/opcode.hpp"

@@ -1,8 +1,7 @@
-#include "core/define.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "core/utility.hpp"
+#include "core/tool.hpp"
 #include "module/log.hpp"
 
 namespace log_ops {
@@ -56,17 +55,17 @@ namespace log_ops {
 
  namespace wrap {
   OPCODE(out, {
-   address_logic address_text = memory::pop().a();
+   slot_logic slot_text = memory::pop().a();
 
-   string string_text = utility::string_pick(address_text);
+   string string_text = tool::text::pick(slot_text);
 
    log_ops::out(string_text);
   })
 
   OPCODE(output, {
-   address_logic address_text = memory::pop().a();
+   slot_logic slot_text = memory::pop().a();
 
-   string string_text = utility::string_pick(address_text);
+   string string_text = tool::text::pick(slot_text);
 
    log_ops::output(string_text);
   })

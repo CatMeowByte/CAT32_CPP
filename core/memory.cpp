@@ -1,7 +1,8 @@
+#include "core/interpreter.hpp"
 #include "core/memory.hpp"
 #include "core/module.hpp"
 #include "core/opcode.hpp"
-#include "core/interpreter.hpp"
+#include "core/tool.hpp"
 
 const u32 font_special[32] = {
  0x20, 0x2591, 0x2592, 0x2593, 0x2588, 0x2500, 0x2502, 0x250C, 0x2510, 0x2514, 0x2518, 0x251C, 0x2524, 0x252C, 0x2534, 0x253C,
@@ -117,15 +118,14 @@ namespace memory {
 
   OPCODE(write, {
    u32 length = memory::pop().r();
-   address_logic data = memory::pop().a();
+   slot_logic slot_data = memory::pop().a();
    u32 destination = memory::pop().r();
 
-   s16 data_size = active::logic->code_fpu[data - 1].i();
-   u32 byte_capacity = data_size * sizeof(fpu);
+   u32 data_capacity = tool::stripe::get_cap(slot_data) * sizeof(fpu);
    u32 destination_safe = min(destination, SYSTEM::MEMORY);
-   u32 length_safe = min({length, byte_capacity, SYSTEM::MEMORY - destination_safe});
+   u32 length_safe = min({length, data_capacity, SYSTEM::MEMORY - destination_safe});
 
-   memmove(&memory::raw[destination_safe], &active::logic->code_fpu[data], length_safe); // has builtin overlap direction logic
+   memmove(&memory::raw[destination_safe], &active::logic->code_fpu[slot_data], length_safe); // has builtin overlap direction logic
   })
 
   OPCODE(copy, {
