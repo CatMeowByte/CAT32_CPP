@@ -14,9 +14,10 @@ namespace interpreter {
  }
 
  vector<vector<string>> tokenize(const string& line);
- void compile(const vector<vector<string>>& line_tokens);
- void step();
  void reset();
+ void compile(const vector<vector<string>>& line_tokens);
+
+ void step();
 }
 
 namespace symbol {
@@ -34,8 +35,6 @@ namespace symbol {
   vector<fpu> args_default;
  };
 
- extern vector<Data> table;
-
  s32 get_index_reverse(const string& name);
  bool exist(const string& name);
  Data& get(const string& name);
@@ -52,15 +51,6 @@ namespace scope {
   vector<address_logic> break_operands;
   vector<u16> space;
  };
-
- extern vector<Frame> stack;
-
- namespace previous {
-  extern u8 indent;
-  extern Type type;
-  extern address_logic line;
-  extern address_logic skip_operand;
- }
 }
 
 namespace metic {

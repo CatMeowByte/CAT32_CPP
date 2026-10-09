@@ -21,20 +21,4 @@ namespace interpreter {
 
   active::logic->counter = result;
  }
-
- void reset() {
-   symbol::table.clear();
-
-   scope::stack.clear();
-
-   scope::previous::indent = 0;
-   scope::previous::type = scope::Type::Generic;
-   scope::previous::line = FARLAND;
-   scope::previous::skip_operand = FARLAND;
-
-   // base scope frame
-   scope::Frame base = {};
-   base.type = scope::Type::Generic;
-   scope::stack.push_back(base);
- }
 }
