@@ -36,7 +36,8 @@ namespace math {
     y = y - (x >> shift);
     x = x_new;
     angle = angle + step;
-   } else {
+   }
+   else {
     x_new = x - (y >> shift);
     y = y + (x >> shift);
     x = x_new;

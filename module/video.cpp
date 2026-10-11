@@ -93,19 +93,14 @@ namespace video {
   if (y + height > VIDEO::HEIGHT) {height = VIDEO::HEIGHT - y;}
   if (width <= 0 || height <= 0) {return;}
 
-  if (fill) {
-   for (s32 i = 0; i < height; i++) {
-    lineh(x, y + i, width, color);
-   }
-  } else {
+  if (fill) {for (s32 i = 0; i < height; i++) {lineh(x, y + i, width, color);}}
+  else {
    lineh(x, y, width, color);
    if (height > 1) {
     lineh(x, y + height - 1, width, color);
     for (s32 i = 1; i < height - 1; i++) {
      pixel(x, y + i, color);
-     if (width > 1) {
-      pixel(x + width - 1, y + i, color);
-     }
+     if (width > 1) {pixel(x + width - 1, y + i, color);}
     }
    }
   }

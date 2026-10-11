@@ -8,9 +8,7 @@ namespace symbol {
  vector<Data> table;
 
  s32 get_index_reverse(const string& name) {
-  for (u32 i = table.size(); i-- > 0;) {
-   if (table[i].name == name) {return i;}
-  }
+  for (u32 i = table.size(); i-- > 0;) {if (table[i].name == name) {return i;}}
   return -1;
  }
 
@@ -23,14 +21,30 @@ namespace symbol {
  }
 }
 
+namespace line {
+ enum class Type : u8 {Generic, If, Elif, Else, While, Function, Break, Continue, Return, Use};
+}
+
 namespace scope {
+ struct Frame {
+  line::Type type;
+  address_logic line;
+  address_logic header_skip_operand;
+  u32 symbol_boundary;
+  vector<address_logic> scope_done_operands;
+  vector<u16> space;
+ };
+
  vector<Frame> stack;
 
+ // stashed data before pushed to scope stack
+ // pushing deferred until all data cumulated when already in next line
  namespace previous {
   u8 indent;
-  Type type;
+  line::Type type;
   address_logic line;
   address_logic skip_operand;
+  vector<address_logic> done_operands;
  }
 }
 
@@ -118,13 +132,14 @@ namespace interpreter {
    scope::stack.clear();
 
    scope::previous::indent = 0;
-   scope::previous::type = scope::Type::Generic;
+   scope::previous::type = line::Type::Generic;
    scope::previous::line = FARLAND;
    scope::previous::skip_operand = FARLAND;
+   scope::previous::done_operands.clear();
 
    // base scope frame
    scope::Frame base = {};
-   base.type = scope::Type::Generic;
+   base.type = line::Type::Generic;
    scope::stack.push_back(base);
  }
 
@@ -149,8 +164,7 @@ namespace interpreter {
   }
 
   // flag
-  enum class HeaderType : u8 {None, If, While, Else, Function};
-  HeaderType header_type = HeaderType::None;
+  line::Type line_type = line::Type::Generic;
 
   enum class AssignType : u8 {None, Declare, Set};
   AssignType assign_type = AssignType::None;
@@ -172,7 +186,20 @@ namespace interpreter {
    if (!is_expression) {break;}
   }
 
-  const bool is_return = tokens[0][0] == "return";
+  // set type
+  {
+   if (tokens[0][0] == "if") {line_type = line::Type::If;}
+   if (tokens[0][0] == "elif") {line_type = line::Type::Elif;}
+   if (tokens[0][0] == "else") {line_type = line::Type::Else;}
+   if (tokens[0][0] == "while") {line_type = line::Type::While;}
+   if (tokens[0][0] == "func") {line_type = line::Type::Function;}
+
+
+   if (tokens[0][0] == "break") {line_type = line::Type::Break;}
+   if (tokens[0][0] == "continue") {line_type = line::Type::Continue;}
+   if (tokens[0][0] == "return") {line_type = line::Type::Return;}
+   if (tokens[0][0] == "use") {line_type = line::Type::Use;}
+  }
 
   // indent
   if (indent > scope::previous::indent) {
@@ -181,7 +208,11 @@ namespace interpreter {
    for (u8 indent_level = scope::previous::indent + 1; indent_level <= indent; indent_level++) {
     cout << ">>>>" << endl;
 
-    if (scope::previous::type != scope::Type::Function) { // if, while, and else
+    if (scope::previous::type == line::Type::If
+     || scope::previous::type == line::Type::Elif
+     || scope::previous::type == line::Type::Else
+     || scope::previous::type == line::Type::While
+    ) {
      const octo opcode_previous = active::logic->code_octo[active::logic->writer.a() - 2];
 
      if (opcode_previous != op::jump && opcode_previous != op::jumz && opcode_previous != op::junz) {
@@ -192,12 +223,13 @@ namespace interpreter {
     scope::Frame frame;
     frame.type = scope::previous::type;
     frame.line = scope::previous::line;
-    frame.skip_operand = scope::previous::skip_operand;
+    frame.header_skip_operand = scope::previous::skip_operand;
     frame.symbol_boundary = symbol::table.size();
+    frame.scope_done_operands = scope::previous::done_operands;
     scope::stack.push_back(frame);
 
-    scope::previous::type = scope::Type::Generic;
-    cout << "indent stack added with jump operand at " << scope::previous::skip_operand << endl;
+    scope::previous::type = line::Type::Generic;
+    if (frame.type != line::Type::Generic) {cout << "indent stack added with skip at " << scope::previous::skip_operand << endl;}
    }
   }
 
@@ -206,34 +238,38 @@ namespace interpreter {
    for (u8 indent_level = scope::previous::indent; indent_level > indent; indent_level--) {
     cout << "<<<<" << endl;
 
-    // only handle else because at "else" its a single line dedent with only one keyword
-    // so this handled earlier before patching the bytecode jump operand with writer
-    if (tokens[0][0] == "else") {
-     header_type = HeaderType::Else;
+    // get current frame
+    scope::Frame& frame = scope::stack.back();
 
-     code_add(1, op::jump);
-     code_add(2, FARLAND);
-     scope::previous::skip_operand = active::logic->writer.a() - 1;
-     scope::previous::type = scope::Type::Else;
-    }
-
-    const scope::Frame& frame = scope::stack.back();
-
+    // shink symbol
     symbol::table.resize(frame.symbol_boundary);
 
-    switch (frame.type) {
-     case scope::Type::While: {
-      code_add(1, op::jump);
-      code_add(2, frame.line + 1); // next opcode
+    // for elif / else case
+    bool is_previous_if_branch = false;
+    bool is_current_else_branch = line_type == line::Type::Elif || line_type == line::Type::Else;
 
-      // patch break
-      for (address_logic patch_addr : frame.break_operands) {
-       memory::unaligned_16_write(active::logic->code_octo + patch_addr, active::logic->writer.a() + 1);
-       cout << "patching break at " << patch_addr << " to " << active::logic->writer.a() + 1 << endl;
+    switch (frame.type) {
+     case line::Type::If:
+     case line::Type::Elif: {
+      is_previous_if_branch = true;
+
+      // close previous scope with jump
+      if (is_current_else_branch) {
+       code_add(1, op::jump);
+       code_add(2, FARLAND);
+
+       // only elif add the operand to closure
+       if (line_type == line::Type::Elif) {frame.scope_done_operands.push_back(active::logic->writer.a() - 1);}
       }
       break;
      }
-     case scope::Type::Function: {
+     case line::Type::While: {
+      code_add(1, op::jump);
+      code_add(2, frame.line + 1); // next opcode
+      break;
+     }
+     case line::Type::Function: {
+      // add return
       if (active::logic->code_octo[active::logic->writer.a() - 1] != op::subret) { // last opcode
        cout << "implicit return emitted at " << active::logic->writer.a() << endl;
        code_add(1, op::subret);
@@ -243,8 +279,28 @@ namespace interpreter {
      default: {break;}
     }
 
-    memory::unaligned_16_write(active::logic->code_octo + frame.skip_operand, active::logic->writer.a() + 1);
-    cout << "patching jump operand at " << frame.skip_operand << " to address " << active::logic->writer.a() + 1 << endl;
+    // patch break and closure operands when the scope end
+    if (frame.type == line::Type::While // break
+     || frame.type == line::Type::Else // if / elif / else end
+     || (is_previous_if_branch && !is_current_else_branch) // if / elif without else
+    ) {
+     for (address_logic patch_address : frame.scope_done_operands) {
+      memory::unaligned_16_write(active::logic->code_octo + patch_address, active::logic->writer.a() + 1);
+      cout << "patching scope closure at " << patch_address << " to " << active::logic->writer.a() + 1 << endl;
+     }
+    }
+
+    // patch header skip
+    if (frame.type != line::Type::Generic) {
+     memory::unaligned_16_write(active::logic->code_octo + frame.header_skip_operand, active::logic->writer.a() + 1);
+     cout << "patching header skip at " << frame.header_skip_operand << " to address " << active::logic->writer.a() + 1 << endl;
+    }
+
+    // reset break operands
+    scope::previous::done_operands.clear();
+
+    // cumulate if / elif / else closure operands
+    if (is_previous_if_branch && is_current_else_branch) {scope::previous::done_operands = frame.scope_done_operands;}
 
     scope::stack.pop_back();
    }
@@ -254,27 +310,16 @@ namespace interpreter {
   // set to current line after used on indent
   scope::previous::line = active::logic->writer.a() + 1;
 
-  // set header
-  {
-   if (tokens[0][0] == "if") {header_type = HeaderType::If;}
-   if (tokens[0][0] == "while") {header_type = HeaderType::While;}
-   if (tokens[0][0] == "func") {header_type = HeaderType::Function;}
-  }
-
-  // else
-  // already handled earlier in dedent
-  if (header_type == HeaderType::Else) {return;}
-
   // break and continue
-  if (tokens[0][0] == "break" || tokens[0][0] == "continue") {
+  if (line_type == line::Type::Break || line_type == line::Type::Continue) {
    for (s32 i = scope::stack.size() - 1; i >= 0; i--) {
-    if (scope::stack[i].type != scope::Type::While) {continue;}
+    if (scope::stack[i].type != line::Type::While) {continue;}
 
-    if (tokens[0][0] == "break") {
+    if (line_type == line::Type::Break) {
      code_add(1, op::jump);
      code_add(2, FARLAND);
      address_logic patch_address = active::logic->writer.a() - 1;
-     scope::stack[i].break_operands.push_back(patch_address);
+     scope::stack[i].scope_done_operands.push_back(patch_address);
      cout << "break stores unpatched jump at " << patch_address << endl;
     }
     else { // continue
@@ -282,7 +327,6 @@ namespace interpreter {
      code_add(2, scope::stack[i].line);
      cout << "continue jumps to while header at " << scope::stack[i].line << endl;
     }
-
     return;
    }
    cout << "error: " << tokens[0][0] << " outside of while loop" << endl;
@@ -290,7 +334,7 @@ namespace interpreter {
   }
 
   // use spacename
-  if (tokens[0][0] == "use") {
+  if (line_type == line::Type::Use) {
    if (tokens.size() < 2) {cout << "error: use requires at least one spacename" << endl; return;}
 
    for (u32 i = 1; i < tokens.size(); i++) {
@@ -301,7 +345,6 @@ namespace interpreter {
     scope::stack.back().space.push_back(space_hash);
     cout << "imported spacename \"" << space_name << "\" with hash " << space_hash << endl;
    }
-   return;
   }
 
   // set type
@@ -359,7 +402,12 @@ namespace interpreter {
   }
 
   // prevent garbage stack accumulation
-  code_add(1, op::prime);
+  // only on line that has bytecode
+  if (line_type != line::Type::Else
+   && line_type != line::Type::Break
+   && line_type != line::Type::Continue
+   && line_type != line::Type::Use
+  ) {code_add(1, op::prime);}
 
   // token processing
   for (u32 i = 0; i < tokens.size(); i++) {
@@ -385,7 +433,7 @@ namespace interpreter {
 
     // find current function scope
     for (s32 k = scope::stack.size() - 1; k >= 0; k--) {
-     if (scope::stack[k].type != scope::Type::Function) {continue;}
+     if (scope::stack[k].type != line::Type::Function) {continue;}
 
      // skip the skip jump to get the name
      if (scope::stack[k].line + 3 != symbol::get(name).function.address) {break;}
@@ -409,11 +457,11 @@ namespace interpreter {
 
     // function
     // run once early in specific condition to process the whole function declaration header and skip procesing the rest of token
-    else if (header_type == HeaderType::Function && i == 1 && j == 0) {
+    else if (line_type == line::Type::Function && i == 1 && j == 0) {
      code_add(1, op::jump);
      code_add(2, FARLAND);
      scope::previous::skip_operand = active::logic->writer.a() - 1;
-     scope::previous::type = scope::Type::Function;
+     scope::previous::type = line::Type::Function;
 
      string name_tagged = expression.back();
      u64 declare_tag_pos = name_tagged.find(tag::callable_args);
@@ -575,7 +623,8 @@ namespace interpreter {
 
      // emit opcode
      code_add(1, emit_opcode);
-     if (emit_opcode == op::subgo) {code_add(2, emit_operand);} else {code_add(4, emit_operand);}
+     if (emit_opcode == op::subgo) {code_add(2, emit_operand);}
+     else {code_add(4, emit_operand);}
 
      // pop recursive argument
      if (recursive_index != -1) {
@@ -766,31 +815,44 @@ namespace interpreter {
      && !(assign_type == AssignType::Declare && i == 1) // not identifier name in declaration
      && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe) // not equal sign in stripe declaration // TODO: forgot the reason why
      && !(assign_type == AssignType::Set && i == 0 && j == 0) // not target assignment, handled by assignment closure
-    )
-    {
+    ) {
      cout << "error: invalid identifier \"" << token << "\"" << endl;
     }
    }
   }
 
-  // return
-  if (is_return) {code_add(1, op::subret);}
-
   // if
-  if (header_type == HeaderType::If) {
+  if (line_type == line::Type::If) {
    code_add(1, op::jumz);
    code_add(2, FARLAND);
    scope::previous::skip_operand = active::logic->writer.a() - 1;
-   scope::previous::type = scope::Type::If;
+   scope::previous::type = line::Type::If;
+  }
+
+  // elif
+  if (line_type == line::Type::Elif) {
+   code_add(1, op::jumz);
+   code_add(2, FARLAND);
+   scope::previous::skip_operand = active::logic->writer.a() - 1;
+   scope::previous::type = line::Type::Elif;
+  }
+
+  // else
+  if (line_type == line::Type::Else) {
+   scope::previous::skip_operand = active::logic->writer.a() - 1;
+   scope::previous::type = line::Type::Else;
   }
 
   // while
-  if (header_type == HeaderType::While) {
+  if (line_type == line::Type::While) {
    code_add(1, op::jumz);
    code_add(2, FARLAND);
    scope::previous::skip_operand = active::logic->writer.a() - 1;
-   scope::previous::type = scope::Type::While;
+   scope::previous::type = line::Type::While;
   }
+
+  // return
+  if (line_type == line::Type::Return) {code_add(1, op::subret);}
 
   // declaration closure
   if (assign_type == AssignType::Declare) {

@@ -11,7 +11,8 @@ namespace tool {
    if (dot == string::npos) {
     hex += string(8 - hex.length(), '0');
     hex = text.substr(2) + hex;
-   } else {
+   }
+   else {
     hex += text.substr(dot + 1);
     hex += string(8 - hex.length(), '0');
     hex = text.substr(2, dot - 2) + hex;
@@ -27,7 +28,8 @@ namespace tool {
    if (dot == string::npos) {
     bin += string(32 - bin.length(), '0'); // fractional pad
     bin = text.substr(2) + bin;
-   } else {
+   }
+   else {
     bin += text.substr(dot + 1);
     bin += string(32 - bin.length(), '0');
     bin = text.substr(2, dot - 2) + bin;

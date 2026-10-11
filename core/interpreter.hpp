@@ -5,7 +5,7 @@
 
 namespace interpreter {
  static const hash_set<string> keywords_declaration = {"var", "con", "str", "func", "use"};
- static const hash_set<string> keywords_control = {"if", "else", "while", "break", "continue", "return"};
+ static const hash_set<string> keywords_control = {"if", "elif", "else", "while", "break", "continue", "return"};
 
  // token tagged with this symbol can only be generated internally
  namespace tag {
@@ -38,19 +38,6 @@ namespace symbol {
  s32 get_index_reverse(const string& name);
  bool exist(const string& name);
  Data& get(const string& name);
-}
-
-namespace scope {
- enum class Type : u8 {Generic, If, Else, While, Function};
-
- struct Frame {
-  Type type;
-  address_logic line;
-  address_logic skip_operand;
-  u32 symbol_boundary;
-  vector<address_logic> break_operands;
-  vector<u16> space;
- };
 }
 
 namespace metic {
