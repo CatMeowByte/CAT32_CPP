@@ -1,0 +1,82 @@
+#ifdef region
+
+region(vm, 0, SYSTEM::MEMORY, // map of the entire memory
+ region(global, vm_address, 32768, // presistent memory
+  region(constant, global_address, 1024, // populated at startup. should be unchanged
+   ifpu(zero, constant_address) // runtime zero reference
+   bfpu(sin, zero_next, 235) // 235 quarter sin lookup table. exclude zero and one as it aleady neigbor value
+   ifpu(one, sin_next) // runtime one reference
+   ifpu(sentinel, one_next) // runtime sentinel reference. not to be confused with compile time SENTINEL
+   ifpu(epsilon, sentinel_next) // smallest repesentable value
+   bfpu(cordic, epsilon_next, fpu::WIDTH) // 16 atan(2^n) lookup table. exclude epsilon as it aleady neigbor value
+   ifpu(pi, cordic_next) // pi
+  )
+  check(constant, constant::pi)
+
+  bocto(framebuffer, constant_next, (VIDEO::WIDTH * VIDEO::HEIGHT) / 2) // 120*160 4bpp pixel data
+
+  bocto(palette, framebuffer_next, 16) // 16 color remap to hardware color index. bit 7 sets visibility, 0-3 sets target index
+
+  bocto(font, palette_next, 512) // 128 characters 16*8 grid 4x8 1bpp. 0-31 map to special characters, 32-127 standard ascii
+
+  region(hardware_io, font_next, 128, // essential hardware device input and output
+   ifpu(up, hardware_io_address) // d pad up
+   ifpu(down, up_next) // d pad down
+   ifpu(left, down_next) // d pad left
+   ifpu(right, left_next) // d pad right
+   ifpu(primary, right_next) // dedicated button. ok / a / accept
+   ifpu(secondary, primary_next) // rocker press. back / b / cancel
+   ifpu(context, secondary_next) // shoulder left
+   ifpu(trigger, context_next) // shoulder right
+   ifpu(acceleration_x, trigger_next) // right
+   ifpu(acceleration_y, acceleration_x_next) // up
+   ifpu(acceleration_z, acceleration_y_next) // front
+   ifpu(gyroscope_x, acceleration_z_next) // roll
+   ifpu(gyroscope_y, gyroscope_x_next) // pitch
+   ifpu(gyroscope_z, gyroscope_y_next) // yaw
+   ifpu(magnetometer_x, gyroscope_z_next) // right
+   ifpu(magnetometer_y, magnetometer_x_next) // up
+   ifpu(magnetometer_z, magnetometer_y_next) // front
+   bfpu(frequency, magnetometer_z_next, AUDIO::CHANNEL) // 4 channel frequencies in hertz
+   bfpu(duty, frequency_next, AUDIO::CHANNEL) // 4 channel duties from 0.0 to 1.0
+  )
+  check(hardware_io, hardware_io::duty)
+
+  ifpu(process_index, hardware_io_next) // current active process index
+
+  region(log, process_index_next, (sizeof(fpu) * 3) + SYSTEM::LOG, // log system
+   ifpu(head, log_address) // points to newest character (separator)
+   ifpu(neck, head_next) // points to the first character byte on newest line
+   ifpu(tail, neck_next) // points to the first character byte on oldest line
+   bocto(data, tail_next, SYSTEM::LOG) // circular buffer
+  )
+  check(log, log::data)
+ )
+ check(global, global::log::data)
+
+ region(process, global_next, 98304 * SYSTEM::PROCESS, // process region
+  region(p0, process_address, 98304, // process 0
+
+   region(logic, p0_address, 65536, // bytecode and execution memory. defined in backward order for code block dynamic size
+    bfpu(frames, logic_next - sizeof(fpu) * 121, 121) // call address stack
+    ifpu(framer, frames_address - sizeof(fpu)) // call address pointer
+    ifpu(counter, framer_address - sizeof(fpu)) // bytecode execution pointer
+    ifpu(writer, counter_address - sizeof(fpu)) // points to after last bytecode
+    ifpu(slotter, writer_address - sizeof(fpu)) // variable allocator. starts from end of logic memory. grow backward. only increment on compile
+    ifpu(stacker, slotter_address - sizeof(fpu)) // stack pointer. starts from end of allocator memory. grow backward
+    bocto(code, logic_address, stacker_address - logic_address) // bytecode
+   )
+   check(logic, logic::code)
+
+   region(local, logic_next, 32768, // data memory
+    bocto(sprite, local_address, (VIDEO::SPRITESHEET * VIDEO::SPRITESHEET) / 2) // 128x128 4bpp sprite data
+   )
+   check(local, local::sprite)
+  )
+  check(p0, p0::local::sprite)
+ )
+ check(process, process::p0::local::sprite)
+)
+check(vm, vm::process::p0::local::sprite)
+
+#endif
