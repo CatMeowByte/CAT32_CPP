@@ -405,20 +405,18 @@ namespace filesystem {
 
   OPCODE(write, {
    bool is_replace = memory::pop();
-   bool is_string = memory::pop();
-   u32 length = memory::pop().r();
    u32 offset = memory::pop().r();
    slot_logic slot_path = memory::pop().a();
    slot_logic slot_source = memory::pop().a();
 
    string string_path = tool::text::pick(slot_path);
 
-   u32 byte_capacity = tool::stripe::get_cap(slot_source) * sizeof(fpu);
-   u32 byte_length = min(length, byte_capacity);
-   if (is_string) {byte_length = min(byte_length, cast(u32, tool::stripe::get_len(slot_source)));}
+   u16 byte_capacity = tool::stripe::get_cap(slot_source) * sizeof(fpu);
+   u16 byte_length = tool::stripe::get_len(slot_source);
+   u16 length = min(byte_capacity, byte_length);
 
-   vector<octo> data(byte_length);
-   memcpy(data.data(), &active::logic->code_fpu[slot_source], byte_length);
+   vector<octo> data(length);
+   memcpy(data.data(), &active::logic->code_fpu[slot_source], length);
 
    u8 result = filesystem::write(string_path, offset, data, is_replace);
    memory::push(result);
@@ -509,7 +507,7 @@ namespace filesystem {
  MODULE(
   module::add("filesystem", "read", wrap::read, 4);
   module::add("filesystem", "read_line", wrap::read_line, 3);
-  module::add("filesystem", "write", wrap::write, 6, {0, 0});
+  module::add("filesystem", "write", wrap::write, 4, {0});
   module::add("filesystem", "delete", wrap::delete_byte, 3);
   module::add("filesystem", "type", wrap::type, 1);
   module::add("filesystem", "size", wrap::size, 1);
