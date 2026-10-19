@@ -8,9 +8,9 @@ namespace log_ops {
  void out(string text) {
   using namespace memory::vm::global::log;
 
-  u32 head_index = head.r();
-  u32 neck_index = neck.r();
-  u32 tail_index = tail.r();
+  u16 head_index = head.i();
+  u16 neck_index = neck.i();
+  u16 tail_index = tail.i();
   u32 text_length = text.size();
 
   // overflow
@@ -36,20 +36,20 @@ namespace log_ops {
    }
   }
 
-  head = fpu::raw((head_index + SYSTEM::LOG - 1) % SYSTEM::LOG);
-  neck = fpu::raw(neck_index);
-  tail = fpu::raw(tail_index);
+  head = fpu((head_index + SYSTEM::LOG - 1) % SYSTEM::LOG);
+  neck = fpu(neck_index);
+  tail = fpu(tail_index);
  }
 
  void output(string text) {
   using namespace memory::vm::global::log;
 
-  u32 head_index = head.r();
-  u32 tail_index = tail.r();
+  u16 head_index = head.i();
+  u16 tail_index = tail.i();
   if (head_index != tail_index) {head_index = (head_index + 1) % SYSTEM::LOG;} // new line
 
-  head = fpu::raw(head_index);
-  neck = fpu::raw(head_index);
+  head = fpu(head_index);
+  neck = fpu(head_index);
   out(text);
  }
 

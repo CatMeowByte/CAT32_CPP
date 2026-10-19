@@ -37,6 +37,10 @@ static void tick() {
   if (draw_time >= frame_interval) {
    for (s8 i = 0; i < SYSTEM::PROCESS; i++) {
     active::index(i);
+
+    // reset palette
+    memcpy(memory::vm::global::palette, palette_default, 16);
+
     run_event(kernel::Event::Draw);
    }
    sdl::flip();

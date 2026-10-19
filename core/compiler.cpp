@@ -813,8 +813,10 @@ namespace interpreter {
     else if (true
      && !keywords_declaration.count(token) && !keywords_control.count(token) // not a keyword
      && !(assign_type == AssignType::Declare && i == 1) // not identifier name in declaration
-     && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe) // not equal sign in stripe declaration // TODO: forgot the reason why
+     // this thing is so mysterious it gets disabled
+     // && !(assign_type == AssignType::Declare && i == 2 && declare_style == DeclareStyle::Stripe) // not equal sign in stripe declaration // TODO: forgot the reason why
      && !(assign_type == AssignType::Set && i == 0 && j == 0) // not target assignment, handled by assignment closure
+     && !(line_type == line::Type::Use) // not spacename declaration
     ) {
      cout << "error: invalid identifier \"" << token << "\"" << endl;
     }
