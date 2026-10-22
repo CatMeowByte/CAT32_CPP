@@ -162,6 +162,15 @@ namespace stripe_ops {
    memory::push(fpu::raw(result));
   })
 
+  OPCODE(address, {
+   slot_logic slot_stripe = memory::pop().a();
+
+   u32 stripe_offset = slot_stripe * sizeof(fpu);
+   octo* stripe_pointer = active::logic->code_octo + stripe_offset;
+   u32 result = stripe_pointer - memory::raw; // pointer to pointer
+   memory::push(fpu::raw(result));
+  })
+
   OPCODE(len, {
    s16 length = memory::pop().i();
    slot_logic slot_text = memory::pop().a();
@@ -194,6 +203,7 @@ namespace stripe_ops {
   module::add("str", "add", wrap::add, 3);
   module::add("str", "sub", wrap::sub, 4);
   module::add("str", "char", wrap::get_char, 2);
+  module::add("str", "address", wrap::address, 1);
   module::add("str", "len", wrap::len, 2, {SENTINEL});
   module::add("str", "cap", wrap::cap, 1);
   module::add("str", "count", wrap::count, 1);
