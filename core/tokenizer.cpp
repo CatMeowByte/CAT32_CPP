@@ -171,7 +171,7 @@ namespace interpreter {
 
       if (op == "neg") {rawbits = -rawbits;}
       else if (op == "!") {rawbits = rawbits ? 0 : (1 << fpu::WIDTH);}
-      else if (op == "~") {rawbits = ~rawbits;}
+      else if (op == "~") {rawbits = -rawbits - (1 << fpu::WIDTH);}
      }
 
      output.resize(unary_start);
@@ -223,8 +223,8 @@ namespace interpreter {
     OP(band, a & b)
     OP(bor, a | b)
     OP(bnot, ~a)
-    OP(bshl, a << cast(s32, b))
-    OP(bshr, a >> cast(s32, b))
+    OP(bshl, a << b)
+    OP(bshr, a >> b)
     OP(add, a + b)
     OP(sub, a - b)
     OP(mul, a * b)

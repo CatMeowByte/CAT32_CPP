@@ -46,8 +46,8 @@ public:
 
  constexpr fpu operator&(fpu o) const {return fpu(value & o.value, true);}
  constexpr fpu operator|(fpu o) const {return fpu(value | o.value, true);}
- constexpr fpu operator~() const {return fpu(~value, true);}
- constexpr fpu operator<<(int32_t s) const {return fpu(value << s, true);}
- constexpr fpu operator>>(int32_t s) const {return fpu(value >> s, true);}
+ constexpr fpu operator~() const {return fpu(-value - (1 << WIDTH), true);}
+ constexpr fpu operator<<(fpu o) const {return fpu(value << (o.value / (1 << WIDTH)), true);}
+ constexpr fpu operator>>(fpu o) const {return fpu(value >> (o.value / (1 << WIDTH)), true);}
  constexpr fpu operator-() const {return fpu(-value, true);}
 };

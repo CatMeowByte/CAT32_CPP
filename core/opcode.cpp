@@ -214,13 +214,13 @@ namespace op_call {
  OPCODE(bshl, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(a << cast(s32, b));
+  memory::push(a << b);
  })
 
  OPCODE(bshr, {
   fpu b = memory::pop();
   fpu a = memory::pop();
-  memory::push(a >> cast(s32, b));
+  memory::push(a >> b);
  })
 
  /* marker */
