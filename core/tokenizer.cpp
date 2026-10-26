@@ -286,6 +286,10 @@ namespace interpreter {
         || i + 1 >= tokens.size()
         || !tool::text::is_number(output.back())
         || !tool::text::is_number(tokens[i + 1])
+        || (output.size() >= 2
+         && !tool::text::is_number(output[output.size() - 2])
+         && (metic::orders.at(stash.back()) == metic::Order::Strict || metic::orders.at(token) == metic::Order::Strict)
+        )
        )
       )
      )

@@ -54,41 +54,54 @@ namespace metic {
   };
  }
 
+ enum class Order : u8 {
+  None = 0,
+  Strict = 1,
+  Free = 2,
+ };
+
+ // form, opcode, precedence, associative
  #define SORTED_OPERATORS \
-  OP("==", op::eq, Precedence::Compare) \
-  OP("!=", op::neq, Precedence::Compare) \
-  OP("<=", op::leq, Precedence::Compare) \
-  OP(">=", op::geq, Precedence::Compare) \
-  OP("&&", op::band, Precedence::Logic) \
-  OP("||", op::bor, Precedence::Logic) \
-  OP("<<", op::bshl, Precedence::Shift) \
-  OP(">>", op::bshr, Precedence::Shift) \
-  OP("+", op::add, Precedence::Add) \
-  OP("-", op::sub, Precedence::Add) \
-  OP("*", op::mul, Precedence::Multiply) \
-  OP("/", op::div, Precedence::Multiply) \
-  OP("%", op::mod, Precedence::Multiply) \
-  OP("<", op::lt, Precedence::Compare) \
-  OP(">", op::gt, Precedence::Compare) \
-  OP("&", op::land, Precedence::Logic) \
-  OP("|", op::lor, Precedence::Logic) \
-  OP("!", op::lnot, Precedence::Unary) \
-  OP("~", op::bnot, Precedence::Unary) \
+  OP("==", op::eq, Precedence::Compare, Order::Strict) \
+  OP("!=", op::neq, Precedence::Compare, Order::Strict) \
+  OP("<=", op::leq, Precedence::Compare, Order::Strict) \
+  OP(">=", op::geq, Precedence::Compare, Order::Strict) \
+  OP("&&", op::band, Precedence::Logic, Order::Free) \
+  OP("||", op::bor, Precedence::Logic, Order::Free) \
+  OP("<<", op::bshl, Precedence::Shift, Order::Strict) \
+  OP(">>", op::bshr, Precedence::Shift, Order::Strict) \
+  OP("+", op::add, Precedence::Add, Order::Free) \
+  OP("-", op::sub, Precedence::Add, Order::Strict) \
+  OP("*", op::mul, Precedence::Multiply, Order::Free) \
+  OP("/", op::div, Precedence::Multiply, Order::Strict) \
+  OP("%", op::mod, Precedence::Multiply, Order::Strict) \
+  OP("<", op::lt, Precedence::Compare, Order::Strict) \
+  OP(">", op::gt, Precedence::Compare, Order::Strict) \
+  OP("&", op::land, Precedence::Logic, Order::Free) \
+  OP("|", op::lor, Precedence::Logic, Order::Free) \
+  OP("!", op::lnot, Precedence::Unary, Order::None) \
+  OP("~", op::bnot, Precedence::Unary, Order::None) \
 
  static const hash_set<string> operations = {
-  #define OP(sym, code, prec) sym,
+  #define OP(sym, code, prec, assoc) sym,
   SORTED_OPERATORS
   #undef OP
  };
 
  static const hash_map<string, u8> opcodes = {
-  #define OP(sym, code, prec) {sym, code},
+  #define OP(sym, code, prec, assoc) {sym, code},
   SORTED_OPERATORS
   #undef OP
  };
 
  static const hash_map<string, Precedence> precedences = {
-  #define OP(sym, code, prec) {sym, prec},
+  #define OP(sym, code, prec, assoc) {sym, prec},
+  SORTED_OPERATORS
+  #undef OP
+ };
+
+ static const hash_map<string, Order> orders = {
+  #define OP(sym, code, prec, assoc) {sym, assoc},
   SORTED_OPERATORS
   #undef OP
  };
