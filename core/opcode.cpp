@@ -78,8 +78,9 @@ namespace op_call {
 
  /* counter */
  OPCODE_ADDRESS(subgo, {
+  u16 args_count = memory::pop().i();
   if (cast(u32, active::logic->framer.i()) >= memory::vm::process::p0::logic::frames_length) {return active::logic->counter.a() + 3;}
-  active::logic->frames[(++active::logic->framer).i()] = active::logic->counter;
+  active::logic->frames[(++active::logic->framer).i()] = fpu::raw((active::logic->counter.i() << fpu::WIDTH) | (active::logic->stacker.i() + args_count));
   return operand;
  })
 
@@ -225,11 +226,14 @@ namespace op_call {
 
  /* marker */
  OPCODE(prime, {
-  active::logic->stacker = active::logic->slotter;
+  // TODO:
+  // would be better if opcode is branchless
+  // likely need to make frame 0 exist
+  active::logic->stacker = active::logic->framer ? fpu(active::logic->frames[active::logic->framer.i()].r() & 0xFFFF) : active::logic->slotter;
  })
 
  /* module */
- OPCODE_VALUE(call, {
+ OPCODE_VALUE(module, {
   module::table[operand.r()].function();
  })
 

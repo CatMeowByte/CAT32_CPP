@@ -101,7 +101,7 @@ namespace interpreter {
     if (opcode_previous == op::push) {
      cout << value << " (" << tool::text::remove_trailing(fpu::raw(value)) << ")";
     }
-    else if (opcode_previous == op::call) {
+    else if (opcode_previous == op::module) {
      cout << value << " (" << module::get_name(value) << ")";
     }
     else {
@@ -607,7 +607,7 @@ namespace interpreter {
       const module::Module& registered_module = module::table[module_hash];
       args_total = registered_module.args_count;
       args_default = &registered_module.args_default;
-      emit_opcode = op::call;
+      emit_opcode = op::module;
       emit_operand = module_hash;
      }
 
@@ -622,6 +622,10 @@ namespace interpreter {
      }
 
      // emit opcode
+     if (emit_opcode == op::subgo) {
+      code_add(1, op::push);
+      code_add(4, fpu(args_total).r());
+     }
      code_add(1, emit_opcode);
      if (emit_opcode == op::subgo) {code_add(2, emit_operand);}
      else {code_add(4, emit_operand);}

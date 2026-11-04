@@ -43,7 +43,7 @@
  /* marker */ \
  OP (0xAA, prime) \
  /* module */ \
- OPV(0xFF, call) \
+ OPV(0xFF, module) \
  /* nop */ \
  OP (0x00, nop)
 

@@ -58,7 +58,7 @@ region(vm, 0, SYSTEM::MEMORY, // map of the entire memory
   region(p0, process_address, 98304, // process 0
 
    region(logic, p0_address, 65536, // bytecode and execution memory. defined in backward order for code block dynamic size
-    bfpu(frames, logic_next - sizeof(fpu) * 121, 121) // call address stack
+    bfpu(frames, logic_next - sizeof(fpu) * 121, 121) // list of packed call address and stacker floor
     ifpu(framer, frames_address - sizeof(fpu)) // call address pointer
     ifpu(counter, framer_address - sizeof(fpu)) // bytecode execution pointer
     ifpu(writer, counter_address - sizeof(fpu)) // points to after last bytecode
