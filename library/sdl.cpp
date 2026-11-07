@@ -33,22 +33,38 @@ static void audio_callback(void* userdata, SDL_AudioStream* stream, int addition
  SDL_PutAudioStreamData(stream, buffer, sample * sizeof(s16));
 }
 
+// button
+static SDL_Gamepad* pad_data = nullptr;
+static fpu* button_data = nullptr;
+static u16 button_code[BUTTON::COUNT][BUTTON::COUNT_KEY + 1];
+static bool button_state[BUTTON::COUNT];
+
 // video
 static SDL_Window* window = nullptr;
 static SDL_Surface* surface_front = nullptr; // what shows on screen
 static SDL_Surface* surface_back = nullptr;   // 4bpp framebuffer as SDL surface
 static SDL_Palette* palette = nullptr;
 
-// button
-static bool key_state[SDL_SCANCODE_COUNT];
-
 namespace sdl {
+ // initializer
  bool audio(fpu* data) {
   if (!SDL_Init(SDL_INIT_AUDIO)) {return false;}
   static const SDL_AudioSpec spec = {SDL_AUDIO_S16, 1, AUDIO::RATE};
   stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, audio_callback, data);
   if (!stream) {return false;}
   SDL_ResumeAudioStreamDevice(stream);
+  return true;
+ }
+
+ bool button(fpu* data) {
+  if (!SDL_Init(SDL_INIT_GAMEPAD)) {return false;}
+  button_data = data;
+
+  for (u8 i = 0; i < BUTTON::COUNT; i++) {
+   for (u8 j = 0; j < BUTTON::COUNT_KEY; j++) {button_code[i][j] = SDL_GetScancodeFromName(BUTTON::KEY[i][j]);}
+   button_code[i][BUTTON::COUNT_KEY] = SDL_SCANCODE_COUNT + SDL_GetGamepadButtonFromString(BUTTON::PAD[i]);
+  }
+
   return true;
  }
 
@@ -81,12 +97,46 @@ namespace sdl {
   return true;
  }
 
+ // updater
+ namespace update {
+  void button() {
+   for (u8 i = 0; i < BUTTON::COUNT; i++) {
+    fpu& slot = button_data[i];
+    if (button_state[i]) {slot++;}
+    else if (slot > fpu(0)) {slot = fpu(-1);}
+    else if (slot == fpu(-1)) {slot = fpu(0);}
+   }
+  }
+
+  void gyro(fpu *x, fpu *y, fpu *z) {
+   // to be added
+  }
+ }
+
  bool poll() {
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
-   if (e.type == SDL_EVENT_QUIT) {return false;}
-   if (e.type == SDL_EVENT_KEY_DOWN) {key_state[e.key.scancode] = true;}
-   if (e.type == SDL_EVENT_KEY_UP) {key_state[e.key.scancode] = false;}
+   u16 keycode = 0;
+   bool state = false;
+
+   switch (e.type) {
+    case SDL_EVENT_QUIT: {return false;}
+
+    case SDL_EVENT_GAMEPAD_ADDED: {pad_data = SDL_OpenGamepad(e.gdevice.which); break;}
+    case SDL_EVENT_GAMEPAD_REMOVED: {SDL_CloseGamepad(pad_data); pad_data = nullptr; break;}
+
+    case SDL_EVENT_KEY_DOWN: {state = true;}
+    case SDL_EVENT_KEY_UP: {keycode = e.key.scancode; break;}
+
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN: {state = true;}
+    case SDL_EVENT_GAMEPAD_BUTTON_UP: {keycode = SDL_SCANCODE_COUNT + e.gbutton.button; break;}
+   }
+
+   for (u8 i = 0; keycode && i < BUTTON::COUNT; i++) {
+    for (u8 j = 0; j < BUTTON::COUNT_KEY + 1; j++) {
+     if (button_code[i][j] == keycode) {button_state[i] = state; break;}
+    }
+   }
   }
   return true;
  }
@@ -102,11 +152,5 @@ namespace sdl {
  void flip() {
   SDL_BlitSurfaceScaled(surface_back, nullptr, surface_front, nullptr, SDL_SCALEMODE_NEAREST);
   SDL_UpdateWindowSurface(window);
- }
-
- bool is_key_pressed(const str key_name) {
-  SDL_Scancode scancode = SDL_GetScancodeFromName(key_name);
-  if (scancode == SDL_SCANCODE_UNKNOWN) {return false;}
-  return key_state[scancode];
  }
 }

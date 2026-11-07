@@ -28,5 +28,32 @@ namespace TICK {
  constexpr u8 DRAW = 15;
 }
 
+namespace BUTTON {
+ constexpr u8 COUNT = 8;
+ constexpr u8 COUNT_KEY = 4;
+
+ constexpr str KEY[COUNT][COUNT_KEY] = {
+  {"up", "w", nullptr, nullptr},
+  {"down", "s", nullptr, nullptr},
+  {"left", "a", nullptr, nullptr},
+  {"right", "d", nullptr, nullptr},
+  {"space", "return", "j", "x"},
+  {"left ctrl", "right ctrl", "k", "z"},
+  {"left shift", "q", "l", nullptr},
+  {"right shift", "e", "i", nullptr},
+ };
+
+ constexpr str PAD[COUNT] = {
+  "dpup",
+  "dpdown",
+  "dpleft",
+  "dpright",
+  "a",
+  "b",
+  "leftshoulder",
+  "rightshoulder",
+ };
+}
+
 constexpr fpu SENTINEL = fpu::raw(0x80000000);
 constexpr address_logic FARLAND = 0xFFFF;

@@ -1,6 +1,5 @@
 #include "core/kernel.hpp"
 #include "core/memory.hpp"
-#include "module/button.hpp"
 #include "library/sdl.hpp"
 
 static void boot() {
@@ -26,7 +25,7 @@ static void tick() {
   draw_time += tick_delta;
 
   while (update_time >= update_interval) {
-   button::update();
+   sdl::update::button();
    for (s8 i = SYSTEM::PROCESS - 1; i >= 0; i--) {
     active::index(i);
     run_event(kernel::Event::Step);
@@ -54,6 +53,7 @@ static void tick() {
 int main() {
  using namespace memory::vm::global;
  if (!sdl::audio(hardware_io::frequency)) {return 1;}
+ if (!sdl::button(hardware_io::button_fpu)) {return 1;}
  if (!sdl::video(framebuffer)) {return 1;}
  sdl::delay(1);
 

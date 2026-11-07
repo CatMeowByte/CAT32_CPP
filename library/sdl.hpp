@@ -5,8 +5,16 @@
 #include "core/constant.hpp" // IWYU pragma: keep
 
 namespace sdl {
- bool video(octo* data);
+ // initializer
  bool audio(fpu* data);
+ bool button(fpu* data);
+ bool video(octo* data);
+
+ // updater
+ namespace update {
+  void button();
+  void gyro(fpu* x, fpu* y, fpu* z);
+ }
 
  bool poll();
  void stop();
@@ -15,6 +23,5 @@ namespace sdl {
  constexpr void (*delay)(u32) = SDL_Delay;
  constexpr u64 (*get_ticks)() = SDL_GetTicks;
 
- bool is_key_pressed(const str key_name);
  void flip();
 }

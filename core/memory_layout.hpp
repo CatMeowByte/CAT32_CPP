@@ -20,24 +20,43 @@ region(vm, 0, SYSTEM::MEMORY, // map of the entire memory
   bocto(font, palette_next, 512) // 128 characters 16*8 grid 4x8 1bpp. 0-31 map to special characters, 32-127 standard ascii
 
   region(hardware_io, font_next, 128, // essential hardware device input and output
-   ifpu(up, hardware_io_address) // d pad up
-   ifpu(down, up_next) // d pad down
-   ifpu(left, down_next) // d pad left
-   ifpu(right, left_next) // d pad right
-   ifpu(primary, right_next) // dedicated button. ok / a / accept
-   ifpu(secondary, primary_next) // rocker press. back / b / cancel
-   ifpu(context, secondary_next) // shoulder left
-   ifpu(trigger, context_next) // shoulder right
-   ifpu(acceleration_x, trigger_next) // right
-   ifpu(acceleration_y, acceleration_x_next) // up
-   ifpu(acceleration_z, acceleration_y_next) // front
-   ifpu(gyroscope_x, acceleration_z_next) // roll
-   ifpu(gyroscope_y, gyroscope_x_next) // pitch
-   ifpu(gyroscope_z, gyroscope_y_next) // yaw
-   ifpu(magnetometer_x, gyroscope_z_next) // right
-   ifpu(magnetometer_y, magnetometer_x_next) // up
-   ifpu(magnetometer_z, magnetometer_y_next) // front
-   bfpu(frequency, magnetometer_z_next, AUDIO::CHANNEL) // 4 channel frequencies in hertz
+   region(button, hardware_io_address, BUTTON::COUNT * sizeof(fpu), // 8 button input
+    ifpu(up, button_address) // d-pad up
+    ifpu(down, up_next) // d-pad down
+    ifpu(left, down_next) // d-pad left
+    ifpu(right, left_next) // d-pad right
+    ifpu(primary, right_next) // dedicated button. ok / a / accept
+    ifpu(secondary, primary_next) // rocker press. back / b / cancel
+    ifpu(context, secondary_next) // shoulder left
+    ifpu(trigger, context_next) // shoulder right
+   )
+   check(button, button::trigger)
+
+   region(imu, button_next, sizeof(fpu) * 9, // 9 axis inertial measurement unit
+    region(accelerometer, imu_address, sizeof(fpu) * 3,
+     ifpu(x, accelerometer_address) // right
+     ifpu(y, x_next) // up
+     ifpu(z, y_next) // front
+    )
+    check(accelerometer, accelerometer::z)
+
+    region(gyroscope, accelerometer_next, sizeof(fpu) * 3,
+     ifpu(x, gyroscope_address) // pitch
+     ifpu(y, x_next) // yaw
+     ifpu(z, y_next) // roll
+    )
+    check(gyroscope, gyroscope::z)
+
+    region(magnetometer, gyroscope_next, sizeof(fpu) * 3,
+     ifpu(x, magnetometer_address) // right
+     ifpu(y, x_next) // up
+     ifpu(z, y_next) // front
+    )
+    check(magnetometer, magnetometer::z)
+   )
+   check(imu, imu::magnetometer::z)
+
+   bfpu(frequency, imu_next, AUDIO::CHANNEL) // 4 channel frequencies in hertz
    bfpu(duty, frequency_next, AUDIO::CHANNEL) // 4 channel duties from 0.0 to 1.0
   )
   check(hardware_io, hardware_io::duty)
