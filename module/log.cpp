@@ -36,21 +36,29 @@ namespace log_ops {
    }
   }
 
-  head = fpu((head_index + SYSTEM::LOG - 1) % SYSTEM::LOG);
-  neck = fpu(neck_index);
-  tail = fpu(tail_index);
+  head = (head_index + SYSTEM::LOG - 1) % SYSTEM::LOG;
+  neck = neck_index;
+  tail = tail_index;
  }
 
  void output(string text) {
   using namespace memory::vm::global::log;
 
-  u16 head_index = head.i();
-  u16 tail_index = tail.i();
-  if (head_index != tail_index) {head_index = (head_index + 1) % SYSTEM::LOG;} // new line
-
-  head = fpu(head_index);
-  neck = fpu(head_index);
   out(text);
+
+  u16 neck_index = neck.i();
+  u16 head_index = head.i();
+
+  // print to stdout
+  u16 print_length = (head_index - neck_index + SYSTEM::LOG) % SYSTEM::LOG + 1;
+  u16 first_length = min(print_length, cast(u16, SYSTEM::LOG - neck_index));
+  cout.write(reinterpret(const char*, &data[neck_index]), first_length);
+  if (first_length < print_length) {cout.write(reinterpret(const char*, &data[0]), print_length - first_length);}
+  cout.flush();
+
+  // new line
+  neck = (head_index + 1) % SYSTEM::LOG;
+  head = neck;
  }
 
  namespace wrap {
