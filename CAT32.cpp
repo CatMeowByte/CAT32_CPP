@@ -46,6 +46,8 @@ static void tick() {
    draw_time = 0;
   }
 
+  sdl::update::gyroscope(memory::vm::global::hardware_io::imu::gyroscope_fpu);
+  sdl::update::window();
   sdl::delay(1);
  }
 }

@@ -13,7 +13,8 @@ namespace sdl {
  // updater
  namespace update {
   void button();
-  void gyro(fpu* x, fpu* y, fpu* z);
+  void gyroscope(fpu* data);
+  void window();
  }
 
  bool poll();
